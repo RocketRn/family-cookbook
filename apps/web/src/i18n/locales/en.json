@@ -54,7 +54,12 @@
     "empty_title": "No recipes yet",
     "empty_text": "Recipes you and your family add will appear here.",
     "no_results_title": "Nothing found",
-    "no_results_text": "Try a different word or reset the filters."
+    "no_results_text": "Try a different word or reset the filters.",
+    "recipes_loaded": "Recipes loaded: {{count}}",
+    "search_loaded_only": "Search covers only the loaded recipes ({{count}}). Load more to search further.",
+    "load_more": "Load more",
+    "empty_mine_title": "You have no recipes yet",
+    "empty_mine_text": "Recipes you write will appear here, drafts included."
   },
   "filters": {
     "difficulty": "Difficulty",
@@ -75,7 +80,9 @@
     "dessert": "Dessert",
     "main": "Main course",
     "breakfast": "Breakfast",
-    "salad": "Salad"
+    "salad": "Salad",
+    "gluten_free": "Gluten-free",
+    "lean": "Lenten"
   },
   "recipe": {
     "back_hint": "Recipe",
@@ -84,10 +91,6 @@
     "servings_one": "{{count}} serving",
     "servings_other": "{{count}} servings",
     "ingredients": "Ingredients",
-    "save": "Save",
-    "unsave": "Remove from Saved",
-    "saved_badge": "Saved",
-    "placeholder_note": "The full recipe card arrives in the next release.",
     "cook": "Cook",
     "recalculate": "Recalculate",
     "not_found": "Recipe not found",
@@ -95,12 +98,29 @@
       "private": "Only me",
       "book": "Book",
       "link": "By link"
-    }
+    },
+    "former_member": "a former member",
+    "draft": "Draft",
+    "prep": "Prep {{count}} min",
+    "cook_time": "Cooking {{count}} min",
+    "steps": "Steps",
+    "step_n": "Step {{n}}",
+    "step_photo": "Photo for step {{n}}",
+    "step_ingredients": "Ingredients for this step",
+    "photos": "Photos",
+    "photo_n": "Photo {{n}}",
+    "optional": "optional",
+    "video": "Video",
+    "videos": "Videos",
+    "video_from": "from {{time}}",
+    "video_open": "Open in YouTube",
+    "author_notes": "Author's notes"
   },
   "saved": {
     "title": "Saved",
     "empty_title": "Nothing saved yet",
-    "empty_text": "Save other people's recipes to find them here."
+    "empty_text": "Recipes you save will appear here.",
+    "dev_sample": "Development sample: saving recipes arrives in a later sprint."
   },
   "link_recipe": {
     "title": "Recipe by link",
@@ -128,7 +148,8 @@
     "remove_member": "Remove",
     "remove_text": "{{name}}'s recipes will leave the book and become private.",
     "no_book": "You are not in a book yet.",
-    "dev_mode": "Development mode: Telegram is simulated"
+    "dev_mode": "Development mode: Telegram is simulated",
+    "language_not_saved": "The language is set on this device but could not be saved to your profile."
   },
   "errors": {
     "BAD_REQUEST": "The request could not be processed.",
@@ -149,5 +170,22 @@
     "UNSUPPORTED_IMAGE_TYPE": "This file type is not supported. Use a JPEG, PNG or WebP photo.",
     "HEIC_NOT_SUPPORTED": "HEIC photos (the iPhone format) are not supported yet. Please choose a JPEG, PNG or WebP photo.",
     "IMAGE_INVALID": "This photo could not be read. Try another one."
+  },
+  "time": {
+    "h": "{{count}} h",
+    "min": "{{count}} min",
+    "s": "{{count}} s"
+  },
+  "reactions": {
+    "title": "Reactions",
+    "heart": "Love it",
+    "yum": "Yummy",
+    "fire": "Amazing",
+    "idea": "Good idea",
+    "curious": "Curious",
+    "cooked": "I cooked it",
+    "cook_again": "Cook again",
+    "my_version": "My version",
+    "coming_soon": "Reactions will be available in a later version."
   }
 }

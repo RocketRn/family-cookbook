@@ -32,7 +32,7 @@ export type Book = {
 };
 
 let client: ApiClient | null = null;
-function api(): ApiClient {
+export function api(): ApiClient {
   client ??= createApiClient({
     baseUrl: import.meta.env.VITE_API_URL ?? '/api',
     getInitData: () => getRuntime().webApp.initData,
@@ -41,6 +41,8 @@ function api(): ApiClient {
 }
 
 export const getMe = () => api().request<Me>('GET', '/me');
+/** PRD 4.9 PATCH /me: keeps the interface language in the profile (used by the bot, too). */
+export const updateMe = (patch: { ui_lang: UiLang }) => api().request<Me>('PATCH', '/me', patch);
 export const getCurrentBook = () => api().request<Book>('GET', '/books/current');
 export const createBook = (title: string) =>
   api().request<{ id: string }>('POST', '/books', { title });

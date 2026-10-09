@@ -1,19 +1,31 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { recipeApi } from '../api/recipeApi';
-import type { Difficulty } from '../api/recipes';
+import { filterRecipes, toSummary, type Difficulty } from '../api/recipes';
 import { BottomSheet } from '../design/BottomSheet';
 import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
-import { EmptyState } from '../design/Feedback';
+import { EmptyState, ErrorState, Loading } from '../design/Feedback';
+import { errorMessage } from '../errors';
 import { SearchField } from '../design/Fields';
 import { useFilterStore } from '../state/store';
 import { RecipeListItem } from './RecipeCard';
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
 const TIME_LIMITS = [30, 60, 120];
-export const SYSTEM_TAGS = ['soup', 'main', 'salad', 'breakfast', 'baking', 'dessert', 'vegan'];
+/** The system tags seeded by migration 0004 (PRD 3.2 tags). */
+export const SYSTEM_TAGS = [
+  'soup',
+  'main',
+  'salad',
+  'breakfast',
+  'baking',
+  'dessert',
+  'vegan',
+  'gluten_free',
+  'lean',
+];
 
 export function BookScreen({ bookTitle }: { bookTitle: string }) {
   const { t } = useTranslation();
@@ -21,22 +33,35 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
   const store = useFilterStore();
   const { filters } = store;
 
-  // keepPreviousData: the list stays on screen while a new search/filter result loads (no flicker per keystroke).
-  const list = useQuery({
-    queryKey: ['recipes', filters],
-    queryFn: () => recipeApi.list(filters),
-    placeholderData: keepPreviousData,
+  // Pages of 50 from the API (scope book | mine); search and filters run over what is loaded
+  // (owner decision 6). Real server-side search is BE-11.
+  const list = useInfiniteQuery({
+    queryKey: ['recipes', filters.scope],
+    queryFn: ({ pageParam }) => recipeApi.listPage(filters.scope, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next_cursor,
   });
+  const loaded = useMemo(
+    () => list.data?.pages.flatMap((p) => p.items.map(toSummary)) ?? [],
+    [list.data],
+  );
+  const items = useMemo(() => filterRecipes(loaded, filters), [loaded, filters]);
   const activeCount =
     (filters.difficulty ? 1 : 0) + (filters.maxMin !== null ? 1 : 0) + filters.tags.length;
-  const items = list.data ?? [];
   const hasCriteria = activeCount > 0 || filters.q.trim() !== '';
+  const more = list.hasNextPage;
 
   return (
     <div className="stack">
       <div>
         <h1>{bookTitle}</h1>
-        {list.data && <p className="hint">{t('book.recipes_count', { count: items.length })}</p>}
+        {list.data && (
+          <p className="hint">
+            {more
+              ? t('book.recipes_loaded', { count: loaded.length })
+              : t('book.recipes_count', { count: loaded.length })}
+          </p>
+        )}
       </div>
 
       <div className="row">
@@ -63,17 +88,32 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
         </Chip>
       </div>
 
-      {list.isLoading && (
-        <p className="hint" role="status">
-          {t('common.loading')}
+      {list.isLoading && <Loading />}
+      {list.isError && !list.data && (
+        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
+      )}
+      {list.data && hasCriteria && more && (
+        <p className="hint" role="note">
+          {t('book.search_loaded_only', { count: loaded.length })}
         </p>
       )}
-      {list.isError && <Button onClick={() => list.refetch()}>{t('common.retry')}</Button>}
       {list.data && items.length === 0 && (
         <EmptyState
           icon={hasCriteria ? '🔍' : '📖'}
-          title={hasCriteria ? t('book.no_results_title') : t('book.empty_title')}
-          text={hasCriteria ? t('book.no_results_text') : t('book.empty_text')}
+          title={
+            hasCriteria
+              ? t('book.no_results_title')
+              : filters.scope === 'mine'
+                ? t('book.empty_mine_title')
+                : t('book.empty_title')
+          }
+          text={
+            hasCriteria
+              ? t('book.no_results_text')
+              : filters.scope === 'mine'
+                ? t('book.empty_mine_text')
+                : t('book.empty_text')
+          }
         />
       )}
       <div className="stack stack--tight">
@@ -81,6 +121,20 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
           <RecipeListItem key={r.id} recipe={r} />
         ))}
       </div>
+      {list.isFetchNextPageError && (
+        <p className="error-text" role="alert">
+          {errorMessage(t, list.error)}
+        </p>
+      )}
+      {more && (
+        <Button
+          variant="secondary"
+          disabled={list.isFetchingNextPage}
+          onClick={() => void list.fetchNextPage()}
+        >
+          {list.isFetchingNextPage ? t('common.loading') : t('book.load_more')}
+        </Button>
+      )}
 
       <BottomSheet open={sheetOpen} title={t('book.filters')} onClose={() => setSheetOpen(false)}>
         <div className="stack">

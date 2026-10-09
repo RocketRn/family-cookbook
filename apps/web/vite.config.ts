@@ -5,6 +5,8 @@ const apiTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3000';
 
 export default defineConfig({
   plugins: [react()],
+  // Workspace packages (@cookbook/recipe-core) are compiled from their TypeScript sources.
+  resolve: { conditions: ['source'] },
   server: {
     port: 5173,
     // Same-origin API calls in development: /api/* -> the Fastify API.

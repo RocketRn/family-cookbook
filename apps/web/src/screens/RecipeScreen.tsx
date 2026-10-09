@@ -1,26 +1,36 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Lang } from '@cookbook/recipe-core';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { recipeApi } from '../api/recipeApi';
+import { emojiFor } from '../api/recipes';
+import type { Photo, Recipe } from '../api/types';
 import { Button } from '../design/Button';
 import { Tag } from '../design/Chip';
 import { EmptyState, ErrorState, Loading } from '../design/Feedback';
-import { haptic } from '../telegram/sdk';
+import { isLanguage } from '../i18n';
+import { recipeLangOf } from '../recipe/amounts';
+import { Gallery } from '../recipe/Gallery';
+import { IngredientList } from '../recipe/IngredientList';
+import { Reactions } from '../recipe/Reactions';
+import { StepList } from '../recipe/StepList';
+import { VideoPlayer } from '../recipe/VideoPlayer';
 
-/** Placeholder card: the real recipe card (FE-03) and recalculation/cooking arrive in later sprints. */
-export function RecipeScreen() {
-  const { t } = useTranslation();
-  const { id = '' } = useParams();
-  const qc = useQueryClient();
-  const recipe = useQuery({ queryKey: ['recipe', id], queryFn: () => recipeApi.get(id) });
-  const toggleSaved = useMutation({
-    mutationFn: (saved: boolean) => recipeApi.setSaved(id, saved),
-    onSuccess: () => {
-      haptic('success');
-      void qc.invalidateQueries({ queryKey: ['recipe', id] });
-      void qc.invalidateQueries({ queryKey: ['recipes'] });
-    },
+/** Cover first, then step photos; a photo used twice is shown once. */
+function galleryPhotos(r: Recipe): Photo[] {
+  const seen = new Set<string>();
+  return [r.cover, ...r.steps.map((s) => s.photo)].filter((p): p is Photo => {
+    if (!p || seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
   });
+}
+
+/** FE-03 recipe card (PRD 1.4): photos, ingredients, steps with photos, timers and video, notes. */
+export function RecipeScreen() {
+  const { t, i18n } = useTranslation();
+  const { id = '' } = useParams();
+  const recipe = useQuery({ queryKey: ['recipe', id], queryFn: () => recipeApi.get(id) });
 
   if (recipe.isLoading) return <Loading />;
   // A failed request is not "not found": show why and offer a retry.
@@ -29,42 +39,48 @@ export function RecipeScreen() {
   const r = recipe.data;
   if (!r) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
 
+  const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
+  const langs = { recipeLang: recipeLangOf(r, uiLang), uiLang };
+  // Recipe texts keep their own language (PRD 1.5 #5); `lang` lets screen readers read them right.
+  const lang = r.language ?? undefined;
+  const stepVideoIds = new Set(r.steps.map((s) => s.video_id));
+  const otherVideos = r.videos.filter((v) => !stepVideoIds.has(v.id));
   const recalcLabel = `${t('recipe.recalculate')} · ${t('common.coming_soon')}`;
   const cookLabel = `${t('recipe.cook')} · ${t('common.coming_soon')}`;
+  const totalMin =
+    r.prep_min === null && r.cook_min === null ? null : (r.prep_min ?? 0) + (r.cook_min ?? 0);
 
   return (
-    <div className="stack">
-      <div
-        className="center"
-        style={{ fontSize: 72, padding: 'var(--space-4)' }}
-        aria-hidden="true"
-      >
-        {r.emoji}
-      </div>
-      <div>
-        <h1>{r.title}</h1>
-        <p className="hint">{t('recipe.by_author', { name: r.authorName })}</p>
+    <article className="stack">
+      <Gallery photos={galleryPhotos(r)} title={r.title} emoji={emojiFor(r.tags)} />
+      <div className="stack stack--tight">
+        <h1 lang={lang}>{r.title}</h1>
+        <p className="hint">
+          {t('recipe.by_author', { name: r.author.name ?? t('recipe.former_member') })}
+        </p>
       </div>
       <div className="row row--wrap">
-        <Tag>{t(`recipe.visibility.${r.visibility}`)}</Tag>
+        {r.is_mine && r.status === 'draft' && <Tag>{t('recipe.draft')}</Tag>}
+        {r.is_mine && <Tag>{t(`recipe.visibility.${r.visibility}`)}</Tag>}
         {r.difficulty && <Tag>{t(`difficulty.${r.difficulty}`)}</Tag>}
-        {r.totalMin !== null && <Tag>{t('recipe.minutes', { count: r.totalMin })}</Tag>}
-        <Tag>{t('recipe.servings', { count: r.servings })}</Tag>
+        {totalMin !== null && <Tag>{t('recipe.minutes', { count: totalMin })}</Tag>}
         {r.tags.map((tag) => (
-          <Tag key={tag}>{t(`tags.${tag}`)}</Tag>
+          <Tag key={tag.slug}>
+            {tag.custom_name ? <span lang={lang}>{tag.custom_name}</span> : t(`tags.${tag.slug}`)}
+          </Tag>
         ))}
       </div>
-      {r.ingredientNames.length > 0 && (
-        <section className="section stack stack--tight" aria-label={t('recipe.ingredients')}>
-          <h2>{t('recipe.ingredients')}</h2>
-          <ul style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>
-            {r.ingredientNames.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        </section>
+      {(r.prep_min !== null || r.cook_min !== null) && (
+        <p className="hint">
+          {[
+            r.prep_min !== null ? t('recipe.prep', { count: r.prep_min }) : null,
+            r.cook_min !== null ? t('recipe.cook_time', { count: r.cook_min }) : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
       )}
-      <p className="hint">{t('recipe.placeholder_note')}</p>
+
       <div className="row">
         <Button className="grow" variant="secondary" disabled>
           {recalcLabel}
@@ -73,15 +89,41 @@ export function RecipeScreen() {
           {cookLabel}
         </Button>
       </div>
-      {!r.isMine && (
-        <Button
-          variant={r.saved ? 'ghost' : 'primary'}
-          disabled={toggleSaved.isPending}
-          onClick={() => toggleSaved.mutate(!r.saved)}
-        >
-          {r.saved ? t('recipe.unsave') : t('recipe.save')}
-        </Button>
+
+      {r.ingredients.length > 0 && (
+        <IngredientList
+          ingredients={r.ingredients}
+          servings={r.servings}
+          langs={langs}
+          lang={lang}
+        />
       )}
-    </div>
+      {r.steps.length > 0 && (
+        <StepList
+          steps={r.steps}
+          ingredients={r.ingredients}
+          videos={r.videos}
+          langs={langs}
+          lang={lang}
+        />
+      )}
+      {otherVideos.length > 0 && (
+        <section className="section stack stack--tight" aria-labelledby="videos-h">
+          <h2 id="videos-h">{t('recipe.videos')}</h2>
+          {otherVideos.map((v) => (
+            <VideoPlayer key={v.id} video={v} startSec={null} />
+          ))}
+        </section>
+      )}
+      {r.author_notes && (
+        <section className="section stack stack--tight" aria-labelledby="notes-h">
+          <h2 id="notes-h">{t('recipe.author_notes')}</h2>
+          <p className="pre-line" lang={lang}>
+            {r.author_notes}
+          </p>
+        </section>
+      )}
+      <Reactions />
+    </article>
   );
 }

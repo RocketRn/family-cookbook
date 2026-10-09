@@ -57,7 +57,12 @@
     "empty_title": "Inga recept ännu",
     "empty_text": "Recept som du och din familj lägger till visas här.",
     "no_results_title": "Inget hittades",
-    "no_results_text": "Prova ett annat ord eller återställ filtren."
+    "no_results_text": "Prova ett annat ord eller återställ filtren.",
+    "recipes_loaded": "Inlästa recept: {{count}}",
+    "search_loaded_only": "Sökningen gäller bara inlästa recept ({{count}}). Läs in fler för att söka vidare.",
+    "load_more": "Visa fler",
+    "empty_mine_title": "Du har inga recept än",
+    "empty_mine_text": "Här visas recepten du skriver, även utkast."
   },
   "filters": {
     "difficulty": "Svårighet",
@@ -78,7 +83,9 @@
     "dessert": "Efterrätt",
     "main": "Huvudrätt",
     "breakfast": "Frukost",
-    "salad": "Sallad"
+    "salad": "Sallad",
+    "gluten_free": "Glutenfri",
+    "lean": "Fastemat"
   },
   "recipe": {
     "back_hint": "Recept",
@@ -87,10 +94,6 @@
     "servings_one": "{{count}} portion",
     "servings_other": "{{count}} portioner",
     "ingredients": "Ingredienser",
-    "save": "Spara",
-    "unsave": "Ta bort från sparade",
-    "saved_badge": "Sparad",
-    "placeholder_note": "Det fullständiga receptkortet kommer i nästa version.",
     "cook": "Laga",
     "recalculate": "Räkna om",
     "not_found": "Receptet hittades inte",
@@ -98,12 +101,29 @@
       "private": "Bara jag",
       "book": "Boken",
       "link": "Via länk"
-    }
+    },
+    "former_member": "en tidigare medlem",
+    "draft": "Utkast",
+    "prep": "Förberedelse {{count}} min",
+    "cook_time": "Tillagning {{count}} min",
+    "steps": "Gör så här",
+    "step_n": "Steg {{n}}",
+    "step_photo": "Bild till steg {{n}}",
+    "step_ingredients": "Ingredienser för det här steget",
+    "photos": "Bilder",
+    "photo_n": "Bild {{n}}",
+    "optional": "valfritt",
+    "video": "Video",
+    "videos": "Videor",
+    "video_from": "från {{time}}",
+    "video_open": "Öppna i YouTube",
+    "author_notes": "Författarens anteckningar"
   },
   "saved": {
     "title": "Sparade",
     "empty_title": "Inget sparat ännu",
-    "empty_text": "Spara andras recept för att hitta dem här."
+    "empty_text": "Här visas recept som du sparar.",
+    "dev_sample": "Utvecklingsexempel: att spara recept kommer i en senare sprint."
   },
   "link_recipe": {
     "title": "Recept via länk",
@@ -131,7 +151,8 @@
     "remove_member": "Ta bort",
     "remove_text": "{{name}}s recept lämnar boken och blir privata.",
     "no_book": "Du är inte med i någon bok ännu.",
-    "dev_mode": "Utvecklingsläge: Telegram simuleras"
+    "dev_mode": "Utvecklingsläge: Telegram simuleras",
+    "language_not_saved": "Språket är valt på den här enheten men kunde inte sparas i profilen."
   },
   "errors": {
     "BAD_REQUEST": "Begäran kunde inte behandlas.",
@@ -152,5 +173,22 @@
     "UNSUPPORTED_IMAGE_TYPE": "Filtypen stöds inte. Använd en JPEG-, PNG- eller WebP-bild.",
     "HEIC_NOT_SUPPORTED": "HEIC-bilder (iPhone-formatet) stöds inte ännu. Välj en JPEG-, PNG- eller WebP-bild.",
     "IMAGE_INVALID": "Bilden kunde inte läsas. Prova en annan."
+  },
+  "time": {
+    "h": "{{count}} tim",
+    "min": "{{count}} min",
+    "s": "{{count}} s"
+  },
+  "reactions": {
+    "title": "Reaktioner",
+    "heart": "Älskar",
+    "yum": "Mums",
+    "fire": "Grymt",
+    "idea": "Bra idé",
+    "curious": "Nyfiken",
+    "cooked": "Jag lagade den",
+    "cook_again": "Lagar igen",
+    "my_version": "Min version",
+    "coming_soon": "Reaktioner kommer i en senare version."
   }
 }

@@ -87,6 +87,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@cookbook/recipe-core':
+        specifier: workspace:*
+        version: link:../../packages/recipe-core
       '@tanstack/react-query':
         specifier: ^5.62.8
         version: 5.104.1(react@18.3.1)

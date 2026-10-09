@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { leaveBook, removeMember, rotateInvite, type Member, type Me } from '../api/endpoints';
+import {
+  leaveBook,
+  removeMember,
+  rotateInvite,
+  updateMe,
+  type Member,
+  type Me,
+} from '../api/endpoints';
 import { BottomSheet } from '../design/BottomSheet';
 import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
@@ -41,10 +48,17 @@ export function ProfileScreen({ me }: { me: Me }) {
     onError: () => haptic('error'),
   });
 
+  // The choice applies at once and is kept on this device; the profile copy (PATCH /me) is what
+  // the bot and other devices use. If saving it fails, the user is told and can pick again.
+  const saveLanguage = useMutation({
+    mutationFn: (lang: Language) => updateMe({ ui_lang: lang }),
+    onError: () => toast(t('profile.language_not_saved')),
+  });
   const pickLanguage = (lang: Language) => {
     saveManualLanguage(lang);
     void setLanguage(lang);
     haptic('select');
+    saveLanguage.mutate(lang);
   };
 
   const b = book.data;

@@ -1,6 +1,8 @@
 import { webcrypto } from 'node:crypto';
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { EMPTY_FILTERS } from '../src/api/recipes';
+import { useFilterStore } from '../src/state/store';
 
 // jsdom has no WebCrypto subtle API; Node's is identical to the browser's.
 if (!globalThis.crypto?.subtle) {
@@ -9,6 +11,8 @@ if (!globalThis.crypto?.subtle) {
 
 afterEach(() => {
   cleanup();
+  // The filter store is app-wide state: a search typed in one test must not leak into the next.
+  useFilterStore.setState({ filters: EMPTY_FILTERS });
   window.history.replaceState({}, '', '/');
   document.documentElement.removeAttribute('data-tg-scheme');
   localStorage.clear();

@@ -14,9 +14,9 @@ const FORBIDDEN = [
   'mock BackButton', // mock back button label
   'installMockWebApp',
   'devUser',
+  'dev-saved-shelf', // sample Saved shelf (apps/web/src/dev/DevSavedShelf.tsx), owner decision 5
+  '00000000-0000-4000-8000-0000000000c2', // a dev seed recipe id used by that sample
 ];
-// Note: the typed mock *recipe* data (apps/web/src/api/mockRecipes.ts) is intentionally in the build
-// until the recipe API ships in Sprint 2; only the Telegram/auth mock must never be.
 
 function files(dir) {
   return readdirSync(dir).flatMap((f) => {

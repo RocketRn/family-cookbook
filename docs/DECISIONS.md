@@ -196,3 +196,17 @@ Over a limit the API answers 429 `RATE_LIMITED` with `Retry-After`. `/health` is
 ### D-028 HEIC photos (owner decision)
 
 The prebuilt sharp 0.35.4 used here (libvips 8.18.6) can read HEIF only for AVIF. It cannot decode iPhone HEIC (HEVC), and CI prints this on every run. A HEIC upload is detected by its bytes and answered with 415 `HEIC_NOT_SUPPORTED`, which the app shows as a translated message asking for JPEG, PNG or WebP. No heavy HEIC dependency was added. What a real iPhone actually sends from Telegram's photo picker (often already JPEG) needs a device test (ASSUMPTIONS A-20).
+
+### D-029 `{ing:<id>}` in step text stands for an amount
+
+PRD 2.3 says a step should reference an ingredient with `{ing:<id>}` so that "the client substitutes the recalculated value". The card therefore shows the ingredient's **amount** there, formatted by recipe-core (for example "добавьте {ing:…} муки" becomes "добавьте 1 стакан муки"); the ingredient's name is in a tooltip. When the step is linked to only part of the ingredient (`portion_fraction`), the placeholder shows that step's share. Recalculation (FE-07, Sprint 3) will pass its k through the same function. Step text is always rendered as text, never as HTML.
+
+### D-030 Recipe card and lists in the web app (FE-03)
+
+- Lists come from `GET /recipes` in pages of 50 with a "Load more" button. Search and filters run over the loaded pages, and the screen says so when more pages exist (owner decision 6). Server search is BE-11.
+- The card shows ingredients as written (k = 1) through recipe-core: numbers and units in the recipe's language, hints in the interface language (D-020). Sections are shown as written. In a step, an ingredient from a multi-section recipe also names its section (PRD 5.1).
+- YouTube: nothing is loaded from YouTube until the user taps play (a faster card, and no third-party request when opening a recipe). Then the privacy-enhanced player (`youtube-nocookie.com`) starts at the step's second, with "Open in YouTube" (Telegram `openLink`) as the fallback (A-22).
+- Photos: `srcset` states the real widths of the 512 px and full versions, so phones download the size they need.
+- Reactions are shown as disabled markup with a "later version" note. Saving them is BE-10/FE-10 (Sprint 5).
+- Saved tab (owner decision 5): production shows a neutral empty shelf. The dev build shows two seed recipes marked "Development sample". `pnpm check:bundle` fails if the sample reaches a production build (checked by removing the guard: the check failed as expected).
+- Language choice is applied at once, kept on the device, and saved to the profile with `PATCH /me`. If saving fails, the choice stays and the user is told.
