@@ -64,7 +64,11 @@
     "load_more": "Visa fler",
     "empty_mine_title": "Du har inga recept än",
     "empty_mine_text": "Här visas recepten du skriver, även utkast.",
-    "new_recipe": "Nytt recept"
+    "new_recipe": "Nytt recept",
+    "add_write": "Skriv ett recept",
+    "add_write_hint": "Fyll i namn, ingredienser och steg själv.",
+    "add_paste": "Klistra in recepttext",
+    "add_paste_hint": "Från en chatt, en webbplats eller en anteckning: vi delar upp den i ingredienser och steg."
   },
   "filters": {
     "difficulty": "Svårighet",
@@ -320,11 +324,26 @@
     "timer_added": "Timer tillagd",
     "timer_skipped": "Timer överhoppad",
     "video_found": "YouTube-video kopplad till det här steget, från {{time}}",
-    "continue": "Fortsätt"
+    "continue": "Fortsätt",
+    "warn_no_headings": "Texten hade inga rubriker som ”Ingredienser” eller ”Gör så här”, så vi gissade. Kontrollera resultatet noga.",
+    "warn_no_ingredients": "Vi hittade inga ingredienser. Lägg till dem nedan.",
+    "warn_no_steps": "Vi hittade inga steg. Lägg till dem nedan.",
+    "warn_truncated": "Texten var mycket lång: bara de första 100 ingredienserna och 60 stegen togs med.",
+    "nothing_to_check": "Vi delade upp texten i ingredienser och steg. Inget såg tveksamt ut, men titta igenom receptet innan du sparar."
   },
   "dev": {
     "design_title": "Skissvyer",
     "design_note": "Endast för utveckling: skiss av importgranskningen (sprint 4). Inget sparas här.",
     "review_link": "Importgranskning"
+  },
+  "import": {
+    "title": "Klistra in recepttexten",
+    "hint": "Kopiera hela receptet och klistra in det här. Vi delar upp det i ingredienser och steg, och du kontrollerar resultatet innan du sparar.",
+    "placeholder": "Pannkakor\n\nIngredienser:\n2 ägg\n6 dl mjölk\n…\n\nGör så här:\n1. Vispa äggen…",
+    "counter": "{{used}} av {{max}} tecken",
+    "too_long": "Texten är för lång: högst {{max}} tecken. Dela upp den i flera recept.",
+    "kept": "Texten finns kvar på den här enheten tills receptet har skapats, även om du stänger appen.",
+    "parse": "Tolka",
+    "parsing": "Läser receptet…"
   }
 }

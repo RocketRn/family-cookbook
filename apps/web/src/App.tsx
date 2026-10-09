@@ -14,6 +14,7 @@ import { LinkRecipeScreen } from './screens/LinkRecipeScreen';
 import { Onboarding } from './screens/Onboarding';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { EditorScreen } from './editor/EditorScreen';
+import { ImportScreen } from './editor/ImportScreen';
 import { RecipeScreen } from './screens/RecipeScreen';
 import { SavedScreen } from './screens/SavedScreen';
 import { PlainShell, TabShell, ToastHost } from './screens/Shell';
@@ -96,6 +97,7 @@ function Ready({ me }: { me: Me }) {
         </Route>
         <Route element={<PlainShell />}>
           <Route path="/recipe/new" element={<EditorScreen />} />
+          <Route path="/import" element={<ImportScreen />} />
           <Route path="/recipe/:id/edit" element={<EditorScreen />} />
           <Route path="/recipe/:id" element={<RecipeScreen />} />
           <Route path="/join/:code" element={<JoinScreen />} />

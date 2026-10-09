@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { recipeApi } from '../api/recipeApi';
-import type { RecipeStatus } from '../api/types';
+import type { ImportWarning, RecipeStatus } from '../api/types';
 import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
 import { EmptyState, ErrorState, Loading } from '../design/Feedback';
@@ -35,18 +35,26 @@ import {
   type EdStep,
   type Errors,
 } from './model';
-import { IngredientRow, IngredientSheet, PhotoSlot, StepCard } from './parts';
+import { IngredientRow, IngredientSheet, LOW_CONFIDENCE, PhotoSlot, StepCard } from './parts';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 const VISIBILITIES = ['private', 'book', 'link'] as const;
 
-/** What the import screen (S3-5) passes along: why each line was highlighted. */
-export type EditorState = { reasons?: Record<string, string[]> };
+/** What the paste screen passes along (thin import review, PRD 2.2 step 6). */
+export type EditorState = {
+  imported?: {
+    original: string;
+    warnings: ImportWarning[];
+    /** Why the parser was unsure, by ingredient id. */
+    reasons: Record<string, string[]>;
+  };
+};
 
 /** FE-04: /recipe/new and /recipe/:id/edit (PRD 2.2 steps 7-10, D-035). */
 export function EditorScreen() {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
+  const imported = (useLocation().state as EditorState | null)?.imported;
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
   const recipe = useQuery({
     queryKey: ['recipe', id],
@@ -64,7 +72,11 @@ export function EditorScreen() {
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   if (!recipe.data) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
   if (!recipe.data.can_edit) return <EmptyState icon={'🔒'} title={t('editor.not_allowed')} />;
-  return <Editor key={id} initial={fromRecipe(recipe.data, uiLang)} inBook={!!book.data} />;
+  const initial = fromRecipe(recipe.data, uiLang);
+  // The import made a private draft by default; "Publish" should still mean "to the book".
+  if (imported && book.data && initial.status === 'draft' && initial.visibility === 'private')
+    initial.visibility = 'book';
+  return <Editor key={id} initial={initial} inBook={!!book.data} />;
 }
 
 function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
@@ -73,7 +85,8 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const toast = useToastStore((s) => s.show);
-  const reasons = (useLocation().state as EditorState | null)?.reasons;
+  const imported = (useLocation().state as EditorState | null)?.imported;
+  const reasons = imported?.reasons;
   const [r, setR] = useState(initial);
   const [baseline] = useState(() => JSON.stringify(initial));
   const [errors, setErrors] = useState<Errors>({});
@@ -157,6 +170,9 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
   }
 
   const sheetIng = r.ingredients.find((i) => i.key === sheetFor) ?? null;
+  const toCheck = r.ingredients.filter(
+    (i) => i.confidence !== null && i.confidence < LOW_CONFIDENCE,
+  ).length;
   const missing = [
     errors.title ? t('editor.missing_title') : null,
     errors.ingredients ? t('editor.missing_ingredient') : null,
@@ -166,7 +182,10 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
 
   return (
     <div className="stack">
-      <h1>{r.id ? t('editor.title_edit') : t('editor.title_new')}</h1>
+      <h1>
+        {imported ? t('review.title') : r.id ? t('editor.title_edit') : t('editor.title_new')}
+      </h1>
+      {imported && <ImportNotice imported={imported} toCheck={toCheck} />}
 
       <PhotoSlot
         photo={r.cover}
@@ -513,5 +532,39 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Thin import review (owner decision 1): what was done, what to check, and the original text. */
+function ImportNotice({
+  imported,
+  toCheck,
+}: {
+  imported: NonNullable<EditorState['imported']>;
+  toCheck: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="notice stack stack--tight" aria-label={t('review.title')}>
+      {toCheck > 0 ? (
+        <>
+          <p>{t('review.intro')}</p>
+          <p>
+            <strong>{t('review.to_check', { count: toCheck })}</strong>
+          </p>
+        </>
+      ) : (
+        <p>{t('review.nothing_to_check')}</p>
+      )}
+      {imported.warnings.map((w) => (
+        <p key={w} className="hint">
+          {t(`review.warn_${w}`)}
+        </p>
+      ))}
+      <details>
+        <summary>{t('review.original')}</summary>
+        <pre className="original-text">{imported.original}</pre>
+      </details>
+    </section>
   );
 }

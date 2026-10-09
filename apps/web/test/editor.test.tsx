@@ -48,6 +48,7 @@ describe('recipe editor: a new recipe', () => {
     });
     renderApp('/');
     fireEvent.click(await screen.findByRole('button', { name: 'New recipe' }));
+    fireEvent.click(screen.getByRole('button', { name: /Write a recipe/ }));
     expect(await screen.findByRole('heading', { name: 'New recipe' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Русский' }));

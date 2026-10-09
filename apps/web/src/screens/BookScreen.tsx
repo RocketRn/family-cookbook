@@ -43,6 +43,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const store = useFilterStore();
   const { filters } = store;
 
@@ -70,7 +71,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
     <div className="stack">
       <div className="row row--between">
         <h1>{bookTitle}</h1>
-        <Button aria-label={t('book.new_recipe')} onClick={() => navigate('/recipe/new')}>
+        <Button aria-label={t('book.new_recipe')} onClick={() => setAddOpen(true)}>
           {'＋'}
         </Button>
       </div>
@@ -155,6 +156,20 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
           {list.isFetchingNextPage ? t('common.loading') : t('book.load_more')}
         </Button>
       )}
+
+      {/* PRD 2.2: "＋" -> write a recipe, or paste its text (variant A). */}
+      <BottomSheet open={addOpen} title={t('book.new_recipe')} onClose={() => setAddOpen(false)}>
+        <div className="stack stack--tight">
+          <button type="button" className="option" onClick={() => navigate('/recipe/new')}>
+            <strong>{t('book.add_write')}</strong>
+            <span className="hint">{t('book.add_write_hint')}</span>
+          </button>
+          <button type="button" className="option" onClick={() => navigate('/import')}>
+            <strong>{t('book.add_paste')}</strong>
+            <span className="hint">{t('book.add_paste_hint')}</span>
+          </button>
+        </div>
+      </BottomSheet>
 
       <BottomSheet open={sheetOpen} title={t('book.filters')} onClose={() => setSheetOpen(false)}>
         <div className="stack">

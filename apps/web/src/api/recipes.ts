@@ -1,4 +1,12 @@
-import type { Difficulty, Photo, RecipeListItem, RecipePage, Recipe, RecipeTag } from './types';
+import type {
+  Difficulty,
+  ImportResult,
+  Photo,
+  RecipeListItem,
+  RecipePage,
+  Recipe,
+  RecipeTag,
+} from './types';
 
 export type { Difficulty } from './types';
 /** "book": published recipes of my book; "mine": everything I wrote, drafts included. */
@@ -21,6 +29,8 @@ export interface RecipeApi {
   unpublish(id: string): Promise<void>;
   /** The author deletes a recipe (soft delete, PRD 4.9). */
   remove(id: string): Promise<void>;
+  /** POST /recipes/import: pasted text becomes a private draft (PRD 2.2 variant A). */
+  importText(text: string, uiLang: 'ru' | 'uk' | 'en' | 'sv'): Promise<ImportResult>;
   /** POST /media: one photo, already made smaller on the device. */
   uploadPhoto(photo: Blob, filename: string): Promise<Photo>;
 }

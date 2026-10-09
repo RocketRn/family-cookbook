@@ -61,7 +61,11 @@
     "load_more": "Load more",
     "empty_mine_title": "You have no recipes yet",
     "empty_mine_text": "Recipes you write will appear here, drafts included.",
-    "new_recipe": "New recipe"
+    "new_recipe": "New recipe",
+    "add_write": "Write a recipe",
+    "add_write_hint": "Fill in the title, ingredients and steps yourself.",
+    "add_paste": "Paste recipe text",
+    "add_paste_hint": "From a chat, a website or a note: we split it into ingredients and steps."
   },
   "filters": {
     "difficulty": "Difficulty",
@@ -317,11 +321,26 @@
     "timer_added": "Timer added",
     "timer_skipped": "Timer skipped",
     "video_found": "YouTube video attached to this step, from {{time}}",
-    "continue": "Continue"
+    "continue": "Continue",
+    "warn_no_headings": "There were no headings like “Ingredients” or “Steps”, so we guessed. Check the result carefully.",
+    "warn_no_ingredients": "We found no ingredients. Add them below.",
+    "warn_no_steps": "We found no steps. Add them below.",
+    "warn_truncated": "The text was very long: only the first 100 ingredients and 60 steps were taken.",
+    "nothing_to_check": "We split your text into ingredients and steps. Nothing looked doubtful, but please look it over before saving."
   },
   "dev": {
     "design_title": "Design previews",
     "design_note": "Development only: the design of the import review (Sprint 4). Nothing here is saved.",
     "review_link": "Import review"
+  },
+  "import": {
+    "title": "Paste recipe text",
+    "hint": "Copy the whole recipe and paste it here. We split it into ingredients and steps, and you check the result before saving.",
+    "placeholder": "Pancakes\n\nIngredients:\n2 eggs\n1 cup of milk\n…\n\nSteps:\n1. Whisk the eggs…",
+    "counter": "{{used}} of {{max}} characters",
+    "too_long": "The text is too long: at most {{max}} characters. Split it into several recipes.",
+    "kept": "The text stays on this device until the recipe is created, even if you close the app.",
+    "parse": "Parse",
+    "parsing": "Reading the recipe…"
   }
 }

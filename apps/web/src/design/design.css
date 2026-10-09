@@ -560,6 +560,9 @@ h2 {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
+.textarea--tall {
+  min-height: 240px;
+}
 .edit-photo {
   width: 160px;
   height: 120px;

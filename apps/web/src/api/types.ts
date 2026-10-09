@@ -89,3 +89,14 @@ export type Recipe = {
   videos: Video[];
   steps: Step[];
 };
+
+/** POST /recipes/import (BE-06, D-033): the new private draft and what the review needs. */
+export type ImportReason = 'p4' | 'no_unit' | 'bracket' | 'unparsed';
+export type ImportWarning = 'no_headings' | 'no_ingredients' | 'no_steps' | 'truncated';
+export type ImportResult = {
+  recipe: Recipe;
+  import: {
+    lines: Array<{ ingredient_id: string; confidence: number | null; reasons: ImportReason[] }>;
+    warnings: ImportWarning[];
+  };
+};

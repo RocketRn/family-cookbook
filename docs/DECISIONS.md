@@ -299,3 +299,14 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
 - **Card actions.**
   - The author sees "Edit" and "Delete recipe". Delete asks first, then the recipe disappears for everyone (soft delete).
   - The author, or the keeper of the book, sees "Unpublish" while the recipe is shared. It asks first; afterwards only the author sees the recipe.
+
+### D-036 Paste a recipe: the thin version (owner decision 1)
+
+- "＋" on the book screen offers "Write a recipe" (the editor) or "Paste recipe text".
+- The paste screen takes up to 20,000 characters. It shows the count and refuses longer text before sending. The text is kept on the device under the PRD 4.8 key `import-draft` until the recipe is created, so closing the app loses nothing. A failed parse (for example `IMPORT_TIMEOUT`) says why and keeps the text.
+- "Parse" calls `POST /recipes/import` (D-033). The editor then opens on the new draft as "Check the recipe":
+  - a short notice says how many lines to check, gives the parser's warnings in plain words (no headings found, no ingredients, no steps, text cut), and holds the original text, folded;
+  - lines below confidence 0.7 are highlighted with the PRD 5.1.3 reasons;
+  - a line the author changes is theirs: the highlight goes and the stored confidence is cleared.
+- The import creates a private draft. In the editor its visibility starts as "Everyone in your book" when the author is in a book, so "Publish" means publishing to the book (PRD 2.2 step 9). "Save draft" keeps it to the author either way.
+- Still to come in the full review (FE-05, Sprint 4): the original next to the result, accept or reject for each suggested timer and link, and moving lines between sections by dragging.
