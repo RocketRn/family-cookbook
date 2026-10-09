@@ -59,7 +59,8 @@
     "no_results_title": "Inget hittades",
     "no_results_text": "Prova ett annat ord eller återställ filtren.",
     "recipes_loaded": "Inlästa recept: {{count}}",
-    "search_loaded_only": "Sökningen gäller bara inlästa recept ({{count}}). Läs in fler för att söka vidare.",
+    "found": "Hittade: {{count}}",
+    "found_more": "Hittade hittills: {{count}} (läs in fler nedan)",
     "load_more": "Visa fler",
     "empty_mine_title": "Du har inga recept än",
     "empty_mine_text": "Här visas recepten du skriver, även utkast."

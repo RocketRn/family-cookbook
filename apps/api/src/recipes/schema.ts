@@ -157,13 +157,37 @@ export type IngredientInput = z.infer<typeof ingredientInput>;
 export type StepInput = z.infer<typeof stepInput>;
 export type VideoInput = z.infer<typeof videoInput>;
 
+const tagSlug = z.string().regex(/^[a-z0-9_:-]{1,64}$/);
 export const listQuery = z
   .object({
     scope: z.enum(['book', 'mine']).default('book'),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     cursor: z.string().max(200).optional(),
+    // BE-11 (PRD 4.9): search text, tags (repeat the parameter: ?tag=soup&tag=vegan), difficulty,
+    // and the longest total time in minutes.
+    q: z.string().max(100).default(''),
+    tag: z
+      .union([tagSlug, z.array(tagSlug).max(10)])
+      .optional()
+      .transform((t) => [...new Set(t === undefined ? [] : Array.isArray(t) ? t : [t])]),
+    difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+    max_min: z.coerce.number().int().min(1).max(10_080).optional(),
   })
   .strict();
+
+/**
+ * The search text as words: letters and digits only (everything else separates words), at most 8
+ * words of at most 40 characters. The database turns them into a query (recipe_search_query), so
+ * no character the user types is ever read as query syntax.
+ */
+export function searchWords(q: string): string[] {
+  return q
+    .normalize('NFC')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w !== '')
+    .slice(0, 8)
+    .map((w) => w.slice(0, 40));
+}
 
 export const recipeParams = z.object({ id: uuid }).strict();
 export const shareParams = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/) }).strict();

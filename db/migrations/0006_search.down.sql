@@ -1,0 +1,15 @@
+DROP FUNCTION recipe_search_query(text[]);
+DROP INDEX recipes_search_idx;
+DROP TRIGGER recipe_tags_search_del ON recipe_tags;
+DROP TRIGGER recipe_tags_search_ins ON recipe_tags;
+DROP TRIGGER recipe_ingredients_search_del ON recipe_ingredients;
+DROP TRIGGER recipe_ingredients_search_upd ON recipe_ingredients;
+DROP TRIGGER recipe_ingredients_search_ins ON recipe_ingredients;
+DROP FUNCTION recipes_search_refresh();
+DROP TRIGGER recipes_search ON recipes;
+DROP FUNCTION recipes_search_row();
+DROP FUNCTION recipe_search_vector(uuid, text, text);
+DROP FUNCTION search_stemmer(text);
+DROP FUNCTION search_fold(text);
+DROP FUNCTION system_tag_words(text);
+ALTER TABLE recipes DROP COLUMN search_tsv;

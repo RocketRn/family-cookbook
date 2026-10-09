@@ -4,16 +4,19 @@ export type { Difficulty } from './types';
 /** "book": published recipes of my book; "mine": everything I wrote, drafts included. */
 export type RecipeScope = 'book' | 'mine';
 
-/** Page size of recipe lists (owner decision 6: client-side search over loaded pages until BE-11). */
+/** Page size of recipe lists. Search and filters run on the server (BE-11, D-034). */
 export const PAGE_SIZE = 50;
+/** The API accepts a search text of up to 100 characters. */
+export const SEARCH_MAX_CHARS = 100;
 
 export interface RecipeApi {
-  listPage(scope: RecipeScope, cursor: string | null): Promise<RecipePage>;
+  /** One page of the list with the search text and filters applied by the API. */
+  listPage(filters: RecipeFilters, cursor: string | null): Promise<RecipePage>;
   /** null when the recipe does not exist or the user may not see it. */
   get(id: string): Promise<Recipe | null>;
 }
 
-/** What a list row and the client-side filter need, derived from an API list item. */
+/** What a list row needs, derived from an API list item. */
 export type RecipeSummary = {
   id: string;
   title: string;
@@ -76,22 +79,4 @@ export function toSummary(r: RecipeListItem): RecipeSummary {
     ingredientNames: r.ingredient_names,
     thumbUrl: r.cover?.thumb_url ?? null,
   };
-}
-
-const norm = (s: string) => s.toLocaleLowerCase().normalize('NFC').trim();
-
-/**
- * Client-side search and filters over the loaded recipes (owner decision 6). Search covers the
- * title and ingredient names (PRD 6.2 BE-11); the scope is applied by the API.
- */
-export function filterRecipes(all: RecipeSummary[], f: RecipeFilters): RecipeSummary[] {
-  const q = norm(f.q);
-  return all.filter((r) => {
-    if (f.difficulty && r.difficulty !== f.difficulty) return false;
-    if (f.maxMin !== null && (r.totalMin === null || r.totalMin > f.maxMin)) return false;
-    if (f.tags.length > 0 && !f.tags.every((t) => r.tags.some((x) => x.slug === t))) return false;
-    if (q && !norm(r.title).includes(q) && !r.ingredientNames.some((n) => norm(n).includes(q)))
-      return false;
-    return true;
-  });
 }

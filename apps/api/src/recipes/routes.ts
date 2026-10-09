@@ -25,6 +25,7 @@ import {
   listQuery,
   patchRecipeBody,
   recipeParams,
+  searchWords,
   shareParams,
   LIMITS,
   type PatchRecipeBody,
@@ -166,6 +167,10 @@ export function registerRecipes(app: FastifyInstance, db: Db, storage: ObjectSto
         bookId: membership?.book_id ?? null,
         limit: q.limit + 1,
         after,
+        words: searchWords(q.q),
+        tags: q.tag,
+        difficulty: q.difficulty ?? null,
+        maxMin: q.max_min ?? null,
       });
       const page = rows.slice(0, q.limit);
       const last = page[page.length - 1];

@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { recipeApi } from '../src/api/recipeApi';
-import { EMPTY_FILTERS, emojiFor, filterRecipes, toSummary } from '../src/api/recipes';
+import { EMPTY_FILTERS, emojiFor, toSummary } from '../src/api/recipes';
 import {
   amountText,
   groupIngredients,
@@ -13,24 +13,8 @@ import { initTelegram } from '../src/telegram/sdk';
 import { BOOK_PAGE, GOLUBTSY } from './fixtures';
 
 const all = BOOK_PAGE.items.map(toSummary);
-const titles = (patch: Partial<typeof EMPTY_FILTERS>) =>
-  filterRecipes(all, { ...EMPTY_FILTERS, ...patch }).map((r) => r.title);
 
-describe('client-side search and filters over loaded recipes (owner decision 6)', () => {
-  it('searches title and ingredient names, case-insensitively', () => {
-    expect(titles({ q: 'сыр' })).toEqual(['Сырники']);
-    expect(titles({ q: 'MJÖLK' })).toEqual(['Pannkakor']);
-    expect(titles({ q: '  фарш ' })).toEqual(['Голубцы']);
-    expect(titles({ q: 'zzz' })).toEqual([]);
-  });
-
-  it('filters by difficulty, total time and system tags together', () => {
-    expect(titles({ difficulty: 'easy', maxMin: 25 })).toEqual(['Pannkakor']);
-    expect(titles({ tags: ['breakfast'] })).toEqual(['Сырники', 'Pannkakor']);
-    expect(titles({ tags: ['breakfast', 'main'] })).toEqual([]);
-    expect(titles({ maxMin: 120 })).toEqual(['Сырники', 'Pannkakor']);
-  });
-
+describe('recipe list items', () => {
   it('maps API list items for the list (cover thumbnail, emoji from tags, former member)', () => {
     const [g, s] = all;
     expect(g!.thumbUrl).toBe('https://media.test/media/a1/thumb.jpg?signed=1');
@@ -121,12 +105,40 @@ describe('recipeApi against the BE-04 contract', () => {
 
   it('asks for pages of 50 and passes the cursor on', async () => {
     const fetch = stubFetch(() => new Response(JSON.stringify(BOOK_PAGE), { status: 200 }));
-    await recipeApi.listPage('book', null);
-    await recipeApi.listPage('mine', 'abc');
+    await recipeApi.listPage(EMPTY_FILTERS, null);
+    await recipeApi.listPage({ ...EMPTY_FILTERS, scope: 'mine' }, 'abc');
     expect(fetch.mock.calls.map((c) => c[0])).toEqual([
       '/api/recipes?scope=book&limit=50',
       '/api/recipes?scope=mine&limit=50&cursor=abc',
     ]);
+  });
+
+  it('sends the search text and every filter to the API (BE-11)', async () => {
+    const fetch = stubFetch(() => new Response(JSON.stringify(BOOK_PAGE), { status: 200 }));
+    await recipeApi.listPage(
+      {
+        scope: 'book',
+        q: '  сметана & co ',
+        tags: ['breakfast', 'vegan'],
+        difficulty: 'easy',
+        maxMin: 30,
+      },
+      'next',
+    );
+    await recipeApi.listPage({ ...EMPTY_FILTERS, q: 'я'.repeat(150) }, null);
+    const [first, second] = fetch.mock.calls.map((c) => new URL(c[0], 'http://x'));
+    expect(first!.pathname).toBe('/api/recipes');
+    expect([...first!.searchParams]).toEqual([
+      ['scope', 'book'],
+      ['limit', '50'],
+      ['q', 'сметана & co'],
+      ['tag', 'breakfast'],
+      ['tag', 'vegan'],
+      ['difficulty', 'easy'],
+      ['max_min', '30'],
+      ['cursor', 'next'],
+    ]);
+    expect(second!.searchParams.get('q')).toHaveLength(100);
   });
 
   it('get: "not found" and "not a recipe id" are null; other failures are errors', async () => {

@@ -105,17 +105,27 @@ describe('demo: sign-in through Telegram (dev mock) against the API contract', (
     expect(document.documentElement.lang).toBe('ru'); // ui_lang from /me
   });
 
-  it('search narrows the list by ingredient', async () => {
-    stubApi({
+  it('search asks the server once the user stops typing, and shows what it found', async () => {
+    const calls = stubApi({
       'GET /api/me': () => json(200, ME),
       'GET /api/books/current': () => json(200, BOOK),
       [BOOK_LIST]: () => json(200, BOOK_PAGE),
+      [`${BOOK_LIST}&q=${encodeURIComponent('фарш')}`]: () =>
+        json(200, { items: [BOOK_PAGE.items[0]], next_cursor: null }),
     });
     renderApp();
     await screen.findByText('Голубцы');
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'фарш' } });
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'ф' } });
+    fireEvent.change(box, { target: { value: 'фар' } });
+    fireEvent.change(box, { target: { value: 'фарш' } });
     await waitFor(() => expect(screen.queryByText('Сырники')).toBeNull());
-    expect(await screen.findByText('Голубцы')).toBeTruthy();
+    expect(screen.getByText('Голубцы')).toBeTruthy();
+    expect(screen.getByText('Найдено: 1')).toBeTruthy();
+    // Only the finished word went to the server, not every keystroke.
+    expect(calls.filter((c) => c.url.includes('&q=')).map((c) => c.url)).toEqual([
+      `/api/recipes?scope=book&limit=50&q=${encodeURIComponent('фарш')}`,
+    ]);
   });
 
   it('shows onboarding when the user is not in a book, and creates one', async () => {
@@ -393,32 +403,42 @@ describe('FE-03 recipe card', () => {
   });
 });
 
-describe('book list: pages of 50 and client-side search (owner decision 6)', () => {
-  it('loads the next page on "Load more" and says when search covers loaded recipes only', async () => {
+describe('book list: pages of 50, search and filters on the server (BE-11)', () => {
+  it('loads the next page on "Load more", for the same search and filters', async () => {
     await setLanguage('en');
+    const filtered = `${BOOK_LIST}&q=${encodeURIComponent('борщ')}&tag=soup&max_min=60`;
     const calls = stubApi({
       'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
       'GET /api/books/current': () => json(200, BOOK),
       [BOOK_LIST]: () => json(200, { ...BOOK_PAGE, next_cursor: 'page-2' }),
-      'GET /api/recipes?scope=book&limit=50&cursor=page-2': () =>
+      [`${BOOK_LIST}&tag=soup`]: () => json(200, { items: [], next_cursor: null }),
+      [`${BOOK_LIST}&tag=soup&max_min=60`]: () => json(200, { items: [], next_cursor: null }),
+      [filtered]: () =>
         json(200, {
-          items: [listItem({ id: '00000000-0000-4000-8000-0000000000c9', title: 'Борщ' })],
+          items: [listItem({ id: '00000000-0000-4000-8000-0000000000c8', title: 'Борщ' })],
+          next_cursor: 'page-2',
+        }),
+      [`${filtered}&cursor=page-2`]: () =>
+        json(200, {
+          items: [listItem({ id: '00000000-0000-4000-8000-0000000000c9', title: 'Зелёный борщ' })],
           next_cursor: null,
         }),
     });
     renderApp('/');
     expect(await screen.findByText('Recipes loaded: 3')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Soup' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Up to 60 min' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show recipes' }));
+    expect(await screen.findByText('Nothing found')).toBeTruthy();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'борщ' } });
-    expect(
-      await screen.findByText(
-        'Search covers only the loaded recipes (3). Load more to search further.',
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText('Nothing found')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
     expect(await screen.findByText('Борщ')).toBeTruthy();
+    expect(screen.getByText('Found: 1 so far (load more below)')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText('Зелёный борщ')).toBeTruthy();
+    expect(screen.getByText('Found: 2')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
-    expect(calls.map((c) => c.url)).toContain('/api/recipes?scope=book&limit=50&cursor=page-2');
+    expect(calls.map((c) => c.url)).toContain(`${filtered.slice(4)}&cursor=page-2`);
   });
 
   it('"Mine" asks the API for my recipes, drafts included', async () => {

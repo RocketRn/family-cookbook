@@ -1,8 +1,8 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { recipeApi } from '../api/recipeApi';
-import { filterRecipes, toSummary, type Difficulty } from '../api/recipes';
+import { SEARCH_MAX_CHARS, toSummary, type Difficulty } from '../api/recipes';
 import { BottomSheet } from '../design/BottomSheet';
 import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
@@ -27,25 +27,38 @@ export const SYSTEM_TAGS = [
   'lean',
 ];
 
+/** Wait until the user stops typing before asking the server again. */
+export const SEARCH_DEBOUNCE_MS = 300;
+function useDebounced<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(id);
+  }, [value, ms]);
+  return settled;
+}
+
 export function BookScreen({ bookTitle }: { bookTitle: string }) {
   const { t } = useTranslation();
   const [sheetOpen, setSheetOpen] = useState(false);
   const store = useFilterStore();
   const { filters } = store;
 
-  // Pages of 50 from the API (scope book | mine); search and filters run over what is loaded
-  // (owner decision 6). Real server-side search is BE-11.
+  // Pages of 50 from the API, which applies the scope, the search text and the filters (BE-11).
+  // While a new search loads, the previous results stay on screen.
+  const q = useDebounced(filters.q.trim(), SEARCH_DEBOUNCE_MS);
+  const query = { ...filters, q };
   const list = useInfiniteQuery({
-    queryKey: ['recipes', filters.scope],
-    queryFn: ({ pageParam }) => recipeApi.listPage(filters.scope, pageParam),
+    queryKey: ['recipes', query],
+    queryFn: ({ pageParam }) => recipeApi.listPage(query, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
+    placeholderData: keepPreviousData,
   });
-  const loaded = useMemo(
+  const items = useMemo(
     () => list.data?.pages.flatMap((p) => p.items.map(toSummary)) ?? [],
     [list.data],
   );
-  const items = useMemo(() => filterRecipes(loaded, filters), [loaded, filters]);
   const activeCount =
     (filters.difficulty ? 1 : 0) + (filters.maxMin !== null ? 1 : 0) + filters.tags.length;
   const hasCriteria = activeCount > 0 || filters.q.trim() !== '';
@@ -56,10 +69,14 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
       <div>
         <h1>{bookTitle}</h1>
         {list.data && (
-          <p className="hint">
-            {more
-              ? t('book.recipes_loaded', { count: loaded.length })
-              : t('book.recipes_count', { count: loaded.length })}
+          <p className="hint" aria-live="polite">
+            {hasCriteria
+              ? more
+                ? t('book.found_more', { count: items.length })
+                : t('book.found', { count: items.length })
+              : more
+                ? t('book.recipes_loaded', { count: items.length })
+                : t('book.recipes_count', { count: items.length })}
           </p>
         )}
       </div>
@@ -70,6 +87,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
             aria-label={t('book.search_placeholder')}
             placeholder={t('book.search_placeholder')}
             value={filters.q}
+            maxLength={SEARCH_MAX_CHARS}
             onChange={(e) => store.setQuery(e.target.value)}
           />
         </div>
@@ -92,12 +110,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
       {list.isError && !list.data && (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       )}
-      {list.data && hasCriteria && more && (
-        <p className="hint" role="note">
-          {t('book.search_loaded_only', { count: loaded.length })}
-        </p>
-      )}
-      {list.data && items.length === 0 && (
+      {list.data && !list.isPlaceholderData && items.length === 0 && (
         <EmptyState
           icon={hasCriteria ? '🔍' : '📖'}
           title={

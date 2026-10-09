@@ -150,7 +150,7 @@ The runner stores a SHA-256 checksum of each applied migration and refuses to ru
 - Inside one request, lines refer to each other by a client `ref` (a step lists `{ ref, portion_fraction }`; step text may contain `{ing:<ref>}`). The server stores real ids and rewrites the placeholders. Ids sent back from a previous read are kept, so links and future reactions survive an edit.
 - `version` (PRD 3.2) goes up by 1 only when a **published** recipe's content changes (title, servings, ingredients, steps, tags, and similar). Drafts and visibility-only changes do not bump it.
 - Publishing needs a title, servings, at least one ingredient and at least one step. Otherwise the API answers 409 `NOT_PUBLISHABLE` with the missing parts.
-- Lists: `GET /recipes?scope=book|mine`, newest first, keyset pages (default 50, at most 100) with an opaque cursor. Search is client-side over loaded pages until BE-11 (owner decision 6).
+- Lists: `GET /recipes?scope=book|mine`, newest first, keyset pages (default 50, at most 100) with an opaque cursor. Search was client-side over loaded pages until BE-11 (owner decision 6); since Sprint 3 it runs on the server (D-034).
 - PRD 7.1 limits are enforced: 100 ingredients, 60 steps, 10 videos, 20 tags, 10 timers per step, 20 photos.
 
 ### D-023 Share link token
@@ -203,7 +203,7 @@ PRD 2.3 says a step should reference an ingredient with `{ing:<id>}` so that "th
 
 ### D-030 Recipe card and lists in the web app (FE-03)
 
-- Lists come from `GET /recipes` in pages of 50 with a "Load more" button. Search and filters run over the loaded pages, and the screen says so when more pages exist (owner decision 6). Server search is BE-11.
+- Lists come from `GET /recipes` in pages of 50 with a "Load more" button. Search and filters ran over the loaded pages until Sprint 3 (owner decision 6); they now run on the server (D-034).
 - The card shows ingredients as written (k = 1) through recipe-core: numbers and units in the recipe's language, hints in the interface language (D-020). Sections are shown as written. In a step, an ingredient from a multi-section recipe also names its section (PRD 5.1).
 - YouTube: nothing is loaded from YouTube until the user taps play (a faster card, and no third-party request when opening a recipe). Then the privacy-enhanced player (`youtube-nocookie.com`) starts at the step's second, with "Open in YouTube" (Telegram `openLink`) as the fallback (A-22).
 - Photos: `srcset` states the real widths of the 512 px and full versions, so phones download the size they need.
@@ -257,3 +257,22 @@ PRD 5.1 describes the pipeline; this records how it is built and the choices the
   - Without headings, a line counts as an ingredient when it is short and has an amount or a unit and no sentence ending. Otherwise its neighbours decide.
   - Steps are split by numbered or bulleted markers, then by blank lines, then one per line. A text with no recognisable steps becomes a single step, so no text is lost.
   - Linking uses word stems with a prefix of 3–5 letters (e.g. «луковица» / «луковицу»).
+
+### D-034 Server-side search and filters (BE-11)
+
+Replaces the client-side search over loaded pages (owner decision 6, D-030).
+
+- **What is searched.** `recipes.search_tsv` (migration 0006) holds the title, the ingredient names and the tag names. System tags are searchable by their names in all four interface languages (so «десерт», "dessert" and "efterrätt" all find a dessert). A test keeps that list equal to the web locale files. Free-form tags are searchable by their own text.
+- **Two forms of each word.**
+  - Plain words (Postgres `simple`) match a prefix while the user is still typing: «голу» finds «Голубцы».
+  - Stems in the recipe language (Russian, English or Swedish) match other word forms: «яблоки» finds «кислых яблок», "tomato" finds "tomatoes".
+  - Postgres has no Ukrainian stemmer. Ukrainian recipes use the Russian one, which handles common endings («яблука» finds «яблуко»). This is approximate.
+  - Letters are lower-cased and ё is treated as е.
+- **The query.** The API splits the text into words of letters and digits (at most 8 words of 40 characters; the text itself is at most 100). A database function builds the query: each word is quoted as a single lexeme, so `& | ! :* ( )` and quotes are never read as operators. Every word must match, as a prefix, either as typed or as a Russian, English or Swedish stem. The query is computed once per request and uses a GIN index.
+- **Keeping it current.** Triggers recompute the vector when the title or language changes, and once per statement when ingredients or tags change. They run as the table owner, so they see the whole recipe. They fire only on rows the caller is allowed to write.
+- **Filters.** `GET /recipes` takes the parameters below. All of them combine with `scope` and the search text; row-level security still decides what is visible.
+  - `tag`, repeatable; every listed tag must be present;
+  - `difficulty`;
+  - `max_min`: preparation + cooking time at most this. A recipe with no time at all never matches a time limit, the same as the old client filter.
+- **Order.** Results stay newest first, not ranked by relevance, so keyset pages stay stable. Family books are small enough for this. Ranking can come later without an API change.
+- **Web.** The book screen sends the text 300 ms after the user stops typing and keeps the previous results visible while the new ones load. With a search or filter active, it shows "Found: N" (or "Found: N so far" when more pages exist). The "search covers only loaded recipes" note is gone.

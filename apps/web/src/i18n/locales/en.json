@@ -56,7 +56,8 @@
     "no_results_title": "Nothing found",
     "no_results_text": "Try a different word or reset the filters.",
     "recipes_loaded": "Recipes loaded: {{count}}",
-    "search_loaded_only": "Search covers only the loaded recipes ({{count}}). Load more to search further.",
+    "found": "Found: {{count}}",
+    "found_more": "Found: {{count}} so far (load more below)",
     "load_more": "Load more",
     "empty_mine_title": "You have no recipes yet",
     "empty_mine_text": "Recipes you write will appear here, drafts included."

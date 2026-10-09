@@ -346,21 +346,42 @@ export type ListOptions = {
   bookId: string | null;
   limit: number;
   after: { at: string; id: string } | null;
+  /** BE-11: search words (see searchWords); every one must match. Empty: no text search. */
+  words: string[];
+  /** System or free-form tag slugs; a recipe must have all of them. */
+  tags: string[];
+  difficulty: 'easy' | 'medium' | 'hard' | null;
+  /** Preparation + cooking time at most this; recipes without any time never match. */
+  maxMin: number | null;
 };
 
-/** One page, newest first, keyset-paginated. Reads through RLS. */
+/**
+ * One page, newest first, keyset-paginated, with search and filters (BE-11, D-034). Reads through
+ * RLS. Results stay in date order (not by relevance) so pages remain stable for the cursor.
+ */
 export async function listRecipes(tx: Tx, o: ListOptions): Promise<ListItem[]> {
   const sortExpr = o.scope === 'book' ? 'coalesce(r.published_at, r.created_at)' : 'r.updated_at';
-  const where =
+  const params: unknown[] = [o.scope === 'book' ? o.bookId : o.userId, o.limit];
+  const p = (v: unknown) => `$${params.push(v)}`;
+  const conds = [
     o.scope === 'book'
       ? `r.book_id = $1 AND r.status = 'published' AND r.visibility IN ('book', 'link')`
-      : `r.author_id = $1`;
-  const params: unknown[] = [o.scope === 'book' ? o.bookId : o.userId, o.limit];
-  let cursor = '';
-  if (o.after) {
-    params.push(o.after.at, o.after.id);
-    cursor = `AND (${sortExpr}, r.id) < ($3::timestamptz, $4::uuid)`;
-  }
+      : `r.author_id = $1`,
+  ];
+  if (o.after)
+    conds.push(`(${sortExpr}, r.id) < (${p(o.after.at)}::timestamptz, ${p(o.after.id)}::uuid)`);
+  if (o.words.length > 0) conds.push(`r.search_tsv @@ recipe_search_query(${p(o.words)}::text[])`);
+  if (o.tags.length > 0)
+    conds.push(
+      `(SELECT count(*) FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id
+         WHERE rt.recipe_id = r.id AND t.slug = ANY(${p(o.tags)}::text[])) = ${p(o.tags.length)}`,
+    );
+  if (o.difficulty) conds.push(`r.difficulty = ${p(o.difficulty)}::recipe_difficulty`);
+  if (o.maxMin !== null)
+    conds.push(
+      `(r.prep_min IS NOT NULL OR r.cook_min IS NOT NULL)
+       AND coalesce(r.prep_min, 0) + coalesce(r.cook_min, 0) <= ${p(o.maxMin)}`,
+    );
   const r = await tx.query<ListItem>(
     `SELECT r.id, r.title, r.author_id, recipe_author_name(r.id) AS author_name, r.difficulty, r.prep_min,
             r.cook_min, r.servings, r.visibility, r.status, trim(r.language) AS language, r.published_at,
@@ -371,7 +392,7 @@ export async function listRecipes(tx: Tx, o: ListOptions): Promise<ListItem[]> {
                                       ORDER BY t.custom_name NULLS FIRST, t.slug)
                         FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id WHERE rt.recipe_id = r.id), '[]') AS tags
        FROM recipes r
-      WHERE ${where} ${cursor}
+      WHERE ${conds.join(' AND ')}
       ORDER BY ${sortExpr} DESC, r.id DESC
       LIMIT $2`,
     params,

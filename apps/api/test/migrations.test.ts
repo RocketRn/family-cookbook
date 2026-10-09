@@ -14,6 +14,7 @@ const ALL = [
   '0003_runtime_roles_users_rls',
   '0004_recipe_content',
   '0005_media',
+  '0006_search',
 ];
 const TABLES = [
   'book_members',
