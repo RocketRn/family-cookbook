@@ -79,6 +79,12 @@ export interface TelegramWebApp {
   setHeaderColor?(color: string): void;
   setBackgroundColor?(color: string): void;
   disableVerticalSwipes?(): void;
+  /** Bot API 6.2+: asks before the Mini App is closed (used while the editor has unsaved changes). */
+  isClosingConfirmationEnabled?: boolean;
+  enableClosingConfirmation?(): void;
+  disableClosingConfirmation?(): void;
+  /** Bot API 6.2+: a native yes / no dialog. */
+  showConfirm?(message: string, cb: (ok: boolean) => void): void;
   requestWriteAccess(cb?: (granted: boolean) => void): void;
   shareMessage(id: string, cb?: (sent: boolean) => void): void;
   openTelegramLink(url: string): void;

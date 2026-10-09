@@ -154,6 +154,21 @@ describe('durations → timer suggestions (PRD 5.1.4)', () => {
     );
     expect(findDurations('Варите 10–15 мин')[0]!.label).toContain('15');
   });
+
+  it('two timers in one sentence get one clause each, also when the sentence ends right after a unit', () => {
+    const labels = (text: string) => findDurations(text).map((t) => t.label);
+    expect(labels('Взбивайте 5 минут, затем выпекайте 40 минут.')).toEqual([
+      'Взбивайте 5 минут',
+      'затем выпекайте 40 минут',
+    ]);
+    expect(labels('Варите 10 мин. Затем жарьте 5 мин.')).toEqual([
+      'Варите 10 мин',
+      'Затем жарьте 5 мин',
+    ]);
+    expect(findDurations('Варите 1 ч. 20 мин.')).toEqual([
+      { durationSec: 4800, maxSec: null, label: 'Варите 1 ч. 20 мин' },
+    ]);
+  });
 });
 
 describe('language of the text', () => {

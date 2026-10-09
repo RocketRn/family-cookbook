@@ -1,83 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../src/App';
 import { ApiError } from '../src/api/client';
 import { recipeApi } from '../src/api/recipeApi';
 import { setLanguage } from '../src/i18n';
 import { __resetTelegramRuntime } from '../src/telegram/sdk';
 import { BOOK_PAGE, GOLUBTSY, GOLUBTSY_ID, SYRNIKI_ID, listItem } from './fixtures';
-
-type Handler = (init: RequestInit) => Response | Promise<Response>;
-const BOOK_LIST = 'GET /api/recipes?scope=book&limit=50';
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
-const ME = {
-  id: 'u1',
-  tg_user_id: '100000001',
-  tg_username: 'dev_keeper',
-  first_name: 'Dev Keeper',
-  photo_url: null,
-  ui_lang: 'ru',
-  bot_started: false,
-  notify_prefs: {},
-};
-const BOOK = {
-  id: 'b1',
-  title: 'Семья',
-  role: 'owner',
-  invite_code: 'devinvitecode',
-  members: [
-    {
-      user_id: 'u1',
-      role: 'owner',
-      joined_at: '',
-      first_name: 'Dev Keeper',
-      tg_username: 'dev_keeper',
-      photo_url: null,
-    },
-    {
-      user_id: 'u2',
-      role: 'member',
-      joined_at: '',
-      first_name: 'Dev Member',
-      tg_username: 'dev_member',
-      photo_url: null,
-    },
-  ],
-};
-
-function stubApi(routes: Record<string, Handler>) {
-  const calls: Array<{ url: string; method: string; auth: string | null; body?: string }> = [];
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string, init: RequestInit = {}) => {
-      const method = init.method ?? 'GET';
-      calls.push({
-        url,
-        method,
-        auth: (init.headers as Record<string, string>)?.Authorization ?? null,
-        body: typeof init.body === 'string' ? init.body : undefined,
-      });
-      const h = routes[`${method} ${url}`];
-      return h
-        ? h(init)
-        : json(404, { error: { code: 'NOT_FOUND', message: 'x', request_id: 'r' } });
-    }),
-  );
-  return calls;
-}
-
-function renderApp(path = '/') {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[path]}>
-        <App />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-}
+import { BOOK, BOOK_LIST, json, ME, renderApp, stubApi } from './harness';
 
 beforeEach(() => {
   __resetTelegramRuntime();
@@ -546,31 +474,6 @@ describe('UX-03 design screens (development build only)', () => {
     expect(eggs.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(eggs);
     expect(eggs.getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('editor: publishing with a missing part says what is missing', async () => {
-    await setLanguage('en');
-    boot();
-    renderApp('/dev/editor');
-    expect(await screen.findByRole('heading', { name: 'New recipe' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'More servings' }));
-    expect(screen.getByText('7')).toBeTruthy();
-    fireEvent.click(screen.getByRole('radio', { name: /Only me/ }));
-    expect(screen.getByRole('radio', { name: /Only me/ }).getAttribute('aria-checked')).toBe(
-      'true',
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
-    expect(screen.getByRole('alert').textContent).toBe('To publish, add at least one step.');
-  });
-
-  it('editor: a line opens its details; unit names come from recipe-core in the recipe language', async () => {
-    await setLanguage('en');
-    boot();
-    renderApp('/dev/editor');
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Ingredient details' }))[0]!);
-    const sheet = screen.getByRole('dialog', { name: 'Ingredient details' });
-    expect(within(sheet).getByRole('button', { name: 'ст. л.' })).toBeTruthy();
-    expect(within(sheet).getByRole('button', { name: 'To taste' })).toBeTruthy();
   });
 
   it('is reachable from Profile in development', async () => {

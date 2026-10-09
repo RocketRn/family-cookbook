@@ -52,7 +52,7 @@ Open <http://localhost:5173>. Outside Telegram the web app uses a **mock Telegra
 - `?theme=dark|light`: force the theme
 - `?startapp=join_devinvitecode`: simulate a deep link
 
-In development, Profile → **Design previews** opens the recipe editor and import review designs (UX-03). The Saved tab shows a marked sample there. Neither exists in production builds.
+Recipes are written and edited in the app: **＋** on the book screen, **Edit** on your own recipe card (FE-04, D-035). In development, Profile → **Design previews** opens the import review design (UX-03), and the Saved tab shows a marked sample. Neither exists in production builds.
 
 ### Photos (S3-compatible storage)
 

@@ -15,7 +15,15 @@ const LABEL_MAX = 100;
 
 const num = (s: string) => Number(s.replace(',', '.'));
 
-type Hit = { start: number; end: number; sec: number; maxSec: number | null; unit: number };
+/** `end` includes an abbreviation dot ("мин."); `textEnd` does not, as that dot may end the sentence. */
+type Hit = {
+  start: number;
+  end: number;
+  textEnd: number;
+  sec: number;
+  maxSec: number | null;
+  unit: number;
+};
 
 /** Start and end of the sentence (or clause) around [start, end), at most 120 characters each way. */
 function spanAround(text: string, start: number, end: number, stops: string): [number, number] {
@@ -45,9 +53,11 @@ export function findDurations(input: string): ParsedTimer[] {
     const lo = num(m[1]!) * per;
     const hi = m[2] !== undefined ? num(m[2]) * per : null;
     if (!(lo > 0) || lo > 7 * 86_400) continue;
+    const end = m.index + m[0].length;
     const hit: Hit = {
       start: m.index,
-      end: m.index + m[0].length,
+      end,
+      textEnd: m[0].endsWith('.') ? end - 1 : end,
       sec: Math.round(lo),
       maxSec: hi !== null && hi > lo ? Math.round(hi) : null,
       unit: per,
@@ -63,13 +73,14 @@ export function findDurations(input: string): ParsedTimer[] {
     ) {
       prev.sec += hit.sec;
       prev.end = hit.end;
+      prev.textEnd = hit.textEnd;
       prev.unit = hit.unit;
       continue;
     }
     hits.push(hit);
   }
   // One timer in a sentence is labelled with the sentence; several share it, so each gets its clause.
-  const sentences = hits.map((h) => spanAround(text, h.start, h.end, '.!?;\n'));
+  const sentences = hits.map((h) => spanAround(text, h.start, h.textEnd, '.!?;\n'));
   const perSentence = new Map<string, number>();
   for (const [a, b] of sentences)
     perSentence.set(`${a}:${b}`, (perSentence.get(`${a}:${b}`) ?? 0) + 1);
@@ -78,7 +89,7 @@ export function findDurations(input: string): ParsedTimer[] {
     const span =
       perSentence.get(`${a}:${b}`) === 1
         ? sentences[i]!
-        : spanAround(text, h.start, h.end, '.!?;,\n');
+        : spanAround(text, h.start, h.textEnd, '.!?;,\n');
     return { durationSec: h.sec, maxSec: h.maxSec, label: labelOf(input, span) };
   });
 }

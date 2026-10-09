@@ -218,7 +218,7 @@ UX-01/02 were delivered as working screens in code, and so is UX-03. The recipe 
 - Review: the original text is folded at the top. Lines with confidence < 0.7 are highlighted, with the PRD 5.1.3 reasons in plain words (amount after the name, no unit, a number in brackets moved to the note, not recognized). Suggested ingredient links are chips per step, a found timer can be added or skipped, and a found YouTube link is attached to its step. Sections are editable headings.
 - Editor: photo slot, title, servings stepper ("needed for recalculation"), difficulty, times, recipe language (numbers and units follow it; the recipe is never translated). Each ingredient line opens a details sheet: how much (exact, from–to, to taste, a pinch), the unit picked from recipe-core's list in the recipe's language, optional, note. Each step has text, linked ingredients, a photo, timers, and a YouTube link with a start time. Then tags (system and your own), who can see it (only me / book / by link), and Save draft / Publish. A publish attempt with something missing says what is missing, which mirrors the API's `NOT_PUBLISHABLE`.
 
-The UX-03 texts are already translated into all four languages, so FE-04 and FE-05 reuse them.
+The UX-03 texts are already translated into all four languages, so FE-04 and FE-05 reuse them. Since Sprint 3 the editor design is the real editor (D-035); only the import review design remains in the dev build.
 
 ## Sprint 3
 
@@ -276,3 +276,26 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - `max_min`: preparation + cooking time at most this. A recipe with no time at all never matches a time limit, the same as the old client filter.
 - **Order.** Results stay newest first, not ranked by relevance, so keyset pages stay stable. Family books are small enough for this. Ranking can come later without an API change.
 - **Web.** The book screen sends the text 300 ms after the user stops typing and keeps the previous results visible while the new ones load. With a search or filter active, it shows "Found: N" (or "Found: N so far" when more pages exist). The "search covers only loaded recipes" note is gone.
+
+### D-035 Recipe editor (FE-04) and card actions
+
+- **Where.** `/recipe/new` (the "＋" button on the book screen) and `/recipe/:id/edit` (the "Edit" button on the card, for the author only). It is built from the UX-03 design. The dev-only editor mock-up is removed.
+- **One body for everything.** The editor keeps its own state and sends the whole recipe with `POST /recipes` or `PATCH /recipes/:id` (D-022). Saved lines keep their ids, so links, placeholders and later reactions survive an edit. Empty lines and empty steps are left out, not reported. A saved line keeps its rounding class (`round_class`, `min_piece`) while its name is unchanged. A new or renamed line leaves it to the API, which derives it from the name (the same rule as the text import).
+- **Amounts.** One field, read by recipe-core: "2", "1,5", "½", "1 1/2", "2–3". A range becomes `range`, a single number `exact`. "To taste" and "A pinch" replace the amount and the unit. Lines the import could not read stay "as written" (not recalculated) until the author enters an amount. Units come from recipe-core's list, in the recipe's language. Any other unit can be written as text.
+- **Ingredient names inside step text (owner decision 3).** "Insert into the text" adds `name ([Name])`, for example «сахар ([сахар])». The author changes the word freely («сахаром»). `[Name]` is saved as `{ing:<id>}` and the card shows the amount there, the step's share of it (D-029). Recalculation will scale it too. Under the text box a line shows how the step will read: «сахаром (1 стакан)».
+  - When two ingredients have the same name, the label adds the section («соль · Для теста») or a number.
+  - Brackets that do not name an ingredient stay ordinary text.
+  - Removing an ingredient turns its placeholders back into the written amount.
+- **Portions.** A step uses an ingredient whole by default, or what other steps left of it. It can be changed to ¾, ⅔, ½, ⅓ or ¼. Parts of one ingredient may not add up to more than all of it; the editor marks the steps, and the API checks again.
+- **Timers.** "Add timer" proposes the first time the step text mentions that has no timer yet ("Взбивайте 5 минут" → 5 min), found by the import's duration rules (PRD 5.1.4). Otherwise the timer is named after the first sentence. While building this, a parser bug showed up: when a sentence ended right after a unit ("…40 минут."), two timers in one sentence each got the whole sentence as their name instead of their own clause. It is fixed, with a test.
+- **Photos (owner decision for iPhones).**
+  - The picker accepts only JPEG, PNG and WebP, so iOS should hand over JPEG instead of HEIC (A-24, needs a device test).
+  - A photo over 2048 px, or over 3 MB, is redrawn on a canvas: at most 2048 px on the long side, JPEG quality 0.8, white behind transparency. Other photos are sent as they are.
+  - A HEIC file that still arrives is refused before upload, with the same message as the API.
+  - Checked in Chromium: 4032×3024 → 2048×1536, 301 KB.
+- **Checks.** Before saving: a title, servings above 0, whole minutes, a readable amount on every line, a named section, timers of 1 s to 24 h, a YouTube link and a start time that can be read. Publishing also needs an ingredient and a step with text (PRD 2.2 step 10). The API's `NOT_PUBLISHABLE` (missing parts) and `VALIDATION_ERROR` (paths such as `ingredients[3].amount_min`) are shown at the same fields.
+- **Unsaved changes.** While there are changes, Telegram's Back button asks before leaving (Telegram's own dialog, Bot API 6.2+), and Telegram asks before the Mini App is closed (`enableClosingConfirmation`). A browser asks on reload.
+- **Save buttons.** A draft has "Save draft" and "Publish". A published recipe has "Save" and stays published (its version goes up, D-022). Without a book, "Everyone in your book" is not offered.
+- **Card actions.**
+  - The author sees "Edit" and "Delete recipe". Delete asks first, then the recipe disappears for everyone (soft delete).
+  - The author, or the keeper of the book, sees "Unpublish" while the recipe is shared. It asks first; afterwards only the author sees the recipe.

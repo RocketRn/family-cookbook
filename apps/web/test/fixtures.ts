@@ -89,6 +89,7 @@ const ing = (n: number, over: Partial<Ingredient> & { name: string }): Ingredien
   optional: false,
   note: null,
   raw_line: null,
+  parse_confidence: null,
   ...over,
 });
 

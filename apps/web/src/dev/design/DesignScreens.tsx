@@ -1,11 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { Link, Route, Routes } from 'react-router-dom';
-import { EditorDesign } from './EditorDesign';
 import { ReviewDesign } from './ReviewDesign';
 
 /**
- * DEVELOPMENT ONLY: UX-03 design screens for the recipe editor (FE-04, Sprint 3) and the import
- * review (FE-05, Sprint 4), built from the design system with sample data. Loaded only behind
+ * DEVELOPMENT ONLY: the UX-03 design of the import review (FE-05, Sprint 4), built from the design
+ * system with sample data. The recipe editor design became the real editor (FE-04, D-035). Loaded only behind
  * import.meta.env.DEV; `pnpm check:bundle` fails if they reach a production build.
  */
 export default function DesignScreens() {
@@ -21,16 +20,12 @@ export default function DesignScreens() {
           element={
             <div className="stack">
               <h1>{t('dev.design_title')}</h1>
-              <Link className="card" to="editor">
-                {t('dev.editor_link')}
-              </Link>
               <Link className="card" to="review">
                 {t('dev.review_link')}
               </Link>
             </div>
           }
         />
-        <Route path="editor" element={<EditorDesign />} />
         <Route path="review" element={<ReviewDesign />} />
       </Routes>
     </div>

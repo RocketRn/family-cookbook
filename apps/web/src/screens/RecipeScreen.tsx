@@ -1,13 +1,15 @@
 import type { Lang } from '@cookbook/recipe-core';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { recipeApi } from '../api/recipeApi';
 import { emojiFor } from '../api/recipes';
 import type { Photo, Recipe } from '../api/types';
 import { Button } from '../design/Button';
 import { Tag } from '../design/Chip';
 import { EmptyState, ErrorState, Loading } from '../design/Feedback';
+import { errorMessage } from '../errors';
 import { isLanguage } from '../i18n';
 import { recipeLangOf } from '../recipe/amounts';
 import { Gallery } from '../recipe/Gallery';
@@ -15,6 +17,8 @@ import { IngredientList } from '../recipe/IngredientList';
 import { Reactions } from '../recipe/Reactions';
 import { StepList } from '../recipe/StepList';
 import { VideoPlayer } from '../recipe/VideoPlayer';
+import { useToastStore } from '../state/store';
+import { confirmDialog } from '../telegram/sdk';
 
 /** Cover first, then step photos; a photo used twice is shown once. */
 function galleryPhotos(r: Recipe): Photo[] {
@@ -124,6 +128,89 @@ export function RecipeScreen() {
         </section>
       )}
       <Reactions />
+      <RecipeActions recipe={r} />
     </article>
+  );
+}
+
+/**
+ * The author edits or deletes; the author or the book keeper unpublishes (PRD 3.3, 4.9). Both
+ * destructive actions ask first.
+ */
+function RecipeActions({ recipe: r }: { recipe: Recipe }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const toast = useToastStore((s) => s.show);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const shared = r.status === 'published' && r.visibility !== 'private';
+  const canUnpublish = r.can_unpublish && shared;
+  if (!r.can_edit && !canUnpublish) return null;
+
+  async function act(question: string, run: () => Promise<void>, done: string, leave: boolean) {
+    if (!(await confirmDialog(question))) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await run();
+      void qc.invalidateQueries({ queryKey: ['recipes'] });
+      toast(done);
+      if (leave) {
+        qc.removeQueries({ queryKey: ['recipe', r.id] });
+        navigate('/', { replace: true });
+      } else await qc.invalidateQueries({ queryKey: ['recipe', r.id] });
+    } catch (err) {
+      setError(errorMessage(t, err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="stack stack--tight" aria-label={t('recipe.actions')}>
+      {r.can_edit && (
+        <Button variant="secondary" onClick={() => navigate(`/recipe/${r.id}/edit`)}>
+          {t('recipe.edit')}
+        </Button>
+      )}
+      {canUnpublish && (
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={() =>
+            void act(
+              t('recipe.unpublish_confirm'),
+              () => recipeApi.unpublish(r.id),
+              t('recipe.unpublished'),
+              false,
+            )
+          }
+        >
+          {t('recipe.unpublish')}
+        </Button>
+      )}
+      {r.can_edit && (
+        <Button
+          variant="danger"
+          disabled={busy}
+          onClick={() =>
+            void act(
+              t('recipe.delete_confirm'),
+              () => recipeApi.remove(r.id),
+              t('recipe.deleted'),
+              true,
+            )
+          }
+        >
+          {t('recipe.delete')}
+        </Button>
+      )}
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }

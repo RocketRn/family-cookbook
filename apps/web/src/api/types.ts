@@ -47,6 +47,8 @@ export type Ingredient = {
   optional: boolean;
   note: string | null;
   raw_line: string | null;
+  /** The text parser's confidence for an imported line (0-1); null for lines typed by hand. */
+  parse_confidence: number | null;
 };
 
 export type Video = { id: string; position: number; youtube_id: string; title: string | null };

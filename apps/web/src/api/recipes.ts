@@ -1,4 +1,4 @@
-import type { Difficulty, RecipeListItem, RecipePage, Recipe, RecipeTag } from './types';
+import type { Difficulty, Photo, RecipeListItem, RecipePage, Recipe, RecipeTag } from './types';
 
 export type { Difficulty } from './types';
 /** "book": published recipes of my book; "mine": everything I wrote, drafts included. */
@@ -14,6 +14,15 @@ export interface RecipeApi {
   listPage(filters: RecipeFilters, cursor: string | null): Promise<RecipePage>;
   /** null when the recipe does not exist or the user may not see it. */
   get(id: string): Promise<Recipe | null>;
+  /** POST /recipes and PATCH /recipes/:id with the whole recipe (D-022). */
+  create(body: object): Promise<Recipe>;
+  update(id: string, body: object): Promise<Recipe>;
+  /** The author or the book keeper hides a recipe from the book (PRD 3.3). */
+  unpublish(id: string): Promise<void>;
+  /** The author deletes a recipe (soft delete, PRD 4.9). */
+  remove(id: string): Promise<void>;
+  /** POST /media: one photo, already made smaller on the device. */
+  uploadPhoto(photo: Blob, filename: string): Promise<Photo>;
 }
 
 /** What a list row needs, derived from an API list item. */

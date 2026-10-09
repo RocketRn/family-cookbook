@@ -1,6 +1,7 @@
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { recipeApi } from '../api/recipeApi';
 import { SEARCH_MAX_CHARS, toSummary, type Difficulty } from '../api/recipes';
 import { BottomSheet } from '../design/BottomSheet';
@@ -40,6 +41,7 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export function BookScreen({ bookTitle }: { bookTitle: string }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
   const store = useFilterStore();
   const { filters } = store;
@@ -66,8 +68,13 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
 
   return (
     <div className="stack">
-      <div>
+      <div className="row row--between">
         <h1>{bookTitle}</h1>
+        <Button aria-label={t('book.new_recipe')} onClick={() => navigate('/recipe/new')}>
+          {'＋'}
+        </Button>
+      </div>
+      <div>
         {list.data && (
           <p className="hint" aria-live="polite">
             {hasCriteria

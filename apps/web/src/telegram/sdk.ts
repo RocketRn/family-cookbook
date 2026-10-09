@@ -77,6 +77,23 @@ export function haptic(kind: 'select' | 'success' | 'error' = 'select'): void {
   else h.notificationOccurred(kind);
 }
 
+/** A yes / no question: Telegram's own dialog (Bot API 6.2+), else the browser's. */
+export function confirmDialog(message: string): Promise<boolean> {
+  const app = runtime?.webApp;
+  if (app?.showConfirm && app.isVersionAtLeast('6.2')) {
+    return new Promise((resolve) => app.showConfirm!(message, resolve));
+  }
+  return Promise.resolve(window.confirm(message));
+}
+
+/** Telegram asks before closing the Mini App while this is on (Bot API 6.2+). */
+export function setClosingConfirmation(on: boolean): void {
+  const app = runtime?.webApp;
+  if (!app?.isVersionAtLeast('6.2')) return;
+  if (on) app.enableClosingConfirmation?.();
+  else app.disableClosingConfirmation?.();
+}
+
 /** Test helper. */
 export function __resetTelegramRuntime(): void {
   runtime = null;

@@ -1,7 +1,7 @@
 import { ApiError } from './client';
 import { api } from './endpoints';
 import { PAGE_SIZE, SEARCH_MAX_CHARS, type RecipeApi } from './recipes';
-import type { Recipe, RecipePage } from './types';
+import type { Photo, Recipe, RecipePage } from './types';
 
 /** The recipe API (BE-04). Screens use it only through this object, so tests can replace it. */
 export const recipeApi: RecipeApi = {
@@ -24,5 +24,14 @@ export const recipeApi: RecipeApi = {
         return null;
       throw err;
     }
+  },
+  create: (body) => api().request<Recipe>('POST', '/recipes', body),
+  update: (id, body) => api().request<Recipe>('PATCH', `/recipes/${encodeURIComponent(id)}`, body),
+  unpublish: (id) => api().request<void>('POST', `/recipes/${encodeURIComponent(id)}/unpublish`),
+  remove: (id) => api().request<void>('DELETE', `/recipes/${encodeURIComponent(id)}`),
+  uploadPhoto(photo, filename) {
+    const form = new FormData();
+    form.append('file', photo, filename);
+    return api().request<Photo>('POST', '/media', form);
   },
 };

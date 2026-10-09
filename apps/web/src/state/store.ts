@@ -45,3 +45,13 @@ export const useToastStore = create<ToastState>((set) => ({
     timer = setTimeout(() => set({ message: null }), 2500);
   },
 }));
+
+/**
+ * Unsaved changes (FE-04 editor): while `message` is set, the Back button asks before leaving and
+ * Telegram asks before closing the Mini App.
+ */
+type LeaveGuardState = { message: string | null; set(message: string | null): void };
+export const useLeaveGuard = create<LeaveGuardState>((set) => ({
+  message: null,
+  set: (message) => set({ message }),
+}));

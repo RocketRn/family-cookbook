@@ -112,6 +112,15 @@ export async function installMockWebApp(): Promise<TelegramWebApp> {
     viewportStableHeight: window.innerHeight,
     safeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
     contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
+    isClosingConfirmationEnabled: false,
+    enableClosingConfirmation() {
+      this.isClosingConfirmationEnabled = true;
+    },
+    disableClosingConfirmation() {
+      this.isClosingConfirmationEnabled = false;
+    },
+    // The dev mock answers with the browser's own dialog.
+    showConfirm: (message, cb) => cb(window.confirm(message)),
     BackButton: {
       isVisible: false,
       show() {
