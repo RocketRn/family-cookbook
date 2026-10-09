@@ -133,6 +133,27 @@ describe('timers in cooking mode', () => {
     expect(within(timersRegion()).getByText(/the bot sends you a message/)).toBeTruthy();
   });
 
+  it('a list of timers that was asked for before the start, but answers after it, does not erase it', async () => {
+    let release: (() => void) | undefined;
+    api({
+      // The list as the server had it when asked (before the start), answered later.
+      'GET /api/timers?active=1': () => {
+        const then = [...list];
+        return new Promise<Response>((resolve) => {
+          release = () => resolve(json(200, { timers: then, server_now: iso(serverNow()) }));
+        });
+      },
+    });
+    await openAtStep(2);
+    await vi.waitFor(() => expect(release).toBeDefined());
+    fireEvent.click(startButton());
+    await vi.waitFor(() => expect(saved().timers).toMatchObject([{ synced: true }]));
+    await act(async () => release!());
+    await act(async () => new Promise((r) => setTimeout(r, 50)));
+    expect(saved().timers).toMatchObject([{ server_id: TIMER, synced: true }]);
+    expect(within(timersRegion()).getByRole('button', { name: /^⏱ Тушить · 1:/ })).toBeTruthy();
+  });
+
   it('after a reload the chips are rebuilt from the server (GET /timers?active=1)', async () => {
     list = [serverTimer({ label: 'Духовка', ends_at: iso(serverNow() + 600_000) })];
     api();

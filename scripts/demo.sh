@@ -167,6 +167,8 @@ demo_env() {
   export VITE_API_PROXY_TARGET="http://localhost:$API_PORT"
   # The worker sends the bot's messages to the local stand-in, never to Telegram (D-039).
   export FAKEBOT_PORT="$BOT_PORT" TELEGRAM_API_BASE="http://127.0.0.1:$BOT_PORT"
+  # The stand-in's page links a message's "Open the step" button to the demo app.
+  export FAKEBOT_APP_URL="http://localhost:$WEB_PORT"
 }
 
 open_browser() {

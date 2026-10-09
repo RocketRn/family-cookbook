@@ -80,6 +80,37 @@ describe('the stand-in server', () => {
     expect((await send({ chat_id: 77, text: 'x' })).status).toBe(403);
   });
 
+  it('in the demo, a message button opens the app at that step (a local link instead of t.me)', async () => {
+    const demo = await startFakeTelegram({ appUrl: 'http://localhost:5173' });
+    try {
+      const post = (body: object) =>
+        fetch(`${demo.url}/bot1:x/sendMessage`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      const button = (url: string) => ({ inline_keyboard: [[{ text: 'Открыть шаг', url }]] });
+      await post({
+        chat_id: 100000002,
+        text: 'a',
+        reply_markup: button('https://t.me/bot/cook?startapp=cook_0123abcd_2'),
+      });
+      await post({
+        chat_id: 1,
+        text: 'b',
+        reply_markup: button('https://t.me/bot/cook?startapp="><script>x</script>'),
+      });
+      const page = await (await fetch(demo.url)).text();
+      expect(page).toContain(
+        'href="http://localhost:5173/?devUser=2&amp;startapp=cook_0123abcd_2"',
+      );
+      expect(page).not.toContain('<script>x');
+      expect(page.match(/<a /g)).toHaveLength(1); // the odd payload stays plain text
+    } finally {
+      await demo.close();
+    }
+  });
+
   it('the page escapes what it shows', async () => {
     await send({ chat_id: 1, text: '&lt;script&gt;alert(1)&lt;/script&gt;', parse_mode: 'HTML' });
     const page = await (await fetch(bot.url)).text();

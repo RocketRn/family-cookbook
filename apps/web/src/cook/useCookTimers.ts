@@ -111,14 +111,19 @@ export function useCookTimers({
 
   const setTimers = (fn: (timers: CookTimer[]) => CookTimer[]) =>
     save({ ...stRef.current, timers: fn(stRef.current.timers) });
+  /**
+   * A list asked for before this change but answered after it would be out of date and would
+   * erase what just happened (found in testing): it is cancelled before the change is applied.
+   */
+  const changeList = async (fn: (old: ServerTimer[]) => ServerTimer[]) => {
+    await qc.cancelQueries({ queryKey: LIST_KEY });
+    qc.setQueryData<ServerTimer[]>(LIST_KEY, (old) => fn(old ?? []));
+  };
   const putInList = (timer: ServerTimer) =>
-    qc.setQueryData<ServerTimer[]>(LIST_KEY, (old) => [
-      ...(old ?? []).filter((x) => x.id !== timer.id),
-      timer,
-    ]);
-  const synced = (clientId: string, a: TimerAnswer) => {
+    changeList((old) => [...old.filter((x) => x.id !== timer.id), timer]);
+  const synced = async (clientId: string, a: TimerAnswer) => {
     learnClock(a.server_now);
-    putInList(a.timer);
+    await putInList(a.timer);
     setTimers((ts) =>
       ts.map((x) =>
         x.client_timer_id === clientId
@@ -158,7 +163,10 @@ export function useCookTimers({
       );
       for (const x of waiting) {
         try {
-          synced(x.client_timer_id, await startTimer({ ...body(x), started_at: x.started_at }));
+          await synced(
+            x.client_timer_id,
+            await startTimer({ ...body(x), started_at: x.started_at }),
+          );
         } catch (err) {
           if (isOffline(err)) break;
           // Over already (TIMER_EXPIRED) or refused: retrying cannot help.
@@ -256,7 +264,7 @@ export function useCookTimers({
     setTimers((ts) => [...ts, x]); // first on this device, so nothing is lost if the app closes
     try {
       // Online, the server's own clock decides when it started (a phone's clock may be wrong).
-      synced(x.client_timer_id, await startTimer(body(x)));
+      await synced(x.client_timer_id, await startTimer(body(x)));
     } catch (err) {
       if (isOffline(err)) return; // a local timer, with the notice; it syncs later
       forget(x.client_timer_id);
@@ -306,9 +314,9 @@ export function useCookTimers({
     extend: (chip) => {
       if (!chip.serverId || chip.local) return;
       extendTimer(chip.serverId, 60)
-        .then((a) => {
+        .then(async (a) => {
           learnClock(a.server_now);
-          putInList(a.timer);
+          await putInList(a.timer);
           setTimers((ts) =>
             ts.map((x) =>
               x.server_id === a.timer.id
@@ -323,8 +331,8 @@ export function useCookTimers({
       if (chip.local || !chip.serverId) return forget(chip.clientId);
       const id = chip.serverId;
       cancelTimer(id)
-        .then(() => {
-          qc.setQueryData<ServerTimer[]>(LIST_KEY, (old) => (old ?? []).filter((x) => x.id !== id));
+        .then(async () => {
+          await changeList((old) => old.filter((x) => x.id !== id));
           forget(chip.clientId);
         })
         .catch(failed);

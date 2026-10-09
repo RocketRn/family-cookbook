@@ -443,6 +443,7 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - A timer that is already running cannot be started a second time from its button.
 - **Chips on every step** show all of the person's active timers, from `GET /timers?active=1`. The list is fetched when cooking starts and again when the app comes back to the front.
   - The server's list is the truth for synced timers: one cancelled elsewhere disappears, and a "+1 min" made on another phone is taken over.
+  - A list asked for before a start, "+1 min" or cancel, but answered after it, is cancelled: otherwise its out-of-date answer erased a timer just started. Found when a test failed under load at the end of the sprint; a test now holds the answer back on purpose.
   - Tapping a chip shows "+1 min" and "Cancel timer".
 - **At zero** with the app open (PRD 4.6 #4): a vibration, and a large notice that stays at the top of the screen until closed. The bot's message is still sent.
   - Only a timer seen running on this screen rings.

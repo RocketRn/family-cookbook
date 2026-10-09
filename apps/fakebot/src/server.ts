@@ -34,7 +34,16 @@ export type FakeTelegram = {
   close(): Promise<void>;
 };
 
-export type Options = { port?: number; host?: string; token?: string };
+export type Options = {
+  port?: number;
+  host?: string;
+  token?: string;
+  /**
+   * The demo's web app (e.g. http://localhost:5173). A message button that would open the Mini App
+   * (t.me/<bot>/<app>?startapp=…) then also links to the same place in the demo.
+   */
+  appUrl?: string;
+};
 
 const DESCRIPTIONS: Record<Failure['status'], string> = {
   429: 'Too Many Requests: retry after',
@@ -164,7 +173,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     if (url.pathname === '/__messages') return reply(res, 200, { messages });
     if (url.pathname === '/' && req.method === 'GET') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      return void res.end(page(messages));
+      return void res.end(page(messages, opts.appUrl));
     }
     reply(res, 404, { ok: false, error_code: 404, description: 'Not Found' });
   });
@@ -201,19 +210,39 @@ const esc = (s: string) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   );
 
-function buttons(markup: unknown): string {
+/** Dev users 1-3 of the demo (apps/web mock) have Telegram ids 100000001-100000003. */
+function demoLink(appUrl: string | undefined, buttonUrl: string, chatId: string): string | null {
+  if (!appUrl) return null;
+  let start: string | null;
+  try {
+    start = new URL(buttonUrl).searchParams.get('startapp');
+  } catch {
+    return null;
+  }
+  if (!start || !/^[A-Za-z0-9_-]{1,64}$/.test(start)) return null;
+  const n = Number(chatId) - 100000000;
+  const user = n >= 1 && n <= 3 ? `devUser=${n}&` : '';
+  return `${appUrl.replace(/\/+$/, '')}/?${user}startapp=${start}`;
+}
+
+function buttons(markup: unknown, chatId: string, appUrl: string | undefined): string {
   const rows = (
     markup as { inline_keyboard?: Array<Array<{ text?: string; url?: string }>> } | null
   )?.inline_keyboard;
   if (!Array.isArray(rows)) return '';
   return rows
     .flat()
-    .map((b) => `<span class="btn" title="${esc(b.url ?? '')}">${esc(b.text ?? '')}</span>`)
+    .map((b) => {
+      const local = demoLink(appUrl, b.url ?? '', chatId);
+      return local
+        ? `<a class="btn" href="${esc(local)}" target="_blank" title="${esc(b.url ?? '')}">${esc(b.text ?? '')}</a>`
+        : `<span class="btn" title="${esc(b.url ?? '')}">${esc(b.text ?? '')}</span>`;
+    })
     .join(' ');
 }
 
 /** What a person would see in Telegram, newest first. Everything is escaped: nothing here runs. */
-function page(messages: SentMessage[]): string {
+function page(messages: SentMessage[], appUrl: string | undefined): string {
   const items = [...messages]
     .reverse()
     .map(
@@ -222,14 +251,14 @@ function page(messages: SentMessage[]): string {
           m.date * 1000,
         ).toLocaleTimeString(
           'ru-RU',
-        )}</div><div class="text">${esc(m.plain)}</div>${buttons(m.reply_markup)}</li>`,
+        )}</div><div class="text">${esc(m.plain)}</div>${buttons(m.reply_markup, m.chat_id, appUrl)}</li>`,
     )
     .join('');
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="3"><title>Сообщения бота (локальная имитация)</title>
 <style>body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#f2f2f7;color:#111}h1{font-size:20px}
 ul{list-style:none;padding:0;max-width:560px}li{background:#fff;border-radius:12px;padding:12px;margin:0 0 10px}
-.meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8}</style>
+.meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8;text-decoration:none}</style>
 </head><body><h1>Сообщения бота</h1><p>Локальная имитация Telegram: эти сообщения никуда не отправлены. Страница обновляется сама.</p>
 ${items ? `<ul>${items}</ul>` : '<p><b>Пока сообщений нет.</b> Запустите таймер в режиме готовки.</p>'}</body></html>`;
 }

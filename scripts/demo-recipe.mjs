@@ -123,9 +123,11 @@ const recipe = await call('POST', '/recipes', {
   steps: [
     {
       title: 'Тесто',
-      body: 'Взбейте яйца ({ing:eggs}) с сахаром ({ing:sugar}) до пышной пены, затем вмешайте муку ({ing:flour}).',
+      body: 'Взбейте яйца ({ing:eggs}) с сахаром ({ing:sugar}) до пышной пены, около минуты, затем вмешайте муку ({ing:flour}).',
       photo_media_id: stepPhoto.id,
       ingredients: [{ ref: 'eggs' }, { ref: 'sugar' }, { ref: 'flour' }],
+      // A one-minute timer, so the demo can show the bot's message without a long wait.
+      timers: [{ label: 'Взбивать', duration_sec: 60 }],
     },
     {
       body: 'Нарежьте яблоки ({ing:apples}), выложите в форму, посыпьте корицей и залейте тестом.',

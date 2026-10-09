@@ -577,10 +577,15 @@ h2 {
   width: 96px;
   flex: none;
 }
+/*
+ * Sticks to the very bottom: the screen's own bottom padding (PlainShell, --space-5) is covered
+ * too, so no text shows through under the buttons while scrolling.
+ */
 .actionbar {
   position: sticky;
-  bottom: 0;
-  padding: var(--space-3) 0 calc(var(--space-3) + var(--safe-bottom));
+  bottom: calc(-1 * var(--space-5));
+  margin-bottom: calc(-1 * var(--space-5));
+  padding: var(--space-3) 0 calc(var(--space-3) + var(--space-5) + var(--safe-bottom));
   background: var(--bg-secondary);
 }
 
