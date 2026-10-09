@@ -40,6 +40,7 @@ const envSchema = z
     RATE_LIMIT_PER_IP: z.coerce.number().int().min(1).default(300),
     RATE_LIMIT_UPLOADS_PER_USER: z.coerce.number().int().min(1).default(10),
     RATE_LIMIT_AUTH_FAILURES_PER_IP: z.coerce.number().int().min(1).default(20),
+    RATE_LIMIT_CSP_REPORTS_PER_IP: z.coerce.number().int().min(1).default(60),
   })
   .merge(storageEnvSchema)
   .superRefine((env, ctx) => {
@@ -101,7 +102,13 @@ export type Config = {
   /** Tokens initData may be signed with. The dev token is present only in development with the flag. */
   initDataTokens: string[];
   trustProxy: boolean;
-  rateLimits: { perUser: number; perIp: number; uploadsPerUser: number; authFailuresPerIp: number };
+  rateLimits: {
+    perUser: number;
+    perIp: number;
+    uploadsPerUser: number;
+    authFailuresPerIp: number;
+    cspReportsPerIp: number;
+  };
   storage: StorageConfig;
 };
 
@@ -137,6 +144,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       perIp: e.RATE_LIMIT_PER_IP,
       uploadsPerUser: e.RATE_LIMIT_UPLOADS_PER_USER,
       authFailuresPerIp: e.RATE_LIMIT_AUTH_FAILURES_PER_IP,
+      cspReportsPerIp: e.RATE_LIMIT_CSP_REPORTS_PER_IP,
     },
     storage: toStorageConfig(e),
   };

@@ -219,3 +219,18 @@ UX-01/02 were delivered as working screens in code, and so is UX-03. The recipe 
 - Editor: photo slot, title, servings stepper ("needed for recalculation"), difficulty, times, recipe language (numbers and units follow it; the recipe is never translated). Each ingredient line opens a details sheet: how much (exact, from–to, to taste, a pinch), the unit picked from recipe-core's list in the recipe's language, optional, note. Each step has text, linked ingredients, a photo, timers, and a YouTube link with a start time. Then tags (system and your own), who can see it (only me / book / by link), and Save draft / Publish. A publish attempt with something missing says what is missing, which mirrors the API's `NOT_PUBLISHABLE`.
 
 The UX-03 texts are already translated into all four languages, so FE-04 and FE-05 reuse them.
+
+## Sprint 3
+
+### D-032 CSP: Report-Only first, report-uri, policy from env
+
+PRD 7.1 asks for a Content-Security-Policy. Owner decision: ship it as `Content-Security-Policy-Report-Only` for the production build, with the API, S3, Telegram and YouTube origins from the build environment, and switch to enforcing only after the first real Telegram test.
+
+- The policy (`apps/web/csp.ts`) allows only this site, Telegram's script, the YouTube player, the S3 photo origin and the API. It has no `unsafe-eval`; `unsafe-inline` is for styles only. `frame-ancestors` allows Telegram Web (A-23).
+- `pnpm build` emits `dist/_headers` and `dist/csp-report-only.txt`. `vite preview` serves the header.
+- Reports go to `POST /csp-report` on the API: no sign-in, 16 KB per body, its own limit (`RATE_LIMIT_CSP_REPORTS_PER_IP`, 60/min). Each violation is logged as "csp violation".
+- **`report-uri` only, no `report-to`.** When `report-to` is present Chromium ignores `report-uri`, and in our Chromium test `report-to` reports were never delivered (70 s), while `report-uri` reports arrived at once.
+- Verified in Chromium against the real API:
+  - a missing S3 origin produced 5 `img-src` reports, which were logged, and the photos still loaded;
+  - the correct configuration produced zero violations.
+- How the owner checks during the first Telegram test: [docs/CSP.md](CSP.md).

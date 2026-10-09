@@ -15,11 +15,19 @@ import { AppError, registerErrorHandling } from './errors.js';
 import { MAX_UPLOAD_BYTES } from './media/process.js';
 import { registerMedia } from './media/routes.js';
 import { registerRecipes } from './recipes/routes.js';
+import { registerCspReport } from './routes/cspReport.js';
 import { registerHealth } from './routes/health.js';
 import { registerMe } from './routes/me.js';
 import { S3Storage, type ObjectStorage } from './storage/storage.js';
 
-export type AppDeps = { config: Config; db: Db; now?: () => Date; storage?: ObjectStorage };
+export type AppDeps = {
+  config: Config;
+  db: Db;
+  now?: () => Date;
+  storage?: ObjectStorage;
+  /** Where logs go (tests capture them); stdout by default. */
+  logStream?: { write(line: string): void };
+};
 
 /** Honour a caller's x-request-id only if it is short and plain; otherwise generate one. */
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -50,11 +58,18 @@ function limitHook(count: Counter): preHandlerAsyncHookHandler {
   };
 }
 
-export async function buildApp({ config, db, now, storage }: AppDeps): Promise<FastifyInstance> {
+export async function buildApp({
+  config,
+  db,
+  now,
+  storage,
+  logStream,
+}: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.logLevel,
       redact: ['req.headers.authorization'],
+      ...(logStream ? { stream: logStream } : {}),
     },
     genReqId: (req) => requestIdFrom(req.headers['x-request-id']),
     bodyLimit: 1024 * 1024,
@@ -90,6 +105,8 @@ export async function buildApp({ config, db, now, storage }: AppDeps): Promise<F
     },
   });
   const perIp = limitHook(counter(L.perIp, (r) => `ip:${r.ip}`));
+  // CSP reports come from browsers without sign-in (D-032): their own, separate limit per IP.
+  registerCspReport(app, limitHook(counter(L.cspReportsPerIp, (r) => `csp:${r.ip}`)));
   const perUser = limitHook(counter(L.perUser, (r) => `user:${r.user?.id}`));
   const uploads = limitHook(counter(L.uploadsPerUser, (r) => `upload:${r.user?.id}`));
 
