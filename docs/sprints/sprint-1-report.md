@@ -1,5 +1,7 @@
 # Sprint 1 report
 
+> **Read "Review round 2" at the end first.** It corrects some statements below: Docker Compose and GitHub Actions have now been run for real, and A-01b is verified.
+
 Scope: **BE-01, BE-02, BE-03, FE-01, FE-02, UX-01, UX-02**. Demo line: **sign-in through Telegram**.
 
 ## Summary
@@ -96,3 +98,72 @@ Reset between demo runs: `pnpm --filter @cookbook/api db:reset && pnpm db:seed`.
 - Real Chromium against the real API + Vite: sign-in, search, filters, saved, recipe placeholder, mock back button, language switch (persisted), dark theme, onboarding and deep-link join all passed after the fixes above.
 - The production web bundle contains neither the mock provider nor the fake dev token. The API refuses to boot with `ALLOW_DEV_INIT_DATA=true` outside development.
 - Access matrix (PRD 3.3) and RLS: `apps/api/test/rls.test.ts` (16 tests) covers someone else's private recipe, drafts, book membership, link access with and without a token, soft-deleted recipes, the keeper having no extra read or edit rights, the write rules, and no identity leaking across pooled connections.
+
+## Review round 2
+
+A second, independent review of Sprint 1, done after the report above. Everything below was run for real in this environment unless it says otherwise.
+
+### What changed
+
+- **A1, `signature` field:** the validator already dropped only `hash` (correct). Added a second Python reference vector that contains `signature`; the API validator, the TS test signer and the browser dev signer all match it, and a hash computed without `signature` is rejected. The dev mock now sends a `signature` like real clients. A-01b is marked verified, with your source.
+- **A2, who can see users:** a user now sees only themselves and members of their own book, and only name, username and photo. Someone holding a share link gets only the author's name, through one narrow function. Tested, including a proof that the rules cannot loop into each other.
+- **Database users:** the audit found that the API logged in as the database owner, a superuser in Docker and CI. It now logs in as a restricted user that can do nothing on its own and refuses to start otherwise (D-013).
+- **A3, CI:** tests now run on Postgres 15 **and** 16 on GitHub, and CI also fails if the production web app contains the development Telegram mock.
+- **Docker:** `docker compose up` was run for real. The MinIO image no longer exists on Docker Hub, so it was replaced by SeaweedFS (D-016, please confirm).
+- 17 defects fixed, each with a regression test that fails on the old code (table below).
+
+### Findings
+
+| #   | Severity | File                                     | Problem                                                                                                                                                            | Status                                                |
+| --- | -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| 1   | High     | `apps/api/src/db/tx.ts`, migrations      | API connected as the table owner (a superuser in Docker and CI): "system" transactions ignored row-level security, and a `RESET ROLE` would have given owner power | Fixed (D-013)                                         |
+| 2   | Medium   | `db/migrations` (`users`)                | The user role could read every user row with every column (Telegram id, notification settings)                                                                     | Fixed (D-014)                                         |
+| 3   | Medium   | `apps/api/src/config.ts`                 | Production accepted the placeholder `BOT_TOKEN` from `.env.example`, so anyone could forge sign-in data if it was deployed by mistake                              | Fixed                                                 |
+| 4   | Medium   | `apps/api/src/users/repo.ts`             | Signing in wrote the name and photo back into a deleted (anonymised) account (GDPR, PRD 7.1)                                                                       | Fixed                                                 |
+| 5   | Medium   | `apps/api/src/books/routes.ts`           | A double tap on "Create book" or simultaneous joins returned HTTP 500; the 50-member limit could be exceeded                                                       | Fixed (D-015)                                         |
+| 6   | Medium   | `docker-compose.yml`                     | `minio/minio` can no longer be downloaded, so `docker compose up` failed                                                                                           | Fixed (SeaweedFS, D-016)                              |
+| 7   | Medium   | `apps/web/src/telegram/useBackButton.ts` | Back on the first screen could leave the app (it counted browser history from before the app opened)                                                               | Fixed                                                 |
+| 8   | Medium   | `apps/web/src/screens/ProfileScreen.tsx` | When loading the book failed, Profile said "You are not in a book yet"                                                                                             | Fixed                                                 |
+| 9   | Low      | `apps/api/src/auth/initData.ts`          | A nonsensical `auth_date` (e.g. 10^20) passed the freshness check; `user.id` had no upper bound (500 on overflow). Both still needed a valid Telegram signature    | Fixed                                                 |
+| 10  | Low      | `apps/api/test/initData.test.ts`         | The "missing `auth_date`" test never reached that code; a missing `user` field was not tested                                                                      | Fixed                                                 |
+| 11  | Low      | Saved, Recipe and Book screens           | No error state on Saved; Recipe said "not found" on a network error; Book showed a bare retry button                                                               | Fixed                                                 |
+| 12  | Low      | `apps/api/src/app.ts`                    | `x-request-id` was copied unbounded into logs and responses                                                                                                        | Fixed                                                 |
+| 13  | Low      | `apps/api/src/db/migrate.ts`             | Editing an already-applied migration went unnoticed; a missing `.down.sql` was found only at rollback                                                              | Fixed (D-017)                                         |
+| 14  | Low      | CI                                       | "No dev mock in the production bundle" was checked by hand once                                                                                                    | Fixed (`pnpm check:bundle` in CI)                     |
+| 15  | Low      | `scripts/check-i18n.mjs`, locales        | API error `BAD_REQUEST` had no translated message, and nothing tied API error codes to translations                                                                | Fixed                                                 |
+| 16  | Low      | `apps/web/index.html`                    | Page title was hard-coded English                                                                                                                                  | Fixed                                                 |
+| 17  | Low      | Telegram header colour                   | Telegram's header did not match the page colour                                                                                                                    | Fixed (needs device check, A-19)                      |
+| 18  | Info     | Sprint 1 report                          | It said CI never ran; it did run (and passed) after the Sprint 1 push                                                                                              | Corrected here                                        |
+| 19  | Info     | CI, runtime                              | Node 20 reached end of life on 2026-04-30 (GitHub also warns)                                                                                                      | Not fixed: stack decision for you (Sprint 2 question) |
+| 20  | Info     | API                                      | PRD 7.1 rate limits (60 requests/min per user, import 10/min) are not built; no Sprint 1 task covers them                                                          | Not fixed: proposed for a later sprint                |
+
+Checked and found correct: constant-time hash comparison, `auth_date` freshness, duplicate keys, malformed user JSON, the API refusing `ALLOW_DEV_INIT_DATA` outside development, `SET LOCAL` / `set_config(..., true)` only inside transactions, no cross-book leaks, invite code hidden from non-keepers, share-token behaviour per PRD 3.3, migrations from an empty database, no `NOT NULL` column added without a default.
+
+Open questions from the first report: Q1 is done (D-014). Q2 and Q3 are closed with PRD defaults (D-019). Q4, Q5 and Q6 are in the Sprint 2 plan.
+
+### Verification (exact numbers)
+
+- **Clean clone** of the pushed branch (commit `9516b80`), `pnpm install --frozen-lockfile`: typecheck 0 errors; lint clean; i18n check passed (4 languages, 109 keys, 3 plural groups); tests **121 API + 56 web = 177 passed, 0 failed**; build passed; bundle check passed.
+- **Docker, run for real here:** `docker compose up` from the clean clone (Postgres 15.19 + SeaweedFS 4.48); migrate, seed and all 177 tests passed against it; S3 upload and download with the dev keys worked, and a wrong key was rejected.
+- **GitHub Actions** run #2 (commit `9516b80`): all three jobs green: checks (typecheck, lint, i18n, build, bundle check), tests on Postgres 15.19, tests on Postgres 16.15 (121 + 56 each).
+
+### Still not verified
+
+- **Real Telegram and real phones (iOS, Android, Desktop):** nothing has been opened in Telegram yet. That needs a bot and an HTTPS address (a later sprint).
+- **Telegram documentation:** this agent still cannot open `core.telegram.org`. Only A-01b is verified (by you). Other `unverified` items in `docs/ASSUMPTIONS.md` remain so.
+- **Ukrainian and Swedish texts:** not reviewed by native speakers.
+- **Production setup:** hosting, real S3 + CDN, backups. Planned for later sprints.
+
+### What you need to do yourself
+
+1. **See the automatic checks on GitHub.** Open <https://github.com/RocketRn/family-cookbook>. Click the **Actions** tab (top row). In the left list click **CI**. Click the newest run named after the latest commit. A green circle with a tick means everything passed; a red cross means something failed (click it to see which step). The tool here could not log in with `gh`, so I read the results through the GitHub connector instead.
+2. **Create the bot (when you are ready; not needed for Sprint 2).** In Telegram open **@BotFather** -> send `/newbot` -> type a display name (e.g. _Семейная книга_) -> type a username that ends in `bot` (e.g. `family_cookbook_bot`). BotFather replies with a **token**: keep it in a password manager and **never** send it in chat, email or GitHub. Send me only the **username** and the short name you want for the Mini App (e.g. `cookbook`). The Mini App itself is registered later, when there is an HTTPS address.
+3. **Native review of translations.** On GitHub open `apps/web/src/i18n/locales/uk.json` (Ukrainian) and `sv.json` (Swedish), click **Raw**, and send the link to a native speaker. Ask them to check only the text on the right of each `:` and to send corrections in any form.
+4. **Answer the Sprint 2 questions** (below), at least the ones marked _needed_.
+
+### По-русски: что нужно сделать вам
+
+1. **Посмотреть автоматические проверки на GitHub.** Откройте <https://github.com/RocketRn/family-cookbook>, вкладка **Actions** (верхний ряд), слева **CI**, затем верхний (самый новый) запуск. Зелёная галочка: всё прошло. Красный крестик: что-то упало, нажмите на него, чтобы увидеть шаг.
+2. **Создать бота (когда будете готовы; для Sprint 2 не нужно).** В Telegram откройте **@BotFather** -> `/newbot` -> название (например, _Семейная книга_) -> имя пользователя, оканчивающееся на `bot` (например, `family_cookbook_bot`). BotFather пришлёт **токен**: сохраните его в менеджере паролей и **никогда** не присылайте его в чат, почту или GitHub. Мне нужны только **имя бота** и короткое имя мини-приложения (например, `cookbook`).
+3. **Проверка переводов носителями языка.** На GitHub откройте `apps/web/src/i18n/locales/uk.json` (украинский) и `sv.json` (шведский), нажмите **Raw** и отправьте ссылку носителю языка. Проверять нужно только текст справа от `:`.
+4. **Ответить на вопросы к Sprint 2** (хотя бы помеченные _needed_).

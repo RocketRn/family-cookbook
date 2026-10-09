@@ -29,6 +29,8 @@ No Stage 2-4 tables exist; a migration test asserts the table list is exactly `u
 
 ### D-005 Row Level Security design
 
+> Partly superseded in Review round 2: the API no longer logs in as the table owner and "system" transactions no longer bypass RLS. See D-013 and D-014.
+
 - One login role (the one in `DATABASE_URL`, also the table owner, runs migrations) and a restricted role `cookbook_app` (`NOLOGIN NOBYPASSRLS`). Every user-scoped request runs `withUser()`: `BEGIN; SET LOCAL ROLE cookbook_app; set_config('app.user_id', ..., true); set_config('app.share_token', ..., true)`. Everything is transaction-scoped, so it is safe behind transaction-mode connection poolers (tested: no leakage to the next use of a connection).
 - Policies implement the PRD 3.3 read matrix exactly (`recipes_select`), author-only writes, and membership-scoped reads of `books` / `book_members`. `is_book_member()` is `SECURITY DEFINER` to avoid recursion.
 - `cookbook_app` has **no write access** to `books` / `book_members`. Membership changes (create, join, leave, remove, rotate) run in `withSystem()` transactions with the authorization checks in application code and are covered by endpoint tests. Reason: "join by invite code" needs to look up a book the user cannot yet see, which RLS cannot express safely.
@@ -67,8 +69,61 @@ PRD says the author's `book` recipes become `private`. Implemented as: `visibili
 
 ### D-011 Test database
 
+> Updated in Review round 2: tests use two URLs (D-013), CI runs Postgres 15 and 16, and docker-compose was run for real (D-016).
+
 Tests read `DATABASE_URL` (default in `.env.test`, CI overrides). The suite resets the schema and refuses to run on a database whose name lacks `test`. CI uses a GitHub Actions Postgres 15 service container. **This environment had no Docker daemon**, so development used a local Postgres 16; docker-compose and the CI workflow were written but not executed here (see the sprint report).
 
 ### D-012 recipe-core output contract (recorded now, built in Sprint 2)
 
 For FE-06 the engine will return structured quantities and leave strings to a locale-aware formatter, per the kickoff prompt section 5: `Fraction {num, den}` reduced; `Quantity { whole, fraction | null, rawFloat, unit | null, rounding: continuous | spoon_cup | whole_item | spice_item | none, hint?: take_fraction_of | whole_plus_fraction, scalable }`. No float-to-Unicode-fraction conversion inside the engine; no float `===`. The PRD 5.2/5.3 pseudocode wins where it differs, and the final shape will be recorded here in Sprint 2. Sprint 1 only ships an empty, buildable `recipe-core`.
+
+## Review round 2 (after Sprint 1)
+
+### D-013 Database users and roles (supersedes the login part of D-005)
+
+Problem found in review: the API connected as the table owner (a superuser in Docker and CI). Owners bypass RLS, so only `SET LOCAL ROLE cookbook_app` protected user reads, and every "system" transaction ran with owner power.
+
+Now there are four roles:
+
+| Role                                         | Login | What it is for                                           | What it can do                                                                                                                                                                                         |
+| -------------------------------------------- | ----- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| owner (`cookbook`, `MIGRATION_DATABASE_URL`) | yes   | migrations, seed, reset                                  | everything; never used by the running API                                                                                                                                                              |
+| API user (`cookbook_api`, `DATABASE_URL`)    | yes   | the API process                                          | **nothing on its own**: `NOINHERIT`, owns nothing, no superuser/BYPASSRLS; it acts only after `SET LOCAL ROLE`                                                                                         |
+| `cookbook_app`                               | no    | every request made on behalf of a user                   | filtered by RLS (PRD 3.3)                                                                                                                                                                              |
+| `cookbook_system`                            | no    | sign-in upsert and membership changes authorised in code | not row-filtered, but limited by column-level GRANTs (for example it can change `recipes.visibility/book_id` but never `title` or `author_id`, and cannot insert recipes or touch `schema_migrations`) |
+
+`pnpm db:migrate` creates or updates the API user from the user and password in `DATABASE_URL` and grants it the two roles. The API checks its own user at startup and refuses to run if it is a superuser, has BYPASSRLS, owns tables, inherits privileges, or lacks the roles. Because the API user has no privileges of its own, a `RESET ROLE` (for example through SQL injection) leaves it with nothing (tested). `SET LOCAL ROLE` and `set_config(..., true)` are transaction-scoped, so this stays compatible with transaction-mode connection poolers. `FORCE ROW LEVEL SECURITY` is not used: no runtime role owns a table, and forcing it would also filter migrations and seeds run by the owner.
+
+### D-014 RLS on `users`; one predicate for the recipe matrix; the author-name path (A2)
+
+- `cookbook_app` sees a `users` row only for itself and for members of its own book, and only the columns `id, first_name, tg_username, photo_url` (no `tg_user_id`, `notify_prefs`, `bot_started`, `ui_lang`, timestamps).
+- The cross-table checks (`is_book_member`, `shares_book_with`) are `SECURITY DEFINER`, so the `users` and `book_members` policies never evaluate each other; queries joining them in both directions are tested.
+- `can_read_recipe(...)` is the single SQL predicate for the PRD 3.3 read matrix. The `recipes_select` policy and `recipe_author_name(recipe_id)` both use it, so they cannot drift apart.
+- `recipe_author_name(recipe_id)` returns only the author's display name, and only for a recipe the caller may read. A guest holding a share token gets the name without seeing the author's `users` row. It returns nothing for an anonymised (soft-deleted) author. Sprint 2's `GET /r/:share_token` and the recipe card should use it.
+
+### D-015 Concurrent membership changes
+
+Every membership change first locks the user's own row (`SELECT ... FOR UPDATE`), and joining also locks the book row. Before this, a double-tapped "Create book" or two simultaneous joins returned HTTP 500, and two people could take the 50th seat at the same time. Both are now covered by tests.
+
+### D-016 Local S3 store: SeaweedFS instead of MinIO (please confirm)
+
+Running `docker compose up` for real showed that `minio/minio` can no longer be pulled from Docker Hub (`pull access denied`; Bitnami's MinIO image is also gone). Docker Compose now runs SeaweedFS 4.48 with its S3 API on port 8333, pinned by image digest. The keys are fake local-only values matching `docker/seaweedfs/s3.json`. Verified here: bucket create, upload and download with the dev keys, and a wrong key is rejected. The kickoff named MinIO only as an example ("such as MinIO"), and nothing used S3 yet (photos arrive with BE-05 in Sprint 2), so nothing else changes. Production will use a real S3 + CDN (PRD 4.1).
+
+### D-017 Migration safety
+
+The runner stores a SHA-256 checksum of each applied migration and refuses to run if an applied file was edited (add a new migration instead). It also refuses to apply anything if any migration lacks its `.down.sql`. The test suite checks the step-by-step rollback and re-apply of every migration.
+
+### D-018 Configuration and input guards
+
+- Production refuses a `BOT_TOKEN` that looks like a placeholder or is not shaped `<digits>:<30+ chars>` (A-18), so the `.env.example` value can never be used to forge `initData` in production. `DEV_BOT_TOKEN` may not equal `BOT_TOKEN`.
+- `auth_date` must be at most 12 digits (a huge value used to produce an Invalid Date that passed the freshness check); `user.id` must be a safe integer.
+- A soft-deleted account is never refreshed from Telegram on sign-in (that would undo anonymisation, PRD 7.1).
+- `x-request-id` is echoed only when it is at most 128 plain characters.
+- CI fails if the production web bundle contains the dev Telegram mock or the fake token (`pnpm check:bundle`).
+
+### D-019 Sprint 1 open questions closed with PRD defaults
+
+- **Link recipes of a departing author** (report Q2): kept as in D-008. Their share link keeps working (PRD 3.3, "anyone with share_token") but they leave the book.
+- **Keeper without an exit** (Q3): no new endpoint. PRD 3.3 and 7.3 say role transfer is post-MVP, so the keeper stays.
+- **`users` visibility** (Q1): done (D-014).
+- Still the owner's call: bot and Mini App names (Q4), `PATCH /me` for language sync (Q5, proposed for Sprint 2), Node version (Q6; Node 20 reached end of life on 2026-04-30, see the Sprint 2 plan).
