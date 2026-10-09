@@ -58,7 +58,7 @@ async function assertPublishable(
   }
 }
 
-async function view(tx: Tx, storage: ObjectStorage, row: RecipeRow, userId: string) {
+export async function view(tx: Tx, storage: ObjectStorage, row: RecipeRow, userId: string) {
   const children = await loadChildren(tx, row.id);
   const media = await loadMedia(tx, [
     row.cover_media_id,

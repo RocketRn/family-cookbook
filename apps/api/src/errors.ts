@@ -18,6 +18,8 @@ export type ErrorCode =
   | 'UNSUPPORTED_IMAGE_TYPE'
   | 'HEIC_NOT_SUPPORTED'
   | 'IMAGE_INVALID'
+  | 'IMPORT_TIMEOUT'
+  | 'IMPORT_FAILED'
   | 'INTERNAL';
 
 export class AppError extends Error {

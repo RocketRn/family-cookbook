@@ -234,3 +234,26 @@ PRD 7.1 asks for a Content-Security-Policy. Owner decision: ship it as `Content-
   - a missing S3 origin produced 5 `img-src` reports, which were logged, and the photos still loaded;
   - the correct configuration produced zero violations.
 - How the owner checks during the first Telegram test: [docs/CSP.md](CSP.md).
+
+### D-033 Text parser and POST /recipes/import (BE-06)
+
+PRD 5.1 describes the pipeline; this records how it is built and the choices the PRD leaves open.
+
+- **Where.** `packages/recipe-core/src/parse/*`, pure TypeScript, no network and no AI (PRD 5.1). Rules and words for the four languages are in `dictionaries.ts`. The same module will run in the browser for the full review (FE-05, Sprint 4).
+- **Linear time, always.** Every regular expression is anchored and has no nested or overlapping quantifiers. Trailing-character trimming and the "amount - amount" split in `numbers.ts` are loops, not regular expressions. The old `parseAmount` pattern took 459 ms on 20,000 spaces; the loop takes about 2 ms on the same kinds of input. The P4 rule ("name - amount") looks for the dash only in the last 40 characters of a line. Only the first 100 ingredient lines are parsed and at most 60 steps are kept. `test/parse-safety.test.ts` sends 32 hostile 20,000-character texts with a budget of 250 ms each; the slowest takes about 32 ms.
+- **A hard time limit on the server as well.** `POST /recipes/import` parses in a pool of worker threads (`IMPORT_WORKERS`, 2). A parse that runs longer than `IMPORT_TIMEOUT_MS` (3 s) is stopped by terminating its thread, which is then replaced. The answer is `422 IMPORT_TIMEOUT` and no recipe is created. A parser crash returns `422 IMPORT_FAILED`. The API stays responsive because parsing never runs on the request thread.
+- **Endpoint.** Body `{text, ui_lang}`, where text is ≤ 20,000 characters and not empty (PRD 7.1). The endpoint has its own per-user limit (`RATE_LIMIT_IMPORTS_PER_USER`, 10 per minute). It creates a **private draft** with `source_type = 'paste'` and stores the original text unchanged in `raw_text`. It answers 201 with the recipe (the same shape as `GET /recipes/:id`) and an `import` block: confidence and reasons for each line (`p4`, `no_unit`, `bracket`, `unparsed`), plus the parser's warnings (`no_headings`, `no_ingredients`, `no_steps`, `truncated`). The review screen highlights lines from this block.
+- **What goes into the draft.**
+  - Every value is cut to the API limits.
+  - The title falls back to "Новый рецепт" in the user's language.
+  - Servings fall back to 4 (PRD 2.2 step 8).
+  - Timers found in a step are stored as that step's timers.
+  - An ingredient mentioned in a step is linked to it. When several steps mention it, each step gets an equal share rounded down to 0.01, so the shares never add up to more than 1.
+  - A YouTube link becomes the step's video at its `t=` time.
+  - The "Советы / Tips" section becomes the author's notes.
+- **Choices the PRD leaves open.**
+  - The displayed text keeps its original characters (typographic dashes, quotes). Only the copy used for matching is normalised (fractions, decimal comma, dashes, ё→е).
+  - A line such as "Время: 1 час" with no prep/cook word counts as cooking time. "Подготовка" counts as preparation time.
+  - Without headings, a line counts as an ingredient when it is short and has an amount or a unit and no sentence ending. Otherwise its neighbours decide.
+  - Steps are split by numbered or bulleted markers, then by blank lines, then one per line. A text with no recognisable steps becomes a single step, so no text is lost.
+  - Linking uses word stems with a prefix of 3–5 letters (e.g. «луковица» / «луковицу»).

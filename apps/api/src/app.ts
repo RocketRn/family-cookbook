@@ -17,6 +17,8 @@ import { registerMedia } from './media/routes.js';
 import { registerRecipes } from './recipes/routes.js';
 import { registerCspReport } from './routes/cspReport.js';
 import { registerHealth } from './routes/health.js';
+import { WorkerParserPool, type ImportParser } from './import/parserPool.js';
+import { registerImport } from './import/routes.js';
 import { registerMe } from './routes/me.js';
 import { S3Storage, type ObjectStorage } from './storage/storage.js';
 
@@ -25,6 +27,8 @@ export type AppDeps = {
   db: Db;
   now?: () => Date;
   storage?: ObjectStorage;
+  /** Recipe text parser for imports (tests may replace it); a worker pool by default. */
+  importParser?: ImportParser;
   /** Where logs go (tests capture them); stdout by default. */
   logStream?: { write(line: string): void };
 };
@@ -63,6 +67,7 @@ export async function buildApp({
   db,
   now,
   storage,
+  importParser,
   logStream,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
@@ -76,6 +81,10 @@ export async function buildApp({
     trustProxy: config.trustProxy,
   });
   const files = storage ?? new S3Storage(config.storage);
+  const parser =
+    importParser ??
+    new WorkerParserPool({ size: config.importWorkers, timeoutMs: config.importTimeoutMs });
+  app.addHook('onClose', () => parser.close());
 
   registerErrorHandling(app);
   await app.register(cors, {
@@ -109,6 +118,7 @@ export async function buildApp({
   registerCspReport(app, limitHook(counter(L.cspReportsPerIp, (r) => `csp:${r.ip}`)));
   const perUser = limitHook(counter(L.perUser, (r) => `user:${r.user?.id}`));
   const uploads = limitHook(counter(L.uploadsPerUser, (r) => `upload:${r.user?.id}`));
+  const imports = limitHook(counter(L.importsPerUser, (r) => `import:${r.user?.id}`));
 
   await app.register(async (authed) => {
     // Before sign-in: per IP (stops floods before any HMAC or database work).
@@ -121,6 +131,7 @@ export async function buildApp({
     registerBooks(authed, db);
     registerRecipes(authed, db, files);
     registerMedia(authed, db, files, uploads);
+    registerImport(authed, db, files, parser, imports);
   });
 
   return app;

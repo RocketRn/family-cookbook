@@ -227,6 +227,23 @@ describe('whole texts (PRD 5.1.1, 5.1.2)', () => {
     expect(r.steps.map((s) => s.links)).toEqual([[0], [1, 2], [3]]);
   });
 
+  it('keeps the text people see exactly as written (dashes, fractions); only parsing normalizes', () => {
+    const r = parseRecipeText(
+      'Суп\nИнгредиенты\n– Картофель — 3–4 шт.\n½ ч. л. соли\nПриготовление\n1. Варите 10–15 минут.',
+      {
+        fallbackLang: 'ru',
+      },
+    );
+    expect(r.ingredients.map((i) => i.raw)).toEqual(['Картофель — 3–4 шт.', '½ ч. л. соли']);
+    expect(r.ingredients[0]).toMatchObject({ amountMin: 3, amountMax: 4, unitCode: 'pcs' });
+    expect(r.steps[0]!.text).toBe('Варите 10–15 минут.');
+    expect(r.steps[0]!.timers[0]).toMatchObject({
+      durationSec: 600,
+      maxSec: 900,
+      label: 'Варите 10–15 минут',
+    });
+  });
+
   it('moves YouTube links to videos and attaches them to their step', () => {
     const r = parseRecipeText(
       'Пирог\nИнгредиенты\n2 яйца\nПриготовление\n1. Смешайте.\n2. Выпекайте 30 минут. Видео: https://www.youtube.com/watch?v=aqz-KE-bpKQ&t=90s',

@@ -169,7 +169,9 @@
     "IMAGE_TOO_LARGE": "This photo is too large. The limit is 10 MB.",
     "UNSUPPORTED_IMAGE_TYPE": "This file type is not supported. Use a JPEG, PNG or WebP photo.",
     "HEIC_NOT_SUPPORTED": "HEIC photos (the iPhone format) are not supported yet. Please choose a JPEG, PNG or WebP photo.",
-    "IMAGE_INVALID": "This photo could not be read. Try another one."
+    "IMAGE_INVALID": "This photo could not be read. Try another one.",
+    "IMPORT_TIMEOUT": "This text took too long to read. Try a shorter text, or split it into several recipes.",
+    "IMPORT_FAILED": "This text could not be read. Try again, or enter the recipe by hand."
   },
   "time": {
     "h": "{{count}} h",

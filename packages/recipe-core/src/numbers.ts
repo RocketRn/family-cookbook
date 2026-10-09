@@ -44,14 +44,26 @@ export function parseNumber(text: string): number | null {
   return null;
 }
 
-/** All dashes count as a range separator ("2–3", "2-3", "2 — 3"). A reversed range is rejected. */
+const DASH_CHARS = '-‐‑‒–—―';
+
+/**
+ * All dashes count as a range separator ("2–3", "2-3", "2 — 3"). A reversed range is rejected.
+ * The separator is found with a scan: the former /^(.+?)\s*[-–]\s*(.+)$/ backtracked quadratically
+ * on long runs of spaces (459 ms for 20,000 characters, D-033).
+ */
 export function parseAmount(text: string): { min: number; max: number } | null {
   const t = text.normalize('NFC').trim();
   if (!t) return null;
-  const range = /^(.+?)\s*[-‐‑‒–—―]\s*(.+)$/.exec(t);
-  if (range) {
-    const min = parseNumber(range[1]!);
-    const max = parseNumber(range[2]!);
+  let dash = -1;
+  for (let i = 1; i < t.length; i++) {
+    if (DASH_CHARS.includes(t[i]!)) {
+      dash = i;
+      break;
+    }
+  }
+  if (dash > 0) {
+    const min = parseNumber(t.slice(0, dash));
+    const max = parseNumber(t.slice(dash + 1));
     if (min === null || max === null || max < min) return null;
     return { min, max };
   }

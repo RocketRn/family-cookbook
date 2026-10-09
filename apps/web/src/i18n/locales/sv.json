@@ -172,7 +172,9 @@
     "IMAGE_TOO_LARGE": "Bilden är för stor. Gränsen är 10 MB.",
     "UNSUPPORTED_IMAGE_TYPE": "Filtypen stöds inte. Använd en JPEG-, PNG- eller WebP-bild.",
     "HEIC_NOT_SUPPORTED": "HEIC-bilder (iPhone-formatet) stöds inte ännu. Välj en JPEG-, PNG- eller WebP-bild.",
-    "IMAGE_INVALID": "Bilden kunde inte läsas. Prova en annan."
+    "IMAGE_INVALID": "Bilden kunde inte läsas. Prova en annan.",
+    "IMPORT_TIMEOUT": "Det tog för lång tid att läsa texten. Prova en kortare text eller dela upp den i flera recept.",
+    "IMPORT_FAILED": "Texten kunde inte läsas. Försök igen eller skriv in receptet för hand."
   },
   "time": {
     "h": "{{count}} tim",

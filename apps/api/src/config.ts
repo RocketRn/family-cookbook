@@ -41,6 +41,11 @@ const envSchema = z
     RATE_LIMIT_UPLOADS_PER_USER: z.coerce.number().int().min(1).default(10),
     RATE_LIMIT_AUTH_FAILURES_PER_IP: z.coerce.number().int().min(1).default(20),
     RATE_LIMIT_CSP_REPORTS_PER_IP: z.coerce.number().int().min(1).default(60),
+    // PRD 7.1: import 10 per minute per user.
+    RATE_LIMIT_IMPORTS_PER_USER: z.coerce.number().int().min(1).default(10),
+    /** Hard time limit for parsing one import (D-033); PRD 7.1 asks for <= 2 s at p95 overall. */
+    IMPORT_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(3000),
+    IMPORT_WORKERS: z.coerce.number().int().min(1).max(16).default(2),
   })
   .merge(storageEnvSchema)
   .superRefine((env, ctx) => {
@@ -108,7 +113,10 @@ export type Config = {
     uploadsPerUser: number;
     authFailuresPerIp: number;
     cspReportsPerIp: number;
+    importsPerUser: number;
   };
+  importTimeoutMs: number;
+  importWorkers: number;
   storage: StorageConfig;
 };
 
@@ -145,7 +153,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       uploadsPerUser: e.RATE_LIMIT_UPLOADS_PER_USER,
       authFailuresPerIp: e.RATE_LIMIT_AUTH_FAILURES_PER_IP,
       cspReportsPerIp: e.RATE_LIMIT_CSP_REPORTS_PER_IP,
+      importsPerUser: e.RATE_LIMIT_IMPORTS_PER_USER,
     },
+    importTimeoutMs: e.IMPORT_TIMEOUT_MS,
+    importWorkers: e.IMPORT_WORKERS,
     storage: toStorageConfig(e),
   };
 }

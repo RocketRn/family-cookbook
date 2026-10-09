@@ -76,13 +76,17 @@ export type RecipeInsert = {
   language: string | null;
   authorNotes: string | null;
   coverMediaId: string | null;
+  /** PRD 3.2 source_type; imports also keep the original text (raw_text). */
+  sourceType?: 'manual' | 'paste' | 'bot_forward' | 'ocr';
+  rawText?: string | null;
 };
 
 export async function insertRecipe(tx: Tx, r: RecipeInsert): Promise<string> {
   const res = await tx.query<{ id: string }>(
     `INSERT INTO recipes (author_id, book_id, title, status, visibility, share_token, servings, difficulty,
-                          prep_min, cook_min, language, author_notes, cover_media_id, source_type, published_at)
-     VALUES ($1, $2, $3, $4::recipe_status, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'manual',
+                          prep_min, cook_min, language, author_notes, cover_media_id, source_type, raw_text,
+                          published_at)
+     VALUES ($1, $2, $3, $4::recipe_status, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::recipe_source, $15,
              CASE WHEN $4::recipe_status = 'published' THEN now() END)
      RETURNING id`,
     [
@@ -99,6 +103,8 @@ export async function insertRecipe(tx: Tx, r: RecipeInsert): Promise<string> {
       r.language,
       r.authorNotes,
       r.coverMediaId,
+      r.sourceType ?? 'manual',
+      r.rawText ?? null,
     ],
   );
   return res.rows[0]!.id;

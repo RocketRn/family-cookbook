@@ -1,3 +1,4 @@
+import type { ImportParser } from '../../src/import/parserPool.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
@@ -24,6 +25,7 @@ export function testConfig(overrides: Record<string, string> = {}): Config {
     RATE_LIMIT_UPLOADS_PER_USER: '100000',
     RATE_LIMIT_AUTH_FAILURES_PER_IP: '100000',
     RATE_LIMIT_CSP_REPORTS_PER_IP: '100000',
+    RATE_LIMIT_IMPORTS_PER_USER: '100000',
     ...overrides,
   });
 }
@@ -44,6 +46,7 @@ export async function testApp(
     storage?: ObjectStorage;
     env?: Record<string, string>;
     logStream?: { write(line: string): void };
+    importParser?: ImportParser;
   } = {},
 ): Promise<FastifyInstance> {
   return buildApp({
@@ -52,6 +55,7 @@ export async function testApp(
     now: () => NOW,
     storage: opts.storage ?? new MemoryStorage(),
     logStream: opts.logStream,
+    importParser: opts.importParser,
   });
 }
 
