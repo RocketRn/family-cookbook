@@ -283,7 +283,7 @@ erDiagram
 | `books.title` | text | "Семья" ("Family") |
 | `books.owner_id` | uuid FK users | The keeper |
 | `books.invite_code` | text UNIQUE | Code in `startapp=join_<code>`; can be re-issued |
-| `book_members.(book_id, user_id)` | PK | Composite key |
+| `book_members.(book_id, user_id)` | PK | Composite key; in the MVP also UNIQUE (`user_id`): one user, one book (the constraint is dropped in stage 2) |
 | `book_members.role` | enum(owner, member) | owner = keeper (creator of the book), member = participant; role permissions are in 3.3. Only two roles in the MVP |
 | `book_members.joined_at` | timestamptz | |
 
@@ -423,6 +423,8 @@ Only the author can edit a recipe (and the keeper of the book can remove someone
 
 - **Member:** creates, edits and deletes only their own recipes; can leave the book (their recipes with visibility `book` become `private` for the author).
 - **Keeper (owner):** everything above, plus moderation: unpublish someone else's recipe (spam, mistaken publication); remove a member (their book recipes become `private` for the author); re-issue `invite_code` if the link ended up in the wrong hands (the old code stops working immediately). The keeper cannot edit the text of someone else's recipe.
+- A book is created with `POST /books`: the creator becomes `owner`. In the MVP a user belongs to at most one book (UNIQUE `book_members.user_id`).
+- The keeper cannot leave the book until the role is transferred: `POST /books/leave` returns 409 `KEEPER_CANNOT_LEAVE`.
 - Transferring the keeper role and having several keepers are post-MVP.
 
 ## 4. Integration Architecture (Telegram Web App API)
@@ -603,11 +605,12 @@ The state is written on every step change and every timer change (debounce 300 m
 | --- | --- |
 | `GET /me` | Profile, language, `bot_started` |
 | `PATCH /me` | Interface language, `notify_prefs` (including quiet mode) |
+| `POST /books` | Create a book (title); the creator becomes `owner`. Idempotent; only for a user who is not yet in a book |
 | `POST /books/join` | Join by `invite_code` |
 | `GET /books/current` | The book and its members |
 | `DELETE /books/current/members/:user_id` | Remove a member (keeper only); their book recipes become `private` |
 | `POST /books/current/invite/rotate` | Re-issue `invite_code` (keeper only); the old code is invalid immediately |
-| `POST /books/leave` | Leave the book (member) |
+| `POST /books/leave` | Leave the book (member); the keeper gets 409 `KEEPER_CANNOT_LEAVE` (role transfer is post-MVP) |
 | `GET /recipes` | List with search and filters (`q`, `tag`, `difficulty`, `max_min`, `scope=book/mine/saved`) |
 | `POST /recipes` | Create (manual entry) |
 | `POST /recipes/import` | Parse pasted text → draft |
