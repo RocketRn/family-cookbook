@@ -1,11 +1,26 @@
 import type { Membership } from '../books/repo.js';
+import { mediaView, type MediaRow, type MediaView } from '../media/repo.js';
+import type { ObjectStorage } from '../storage/storage.js';
 import type { ListItem, RecipeChildren, RecipeRow } from './repo.js';
+
+/** Signed links for the photos a response needs; a photo the caller cannot see is left out. */
+export async function photoViews(
+  storage: ObjectStorage,
+  media: Map<string, MediaRow>,
+): Promise<Map<string, MediaView>> {
+  const out = new Map<string, MediaView>();
+  for (const [id, m] of media) out.set(id, await mediaView(storage, m));
+  return out;
+}
+const photo = (photos: Map<string, MediaView>, id: unknown) =>
+  typeof id === 'string' ? (photos.get(id) ?? null) : null;
 
 /** API shape of one recipe (snake_case like the rest of the API). */
 export function recipeView(
   row: RecipeRow,
   c: RecipeChildren,
   viewer: { id: string; membership: Membership | null },
+  photos: Map<string, MediaView>,
 ) {
   const isAuthor = row.author_id === viewer.id;
   const keeperOfBook =
@@ -34,6 +49,7 @@ export function recipeView(
     cook_min: row.cook_min,
     language: row.language,
     author_notes: row.author_notes,
+    cover: photo(photos, row.cover_media_id),
     version: row.version,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -44,15 +60,16 @@ export function recipeView(
     tags: c.tags,
     ingredients: c.ingredients,
     videos: c.videos,
-    steps: c.steps.map((s) => ({
+    steps: c.steps.map(({ photo_media_id, ...s }) => ({
       ...s,
+      photo: photo(photos, photo_media_id),
       ingredients: linksByStep.get(s.id) ?? [],
       timers: c.timers.filter((t) => t.step_id === s.id).map(({ step_id: _s, ...t }) => t),
     })),
   };
 }
 
-export function listItemView(r: ListItem, viewerId: string) {
+export function listItemView(r: ListItem, viewerId: string, photos: Map<string, MediaView>) {
   return {
     id: r.id,
     title: r.title,
@@ -67,6 +84,7 @@ export function listItemView(r: ListItem, viewerId: string) {
     visibility: r.visibility,
     status: r.status,
     language: r.language,
+    cover: photo(photos, r.cover_media_id),
     tags: r.tags,
     ingredient_names: r.ingredient_names,
     published_at: r.published_at,

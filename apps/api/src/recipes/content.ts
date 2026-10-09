@@ -31,6 +31,7 @@ export type StepPlan = {
   id: string | null;
   title: string | null;
   body: string;
+  photo_media_id: string | null;
   video_ref: string | null;
   video_start_sec: number | null;
   links: Array<{ ref: string; portion_fraction: number }>;
@@ -185,6 +186,7 @@ export function planContent(
       id: s.id ?? null,
       title: s.title || null,
       body: s.body,
+      photo_media_id: s.photo_media_id ?? null,
       video_ref: s.video_ref ?? null,
       video_start_sec: s.video_start_sec ?? null,
       links: s.ingredients.map((l) => ({ ref: l.ref, portion_fraction: l.portion_fraction })),
@@ -197,6 +199,14 @@ export function planContent(
   }
   p.throwIfAny();
   return { ingredients, videos, steps };
+}
+
+/** All photos a recipe uses (cover + step photos); PRD 7.1 allows at most 20. */
+export function photoIds(
+  cover: string | null | undefined,
+  steps: Array<{ photo_media_id: string | null }>,
+): string[] {
+  return [cover, ...steps.map((s) => s.photo_media_id)].filter((x): x is string => !!x);
 }
 
 /** PRD 2.2 step 10: what publishing needs. Returns the missing parts (empty = publishable). */

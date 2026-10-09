@@ -21,7 +21,9 @@ services:
   # pinned by digest so it cannot change underneath us. Credentials are fake, local-only values.
   s3:
     image: chrislusf/seaweedfs@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
-    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    # volume.max: SeaweedFS reserves 7 storage volumes per bucket and allows 8 by default, so a second
+    # bucket (for example the test bucket) would find no space. Volumes grow as needed (no preallocation).
+    command: server -dir=/data -volume.max=100 -master.volumeSizeLimitMB=1024 -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
     ports:
       - '${S3_PORT:-8333}:8333'
     volumes:

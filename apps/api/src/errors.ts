@@ -13,6 +13,11 @@ export type ErrorCode =
   | 'NOT_IN_BOOK'
   | 'INVALID_INVITE_CODE'
   | 'NOT_PUBLISHABLE'
+  | 'RATE_LIMITED'
+  | 'IMAGE_TOO_LARGE'
+  | 'UNSUPPORTED_IMAGE_TYPE'
+  | 'HEIC_NOT_SUPPORTED'
+  | 'IMAGE_INVALID'
   | 'INTERNAL';
 
 export class AppError extends Error {

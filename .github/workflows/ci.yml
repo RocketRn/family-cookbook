@@ -17,6 +17,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: sharp loads its prebuilt binary on this Node version
+        run: pnpm --filter @cookbook/api exec node scripts/check-sharp.mjs
       - name: Typecheck
         run: pnpm typecheck
       - name: Lint (ESLint + Prettier)
@@ -55,6 +57,11 @@ jobs:
       # DATABASE_URL: the restricted API user (created by the test setup). MIGRATION_DATABASE_URL: the owner.
       DATABASE_URL: postgres://cookbook_api:cookbook_api@localhost:5432/cookbook_test
       MIGRATION_DATABASE_URL: postgres://cookbook:cookbook@localhost:5432/cookbook_test
+      # S3 contract test (apps/api/test/s3.test.ts) against the same SeaweedFS image as docker-compose.
+      # Fake, local-only keys from docker/seaweedfs/s3.json.
+      S3_TEST_ENDPOINT: http://localhost:8333
+      S3_TEST_ACCESS_KEY: cookbook-dev
+      S3_TEST_SECRET_KEY: cookbook-dev-secret
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -65,5 +72,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Show server version
         run: psql "$MIGRATION_DATABASE_URL" -tAc 'select version()'
+      # Started here, not under services: SeaweedFS needs a command line, which services cannot set.
+      - name: Start SeaweedFS (S3)
+        run: |
+          docker run -d --name s3 -p 8333:8333 \
+            -v "$PWD/docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro" \
+            chrislusf/seaweedfs@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d \
+            server -dir=/data -volume.max=100 -master.volumeSizeLimitMB=1024 \
+            -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://localhost:8333/ && exit 0
+            sleep 1
+          done
+          docker logs s3
+          exit 1
       - name: Test
         run: pnpm test

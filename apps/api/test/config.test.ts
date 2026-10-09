@@ -4,6 +4,10 @@ import { ConfigError, loadConfig } from '../src/config.js';
 const base = {
   DATABASE_URL: 'postgres://u:p@localhost:5432/db',
   BOT_TOKEN: '1:real-looking',
+  S3_ENDPOINT: 'https://s3.example.com',
+  S3_BUCKET: 'cookbook-media',
+  S3_ACCESS_KEY: 'AKIAEXAMPLE',
+  S3_SECRET_KEY: 'secret-example',
 };
 
 describe('loadConfig', () => {
@@ -42,7 +46,7 @@ describe('loadConfig', () => {
   });
 
   it('REFUSES a placeholder or malformed BOT_TOKEN in production', () => {
-    const prod = { DATABASE_URL: base.DATABASE_URL, NODE_ENV: 'production' };
+    const prod = { ...base, NODE_ENV: 'production' };
     for (const BOT_TOKEN of [
       '000000:placeholder-not-a-real-token',
       '000000:DEV-ONLY-FAKE-TOKEN',

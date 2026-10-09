@@ -12,10 +12,16 @@ declare module 'fastify' {
   }
 }
 
-export type AuthDeps = { config: Config; db: Db; now?: () => Date };
+export type AuthDeps = {
+  config: Config;
+  db: Db;
+  now?: () => Date;
+  /** Called when initData is rejected (counts failed sign-ins; may throw 429). */
+  onRejected?: (req: FastifyRequest) => Promise<void>;
+};
 
 /** Authorization: tma <initData>. Validates on every request (no sessions) and attaches req.user. */
-export function createAuthenticate({ config, db, now = () => new Date() }: AuthDeps) {
+export function createAuthenticate({ config, db, now = () => new Date(), onRejected }: AuthDeps) {
   return async function authenticate(req: FastifyRequest, _reply: FastifyReply): Promise<void> {
     const header = req.headers.authorization;
     if (!header) throw unauthorized('Missing Authorization header');
@@ -35,6 +41,7 @@ export function createAuthenticate({ config, db, now = () => new Date() }: AuthD
       if (err instanceof InitDataError) {
         // The precise reason is logged, never returned to the client.
         req.log.warn({ reason: err.reason }, 'initData rejected');
+        await onRejected?.(req);
         throw unauthorized('Invalid or expired initData');
       }
       throw err;

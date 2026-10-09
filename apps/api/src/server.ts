@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createPool } from './db/pool.js';
 import { verifyRuntimeRole } from './db/roles.js';
+import { S3Storage } from './storage/storage.js';
 
 async function main(): Promise<void> {
   let config;
@@ -23,7 +24,14 @@ async function main(): Promise<void> {
     await db.end();
     process.exit(1);
   }
-  const app = await buildApp({ config, db });
+  const storage = new S3Storage(config.storage);
+  if (config.nodeEnv === 'development') {
+    // Local SeaweedFS starts empty; production buckets are provisioned outside the app.
+    await storage
+      .ensureBucket()
+      .catch((err) => console.warn('S3 bucket check failed:', err.message));
+  }
+  const app = await buildApp({ config, db, storage });
   if (config.initDataTokens.length > 1) {
     app.log.warn('ALLOW_DEV_INIT_DATA is on: initData signed with the fake dev token is accepted');
   }

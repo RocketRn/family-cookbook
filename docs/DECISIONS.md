@@ -127,3 +127,72 @@ The runner stores a SHA-256 checksum of each applied migration and refuses to ru
 - **Keeper without an exit** (Q3): no new endpoint. PRD 3.3 and 7.3 say role transfer is post-MVP, so the keeper stays.
 - **`users` visibility** (Q1): done (D-014).
 - Still the owner's call: bot and Mini App names (Q4), `PATCH /me` for language sync (Q5, proposed for Sprint 2), Node version (Q6; Node 20 reached end of life on 2026-04-30, see the Sprint 2 plan).
+
+## Sprint 2
+
+### D-020 Recalculation engine: final output shape (completes D-012)
+
+`packages/recipe-core` returns numbers as data, never as text. `scaleAmount(ingredient, k)` gives either `{ scalable: false, qtyKind, rawLine }` ("to taste", "a pinch", unparsed lines are shown exactly as written) or `{ scalable: true, min: Quantity, max: Quantity | null, unitRaw }`. `Quantity` is `{ value, whole, fraction | null, rawFloat, unit, rounding, hint?, scalable }` as planned in D-012, plus `value` (the rounded number to show).
+
+- Rounding is "a whole number of steps", and a step is an exact fraction (for example 1/4 teaspoon or 5 g). The result is built from integers, so there is no floating-point drift. Floats are never compared with `===`; tests use a tolerance.
+- A positive amount never rounds to zero. At k = 1 every amount is shown exactly as the author wrote it.
+- PRD 5.2 limits: a warning below 0.25 or above 4, and a refusal below 0.05 or above 20. k is stored with 6 decimals.
+- `formatAmount(scaled, { recipeLang, uiLang })` is separate. Numbers and units follow the recipe's language (PRD 1.5 #5); hints ("whisk 1 egg, take ½") follow the interface language.
+- Tests: golden tables were written first (red commit `6e3cbbb`). Property tests (fast-check, test-only devDependency) check the PRD 5.3 properties: identity at k = 1, monotonic and idempotent rounding, non-scalable lines never change, at most 5% relative error for continuous amounts, a whole item never below its smallest piece, and a positive amount never rounds to zero.
+
+### D-021 Units: one list, the database follows it
+
+`UNITS` in `packages/recipe-core/src/units.ts` is the only place units are defined: code, dimension, factor to the base unit, aliases and labels in 4 languages. The `units` table is written from it by `pnpm db:migrate` (and the test setup), on every run. A test fails if the table and the list ever differ. Nobody edits the table by hand.
+
+### D-022 Recipe API contract
+
+- One request carries the whole recipe content: `ingredients`, `steps` and `videos` are replaced together. A PATCH that sends `ingredients` must also send `steps` (a step can point at ingredients, so half a set could leave broken links).
+- Inside one request, lines refer to each other by a client `ref` (a step lists `{ ref, portion_fraction }`; step text may contain `{ing:<ref>}`). The server stores real ids and rewrites the placeholders. Ids sent back from a previous read are kept, so links and future reactions survive an edit.
+- `version` (PRD 3.2) goes up by 1 only when a **published** recipe's content changes (title, servings, ingredients, steps, tags, and similar). Drafts and visibility-only changes do not bump it.
+- Publishing needs a title, servings, at least one ingredient and at least one step. Otherwise the API answers 409 `NOT_PUBLISHABLE` with the missing parts.
+- Lists: `GET /recipes?scope=book|mine`, newest first, keyset pages (default 50, at most 100) with an opaque cursor. Search is client-side over loaded pages until BE-11 (owner decision 6).
+- PRD 7.1 limits are enforced: 100 ingredients, 60 steps, 10 videos, 20 tags, 10 timers per step, 20 photos.
+
+### D-023 Share link token
+
+Created when visibility becomes `link`: 16 bytes from the OS random generator (128 bits), base64url. Cleared when visibility leaves `link`, and a database CHECK makes "token present ⇔ visibility = link" impossible to break. Sharing again later gives a **new** token, so an old link stays dead. Only the author sees the token in API answers. `GET /r/:token` works only for a published, not deleted recipe (PRD 3.3) and shows the author's name through `recipe_author_name` (D-014). Sending the link through Telegram stays in BE-12.
+
+### D-024 Columns deliberately not created yet
+
+`origin_recipe_id` and `version_recipe_id` (Stage 2: copies and versions) and `search_tsv` (BE-11) are not in the schema yet. Adding them later is a plain additive migration. Creating them now would mean columns that no code fills or tests.
+
+### D-025 Database functions that change rows on the user's behalf
+
+Three things cannot be expressed as an ordinary RLS policy, so each is a small `SECURITY DEFINER` function with a fixed `search_path` that only `cookbook_app` may call, and each checks the caller itself:
+
+- `unpublish_recipe(id)`: the author, or the keeper of the recipe's book, sets it to private and revokes the link. The keeper cannot change anything else (PRD 3.3).
+- `soft_delete_recipe(id)`: the author only. RLS would refuse the UPDATE, because the deleted row becomes invisible to its own author.
+- `ensure_custom_tag(name)`: free-form tags are private, so a user cannot see whether one already exists.
+
+`media_owned(id)` is an ordinary (not definer) check used inside the recipe and step policies: an author may attach only photos they uploaded themselves.
+
+### D-026 Photo storage (confirms D-016; owner decision 1)
+
+All file access goes through the S3 API (`@aws-sdk/client-s3`). Endpoint, region, bucket, keys and path-style come from env (`S3_*` in `.env.example`), so production can point at any S3-compatible service without code changes. Locally and in CI this is SeaweedFS 4.48, pinned by digest. CI runs a contract test against it: bucket, upload, download, signed link, and that a forged signature is refused. SeaweedFS runs with `-volume.max=100`: it reserves 7 storage volumes per bucket and allows only 8 by default, so a second bucket (for example the test bucket next to the photo bucket) used to get no space (found by the contract test).
+
+- Photos are not public. The API returns links signed for the current hour window, so the same link is reused within the hour (good for caching) and stays valid for at least an hour. `S3_PUBLIC_ENDPOINT` is the address browsers use when it differs from the internal one.
+- In production the API refuses to start with the local development keys.
+- Upload (PRD 6.2 BE-05): the type is detected from the file's bytes, not its name. The API accepts JPEG, PNG, WebP and AVIF up to 10 MB, refuses images over 50 megapixels before decoding them (decompression bombs), applies the EXIF rotation, then removes all metadata (EXIF, GPS). It stores a 2048 px and a 512 px JPEG.
+- Photos nobody uses are removed by the worker after 24 hours, hourly, as `cookbook_system`. Database rows go first, then files: a leftover file is harmless, a row without a file would show a broken photo.
+
+### D-027 Rate limits (owner decision on finding #20)
+
+`@fastify/rate-limit`, in-memory, per minute, all configurable in env:
+
+| What                          | Limit | Key        | Why                                                   |
+| ----------------------------- | ----- | ---------- | ----------------------------------------------------- |
+| any API request               | 300   | IP address | stops floods before any signature or database work    |
+| any signed-in request         | 60    | user       | PRD 7.1                                               |
+| photo upload                  | 10    | user       | sharp is CPU-heavy                                    |
+| failed sign-in (bad initData) | 20    | IP address | slows down guessing; successful sign-ins do not count |
+
+Over a limit the API answers 429 `RATE_LIMITED` with `Retry-After`. `/health` is not limited. Found by the tests: the plugin's own `rateLimit()` hook marks a request as "already limited", so a second limiter on the same request silently does nothing. The limits therefore use the plugin's `createRateLimit()` counters, each with its own hook. In-memory counters are per API process. That is enough for one instance (the MVP); several instances would need the plugin's Redis store. `TRUST_PROXY=true` is needed behind a reverse proxy so the limits see client addresses, not the proxy's.
+
+### D-028 HEIC photos (owner decision)
+
+The prebuilt sharp 0.35.4 used here (libvips 8.18.6) can read HEIF only for AVIF. It cannot decode iPhone HEIC (HEVC), and CI prints this on every run. A HEIC upload is detected by its bytes and answered with 415 `HEIC_NOT_SUPPORTED`, which the app shows as a translated message asking for JPEG, PNG or WebP. No heavy HEIC dependency was added. What a real iPhone actually sends from Telegram's photo picker (often already JPEG) needs a device test (ASSUMPTIONS A-20).

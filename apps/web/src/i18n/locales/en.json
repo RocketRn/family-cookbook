@@ -143,6 +143,11 @@
     "KEEPER_CANNOT_LEAVE": "The keeper cannot leave the book until the role is transferred.",
     "CONFLICT": "That can't be done right now.",
     "INTERNAL": "Something went wrong. Try again.",
-    "NOT_PUBLISHABLE": "Add a title, servings, at least one ingredient and one step before publishing."
+    "NOT_PUBLISHABLE": "Add a title, servings, at least one ingredient and one step before publishing.",
+    "RATE_LIMITED": "Too many requests. Wait a minute and try again.",
+    "IMAGE_TOO_LARGE": "This photo is too large. The limit is 10 MB.",
+    "UNSUPPORTED_IMAGE_TYPE": "This file type is not supported. Use a JPEG, PNG or WebP photo.",
+    "HEIC_NOT_SUPPORTED": "HEIC photos (the iPhone format) are not supported yet. Please choose a JPEG, PNG or WebP photo.",
+    "IMAGE_INVALID": "This photo could not be read. Try another one."
   }
 }

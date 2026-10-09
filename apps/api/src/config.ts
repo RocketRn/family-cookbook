@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  DEV_S3_KEYS,
+  storageEnvSchema,
+  toStorageConfig,
+  type StorageConfig,
+} from './storage/config.js';
 
 const boolFlag = z
   .enum(['true', 'false'])
@@ -25,7 +31,15 @@ const envSchema = z
     ALLOW_DEV_INIT_DATA: boolFlag,
     DEV_BOT_TOKEN: z.string().min(1).optional(),
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
+    /** Behind an HTTPS proxy in production: trust its X-Forwarded-For so rate limits see client IPs. */
+    TRUST_PROXY: boolFlag,
+    // Rate limits (PRD 7.1; D-027). Per minute.
+    RATE_LIMIT_PER_USER: z.coerce.number().int().min(1).default(60),
+    RATE_LIMIT_PER_IP: z.coerce.number().int().min(1).default(300),
+    RATE_LIMIT_UPLOADS_PER_USER: z.coerce.number().int().min(1).default(10),
+    RATE_LIMIT_AUTH_FAILURES_PER_IP: z.coerce.number().int().min(1).default(20),
   })
+  .merge(storageEnvSchema)
   .superRefine((env, ctx) => {
     // A placeholder token in production would let anyone who read .env.example forge initData.
     if (
@@ -37,6 +51,16 @@ const envSchema = z
         path: ['BOT_TOKEN'],
         message:
           'BOT_TOKEN must be the real token from @BotFather in production (a placeholder or malformed value was given)',
+      });
+    }
+    if (
+      env.NODE_ENV === 'production' &&
+      (DEV_S3_KEYS.test(env.S3_ACCESS_KEY) || DEV_S3_KEYS.test(env.S3_SECRET_KEY))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['S3_ACCESS_KEY'],
+        message: 'the local development S3 keys must not be used in production',
       });
     }
     if (env.DEV_BOT_TOKEN && env.DEV_BOT_TOKEN === env.BOT_TOKEN) {
@@ -73,6 +97,9 @@ export type Config = {
   corsOrigin: string;
   /** Tokens initData may be signed with. The dev token is present only in development with the flag. */
   initDataTokens: string[];
+  trustProxy: boolean;
+  rateLimits: { perUser: number; perIp: number; uploadsPerUser: number; authFailuresPerIp: number };
+  storage: StorageConfig;
 };
 
 export class ConfigError extends Error {}
@@ -100,5 +127,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     initDataMaxAgeSeconds: e.INIT_DATA_MAX_AGE_SECONDS,
     corsOrigin: e.CORS_ORIGIN,
     initDataTokens,
+    trustProxy: e.TRUST_PROXY,
+    rateLimits: {
+      perUser: e.RATE_LIMIT_PER_USER,
+      perIp: e.RATE_LIMIT_PER_IP,
+      uploadsPerUser: e.RATE_LIMIT_UPLOADS_PER_USER,
+      authFailuresPerIp: e.RATE_LIMIT_AUTH_FAILURES_PER_IP,
+    },
+    storage: toStorageConfig(e),
   };
 }

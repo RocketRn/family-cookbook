@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { loadConfig, type Config } from '../../src/config.js';
 import { createPool, type Db } from '../../src/db/pool.js';
+import { MemoryStorage, type ObjectStorage } from '../../src/storage/storage.js';
 import { signInitData, TEST_BOT_TOKEN } from './signInitData.js';
 
 export const NOW = new Date('2026-03-01T12:00:00Z');
@@ -13,6 +14,15 @@ export function testConfig(overrides: Record<string, string> = {}): Config {
     DATABASE_URL: process.env.DATABASE_URL,
     BOT_TOKEN: TEST_BOT_TOKEN,
     LOG_LEVEL: process.env.TEST_LOG_LEVEL ?? 'silent',
+    S3_ENDPOINT: 'http://localhost:8333',
+    S3_BUCKET: 'cookbook-test',
+    S3_ACCESS_KEY: 'test-access',
+    S3_SECRET_KEY: 'test-secret',
+    // Generous by default; the rate-limit tests build an app with small limits.
+    RATE_LIMIT_PER_USER: '100000',
+    RATE_LIMIT_PER_IP: '100000',
+    RATE_LIMIT_UPLOADS_PER_USER: '100000',
+    RATE_LIMIT_AUTH_FAILURES_PER_IP: '100000',
     ...overrides,
   });
 }
@@ -27,8 +37,16 @@ export function adminPool(): Db {
   return createPool(process.env.MIGRATION_DATABASE_URL!);
 }
 
-export async function testApp(db: Db): Promise<FastifyInstance> {
-  return buildApp({ config: testConfig(), db, now: () => NOW });
+export async function testApp(
+  db: Db,
+  opts: { storage?: ObjectStorage; env?: Record<string, string> } = {},
+): Promise<FastifyInstance> {
+  return buildApp({
+    config: testConfig(opts.env),
+    db,
+    now: () => NOW,
+    storage: opts.storage ?? new MemoryStorage(),
+  });
 }
 
 export async function resetData(db: Db): Promise<void> {

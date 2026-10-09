@@ -24,12 +24,13 @@ export type RecipeRow = {
   created_at: Date;
   updated_at: Date;
   published_at: Date | null;
+  cover_media_id: string | null;
   author_name: string | null;
 };
 
 const RECIPE_COLUMNS = `r.id, r.author_id, r.book_id, r.title, r.status, r.visibility, r.share_token,
   r.servings, r.difficulty, r.prep_min, r.cook_min, trim(r.language) AS language, r.author_notes,
-  r.source_type, r.version, r.created_at, r.updated_at, r.published_at,
+  r.source_type, r.version, r.created_at, r.updated_at, r.published_at, r.cover_media_id,
   recipe_author_name(r.id) AS author_name`;
 
 /** Reads through RLS: returns null when the caller may not see the recipe. */
@@ -74,13 +75,14 @@ export type RecipeInsert = {
   cookMin: number | null;
   language: string | null;
   authorNotes: string | null;
+  coverMediaId: string | null;
 };
 
 export async function insertRecipe(tx: Tx, r: RecipeInsert): Promise<string> {
   const res = await tx.query<{ id: string }>(
     `INSERT INTO recipes (author_id, book_id, title, status, visibility, share_token, servings, difficulty,
-                          prep_min, cook_min, language, author_notes, source_type, published_at)
-     VALUES ($1, $2, $3, $4::recipe_status, $5, $6, $7, $8, $9, $10, $11, $12, 'manual',
+                          prep_min, cook_min, language, author_notes, cover_media_id, source_type, published_at)
+     VALUES ($1, $2, $3, $4::recipe_status, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'manual',
              CASE WHEN $4::recipe_status = 'published' THEN now() END)
      RETURNING id`,
     [
@@ -96,6 +98,7 @@ export async function insertRecipe(tx: Tx, r: RecipeInsert): Promise<string> {
       r.cookMin,
       r.language,
       r.authorNotes,
+      r.coverMediaId,
     ],
   );
   return res.rows[0]!.id;
@@ -185,19 +188,28 @@ export async function writeContent(tx: Tx, recipeId: string, plan: ContentPlan):
       (_m, ref: string) => `{ing:${ingredientIds.get(ref)}}`,
     );
     const videoId = s.video_ref ? videoIds.get(s.video_ref)! : null;
-    const values = [recipeId, position, s.title, body, videoId, s.video_start_sec];
+    const values = [
+      recipeId,
+      position,
+      s.title,
+      body,
+      videoId,
+      s.video_start_sec,
+      s.photo_media_id,
+    ];
     let stepId: string;
     if (s.id) {
       await tx.query(
-        `UPDATE recipe_steps SET position = $2, title = $3, body = $4, video_id = $5, video_start_sec = $6
-         WHERE id = $7 AND recipe_id = $1`,
+        `UPDATE recipe_steps SET position = $2, title = $3, body = $4, video_id = $5, video_start_sec = $6,
+           photo_media_id = $7
+         WHERE id = $8 AND recipe_id = $1`,
         [...values, s.id],
       );
       stepId = s.id;
     } else {
       const r = await tx.query<{ id: string }>(
-        `INSERT INTO recipe_steps (recipe_id, position, title, body, video_id, video_start_sec)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        `INSERT INTO recipe_steps (recipe_id, position, title, body, video_id, video_start_sec, photo_media_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
         values,
       );
       stepId = r.rows[0]!.id;
@@ -278,7 +290,8 @@ export async function loadChildren(tx: Tx, recipeId: string): Promise<RecipeChil
       `SELECT id, position, youtube_id, title FROM recipe_videos WHERE recipe_id = $1 ORDER BY position`,
     ),
     steps: await q<{ id: string }>(
-      `SELECT id, position, title, body, video_id, video_start_sec FROM recipe_steps WHERE recipe_id = $1 ORDER BY position`,
+      `SELECT id, position, title, body, photo_media_id, video_id, video_start_sec
+         FROM recipe_steps WHERE recipe_id = $1 ORDER BY position`,
     ),
     links: await q<{ step_id: string; ingredient_id: string; portion_fraction: number }>(
       `SELECT si.step_id, si.ingredient_id, si.portion_fraction
@@ -316,6 +329,7 @@ export type ListItem = {
   published_at: Date | null;
   updated_at: Date;
   sort_at: Date;
+  cover_media_id: string | null;
   ingredient_names: string[];
   tags: Array<{ slug: string; custom_name: string | null }>;
 };
@@ -344,7 +358,7 @@ export async function listRecipes(tx: Tx, o: ListOptions): Promise<ListItem[]> {
   const r = await tx.query<ListItem>(
     `SELECT r.id, r.title, r.author_id, recipe_author_name(r.id) AS author_name, r.difficulty, r.prep_min,
             r.cook_min, r.servings, r.visibility, r.status, trim(r.language) AS language, r.published_at,
-            r.updated_at, ${sortExpr} AS sort_at,
+            r.updated_at, ${sortExpr} AS sort_at, r.cover_media_id,
             coalesce((SELECT array_agg(i.name ORDER BY i.position) FROM recipe_ingredients i WHERE i.recipe_id = r.id),
                      '{}') AS ingredient_names,
             coalesce((SELECT json_agg(json_build_object('slug', t.slug, 'custom_name', t.custom_name)

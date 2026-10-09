@@ -1,32 +1,60 @@
+import { config as loadDotenv } from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import {
+  cleanupOrphanMedia,
+  createPool,
+  S3Storage,
+  storageEnvSchema,
+  toStorageConfig,
+} from '@cookbook/api/jobs';
 
-// Timer and outbox worker. Runs as a separate process from the API.
-// Sprint 1 ships only the process skeleton with env validation; the timer poller (BE-09) and
-// the outbox sender (BE-08) arrive in Sprint 4.
-const env = z
+// Timer and outbox worker: a separate process from the API (PRD 4.1). Sprint 2 adds the hourly
+// clean-up of orphaned photos (BE-05); the timer poller (BE-09) and outbox sender (BE-08) arrive later.
+loadDotenv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env') });
+
+const parsed = z
   .object({
     DATABASE_URL: z.string().url(),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+    MEDIA_CLEANUP_INTERVAL_MIN: z.coerce.number().int().min(1).default(60),
   })
+  .merge(storageEnvSchema)
   .safeParse(process.env);
 
-const log = (level: string, msg: string) =>
-  console.log(JSON.stringify({ level, time: Date.now(), msg }));
+const log = (level: string, msg: string, extra: Record<string, unknown> = {}) =>
+  console.log(JSON.stringify({ level, time: Date.now(), msg, ...extra }));
 
-if (!env.success) {
+if (!parsed.success) {
   console.error(
-    `Invalid environment configuration:\n${env.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n')}`,
+    `Invalid environment configuration:\n${parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n')}`,
   );
   process.exit(1);
 }
+const env = parsed.data;
+const db = createPool(env.DATABASE_URL);
+const storage = new S3Storage(toStorageConfig(env));
 
-log('info', 'worker started (no jobs registered in Sprint 1)');
-const heartbeat = setInterval(() => log('debug', 'worker heartbeat'), 30_000);
+async function cleanup(): Promise<void> {
+  try {
+    const removed = await cleanupOrphanMedia(db, storage);
+    log('info', 'media clean-up done', { removed });
+  } catch (err) {
+    log('error', 'media clean-up failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+log('info', 'worker started', { mediaCleanupEveryMin: env.MEDIA_CLEANUP_INTERVAL_MIN });
+void cleanup();
+const timer = setInterval(() => void cleanup(), env.MEDIA_CLEANUP_INTERVAL_MIN * 60_000);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
-    clearInterval(heartbeat);
+    clearInterval(timer);
     log('info', `worker stopped on ${signal}`);
-    process.exit(0);
+    void db.end().then(() => process.exit(0));
   });
 }

@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --conditions=source src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "start": "node dist/index.js"
   },
   "dependencies": {
+    "@cookbook/api": "workspace:*",
+    "dotenv": "^16.4.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {

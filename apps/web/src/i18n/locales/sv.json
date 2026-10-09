@@ -146,6 +146,11 @@
     "KEEPER_CANNOT_LEAVE": "Bokvårdaren kan inte lämna boken innan rollen har överlåtits.",
     "CONFLICT": "Det går inte just nu.",
     "INTERNAL": "Något gick fel. Försök igen.",
-    "NOT_PUBLISHABLE": "Lägg till namn, antal portioner, minst en ingrediens och ett steg innan du publicerar."
+    "NOT_PUBLISHABLE": "Lägg till namn, antal portioner, minst en ingrediens och ett steg innan du publicerar.",
+    "RATE_LIMITED": "För många förfrågningar. Vänta en minut och försök igen.",
+    "IMAGE_TOO_LARGE": "Bilden är för stor. Gränsen är 10 MB.",
+    "UNSUPPORTED_IMAGE_TYPE": "Filtypen stöds inte. Använd en JPEG-, PNG- eller WebP-bild.",
+    "HEIC_NOT_SUPPORTED": "HEIC-bilder (iPhone-formatet) stöds inte ännu. Välj en JPEG-, PNG- eller WebP-bild.",
+    "IMAGE_INVALID": "Bilden kunde inte läsas. Prova en annan."
   }
 }

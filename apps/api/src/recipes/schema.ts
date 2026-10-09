@@ -7,6 +7,7 @@ export const LIMITS = {
   videos: 10,
   tags: 20,
   timersPerStep: 10,
+  photos: 20,
 } as const;
 
 const uuid = z.string().uuid();
@@ -59,6 +60,7 @@ export const stepInput = z
     id: uuid.optional(),
     title: z.string().trim().max(200).nullish(),
     body: z.string().max(5000).default(''),
+    photo_media_id: uuid.nullish(),
     video_ref: ref.nullish(),
     video_start_sec: z.number().int().min(0).max(86_400).nullish(),
     ingredients: z
@@ -93,6 +95,7 @@ const meta = {
   visibility: z.enum(VISIBILITIES),
   status: z.enum(STATUSES),
   tags: z.array(z.string().trim().min(1).max(50)).max(LIMITS.tags),
+  cover_media_id: uuid.nullable(),
 };
 
 const content = {
@@ -113,6 +116,7 @@ export const createRecipeBody = z
     visibility: meta.visibility.default('private'),
     status: meta.status.default('draft'),
     tags: meta.tags.default([]),
+    cover_media_id: meta.cover_media_id.default(null),
     ingredients: content.ingredients.default([]),
     steps: content.steps.default([]),
     videos: content.videos.default([]),
@@ -131,6 +135,7 @@ export const patchRecipeBody = z
     visibility: meta.visibility.optional(),
     status: meta.status.optional(),
     tags: meta.tags.optional(),
+    cover_media_id: meta.cover_media_id.optional(),
     ingredients: content.ingredients.optional(),
     steps: content.steps.optional(),
     videos: content.videos.optional(),

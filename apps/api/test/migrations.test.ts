@@ -13,10 +13,12 @@ const ALL = [
   '0002_books_recipes_rls',
   '0003_runtime_roles_users_rls',
   '0004_recipe_content',
+  '0005_media',
 ];
 const TABLES = [
   'book_members',
   'books',
+  'media',
   'recipe_ingredients',
   'recipe_steps',
   'recipe_tags',
