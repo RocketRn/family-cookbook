@@ -20,6 +20,10 @@ export type ErrorCode =
   | 'IMAGE_INVALID'
   | 'IMPORT_TIMEOUT'
   | 'IMPORT_FAILED'
+  | 'TOO_MANY_TIMERS'
+  | 'TIMER_NOT_RUNNING'
+  | 'TIMER_TOO_LONG'
+  | 'TIMER_EXPIRED'
   | 'INTERNAL';
 
 export class AppError extends Error {

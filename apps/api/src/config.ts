@@ -12,9 +12,9 @@ const boolFlag = z
   .transform((v) => v === 'true');
 
 /** Values that ship in .env.example or tests and must never be accepted as the real token. */
-const KNOWN_FAKE_TOKEN = /placeholder|fake|dev-only|test|example/i;
+export const KNOWN_FAKE_TOKEN = /placeholder|fake|dev-only|test|example/i;
 /** Telegram bot token shape: `<bot id>:<secret>` (docs/ASSUMPTIONS.md A-18). */
-const BOT_TOKEN_SHAPE = /^\d+:[A-Za-z0-9_-]{30,}$/;
+export const BOT_TOKEN_SHAPE = /^\d+:[A-Za-z0-9_-]{30,}$/;
 
 const envSchema = z
   .object({

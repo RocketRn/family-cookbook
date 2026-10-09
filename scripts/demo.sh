@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Local demo for the product owner: one command that starts everything on this computer.
 # Guide (Russian): docs/RUN-LOCALLY.ru.md. Development only: fake dev bot token, fake S3 keys,
-# no real Telegram calls, nothing leaves this computer (all ports listen on 127.0.0.1).
+# no real Telegram calls (the bot's messages go to a local stand-in, apps/fakebot), nothing leaves
+# this computer (all ports listen on 127.0.0.1).
 #
 #   scripts/demo.sh start        (pnpm demo)        check, set up and start; opens the browser
 #   scripts/demo.sh stop         (pnpm demo:stop)   stop everything, keep the demo data
@@ -10,6 +11,7 @@
 #
 # Ports (remembered in .demo/ports.env after a successful start):
 #   DEMO_WEB_PORT (5173)  DEMO_API_PORT (3000)  POSTGRES_PORT (5432)  S3_PORT (8333)
+#   DEMO_BOT_PORT (8081, the Telegram stand-in)
 # Other switches: DEMO_NO_BROWSER=1 (do not open the browser).
 set -uo pipefail
 
@@ -43,6 +45,7 @@ WEB_PORT="${DEMO_WEB_PORT:-$(saved WEB_PORT)}"; WEB_PORT="${WEB_PORT:-5173}"
 API_PORT="${DEMO_API_PORT:-$(saved API_PORT)}"; API_PORT="${API_PORT:-3000}"
 PG_PORT="${POSTGRES_PORT:-$(saved PG_PORT)}"; PG_PORT="${PG_PORT:-5432}"
 S3P="${S3_PORT:-$(saved S3_PORT)}"; S3P="${S3P:-8333}"
+BOT_PORT="${DEMO_BOT_PORT:-$(saved BOT_PORT)}"; BOT_PORT="${BOT_PORT:-8081}"
 export POSTGRES_PORT="$PG_PORT" S3_PORT="$S3P"
 URL="http://localhost:$WEB_PORT/?devUser=1"
 
@@ -148,7 +151,8 @@ check_ports() {
   compose_running s3 || port_free "$S3P" || port_hint "$S3P" S3_PORT "хранилище фото"
   port_free "$API_PORT" || port_hint "$API_PORT" DEMO_API_PORT "сервер API"
   port_free "$WEB_PORT" || port_hint "$WEB_PORT" DEMO_WEB_PORT "веб-приложение"
-  ok "свободны: приложение $WEB_PORT, API $API_PORT, база $PG_PORT, фото $S3P"
+  port_free "$BOT_PORT" || port_hint "$BOT_PORT" DEMO_BOT_PORT "имитация Telegram"
+  ok "свободны: приложение $WEB_PORT, API $API_PORT, база $PG_PORT, фото $S3P, бот $BOT_PORT"
 }
 
 # Local, fake values only (the same as .env.example). They take precedence over a .env file.
@@ -161,6 +165,8 @@ demo_env() {
   export S3_ENDPOINT="http://localhost:$S3P" S3_PUBLIC_ENDPOINT="http://localhost:$S3P" S3_REGION=us-east-1
   export S3_ACCESS_KEY=cookbook-dev S3_SECRET_KEY=cookbook-dev-secret S3_BUCKET=cookbook-media S3_FORCE_PATH_STYLE=true
   export VITE_API_PROXY_TARGET="http://localhost:$API_PORT"
+  # The worker sends the bot's messages to the local stand-in, never to Telegram (D-039).
+  export FAKEBOT_PORT="$BOT_PORT" TELEGRAM_API_BASE="http://127.0.0.1:$BOT_PORT"
 }
 
 open_browser() {
@@ -180,7 +186,7 @@ cmd_start() {
     open_browser
     exit 0
   fi
-  stop_bg web >/dev/null; stop_bg worker >/dev/null; stop_bg api >/dev/null # leftovers of a crash
+  stop_bg web >/dev/null; stop_bg worker >/dev/null; stop_bg api >/dev/null; stop_bg fakebot >/dev/null # leftovers of a crash
 
   check_node
   check_docker
@@ -203,6 +209,7 @@ cmd_start() {
 
   step "Запускаю приложение"
   start_bg api pnpm --filter @cookbook/api exec tsx --conditions=source src/server.ts
+  start_bg fakebot pnpm --filter @cookbook/fakebot exec tsx --conditions=source src/main.ts
   start_bg worker pnpm --filter @cookbook/worker exec tsx --conditions=source src/index.ts
   start_bg web pnpm --filter @cookbook/web exec vite --port "$WEB_PORT" --strictPort
   wait_http "http://localhost:$API_PORT/health" 90 || { show_log "$LOGS/api.log"; fail "Сервер API не запустился."; }
@@ -215,21 +222,23 @@ cmd_start() {
   ok "приложение: http://localhost:$WEB_PORT"
   alive worker || { show_log "$LOGS/worker.log"; fail "Фоновый процесс (worker) не запустился."; }
   ok "фоновый процесс работает"
+  wait_http "http://127.0.0.1:$BOT_PORT/" 30 || { show_log "$LOGS/fakebot.log"; fail "Имитация Telegram не запустилась."; }
+  ok "сообщения бота (имитация, в Telegram ничего не уходит): http://127.0.0.1:$BOT_PORT"
 
   step "Публикую демо-рецепт с фотографиями"
   API_URL="http://localhost:$API_PORT" WEB_URL="http://localhost:$WEB_PORT" node scripts/demo-recipe.mjs >"$LOGS/demo-recipe.log" 2>&1 ||
     { show_log "$LOGS/demo-recipe.log"; fail "Не удалось опубликовать демо-рецепт."; }
   sed 's/^/    /' "$LOGS/demo-recipe.log"
 
-  printf 'WEB_PORT=%s\nAPI_PORT=%s\nPG_PORT=%s\nS3_PORT=%s\n' "$WEB_PORT" "$API_PORT" "$PG_PORT" "$S3P" >"$STATE/ports.env"
+  printf 'WEB_PORT=%s\nAPI_PORT=%s\nPG_PORT=%s\nS3_PORT=%s\nBOT_PORT=%s\n' "$WEB_PORT" "$API_PORT" "$PG_PORT" "$S3P" "$BOT_PORT" >"$STATE/ports.env"
   printf '\n%s%s✓ Готово! Демо работает:%s %s\n' "$B" "$G" "$N" "$URL"
-  info "Остановить:            pnpm demo:stop" "Стереть данные демо:   pnpm demo:reset" "Журналы:               .demo/logs/"
+  info "Сообщения бота:        http://127.0.0.1:$BOT_PORT" "Остановить:            pnpm demo:stop" "Стереть данные демо:   pnpm demo:reset" "Журналы:               .demo/logs/"
   open_browser
 }
 
 cmd_stop() {
   step "Останавливаю демо"
-  stop_bg web; stop_bg worker; stop_bg api
+  stop_bg web; stop_bg worker; stop_bg api; stop_bg fakebot
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     docker compose stop >/dev/null 2>&1 && ok "база данных и хранилище фото остановлены (данные сохранены)"
   fi
@@ -249,7 +258,7 @@ cmd_reset() {
     esac
   fi
   step "Удаляю данные демо"
-  stop_bg web; stop_bg worker; stop_bg api
+  stop_bg web; stop_bg worker; stop_bg api; stop_bg fakebot
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     docker compose down -v --remove-orphans >/dev/null 2>&1 && ok "база данных и фото удалены"
   fi

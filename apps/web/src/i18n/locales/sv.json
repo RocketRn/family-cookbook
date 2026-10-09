@@ -188,7 +188,11 @@
     "HEIC_NOT_SUPPORTED": "HEIC-bilder (iPhone-formatet) stöds inte ännu. Välj en JPEG-, PNG- eller WebP-bild.",
     "IMAGE_INVALID": "Bilden kunde inte läsas. Prova en annan.",
     "IMPORT_TIMEOUT": "Det tog för lång tid att läsa texten. Prova en kortare text eller dela upp den i flera recept.",
-    "IMPORT_FAILED": "Texten kunde inte läsas. Försök igen eller skriv in receptet för hand."
+    "IMPORT_FAILED": "Texten kunde inte läsas. Försök igen eller skriv in receptet för hand.",
+    "TOO_MANY_TIMERS": "Högst 10 timers kan gå samtidigt. Stoppa en av dem först.",
+    "TIMER_NOT_RUNNING": "Den här timern har redan gått ut eller stoppats.",
+    "TIMER_TOO_LONG": "En timer kan gå i högst 24 timmar.",
+    "TIMER_EXPIRED": "Tiden för den här timern har redan gått ut."
   },
   "time": {
     "h": "{{count}} tim",

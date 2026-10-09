@@ -71,7 +71,7 @@ export async function resetData(db: Db): Promise<void> {
 /** Authorization header for a Telegram user, valid at NOW. */
 export function authHeader(
   tgUserId: number,
-  extra: { language_code?: string; first_name?: string } = {},
+  extra: { language_code?: string; first_name?: string; allows_write_to_pm?: boolean } = {},
 ) {
   const initData = signInitData({
     authDate: Math.floor(NOW.getTime() / 1000) - 10,
@@ -79,6 +79,9 @@ export function authHeader(
       id: tgUserId,
       first_name: extra.first_name ?? `User${tgUserId}`,
       language_code: extra.language_code ?? 'en',
+      ...(extra.allows_write_to_pm === undefined
+        ? {}
+        : { allows_write_to_pm: extra.allows_write_to_pm }),
     },
   });
   return { authorization: `tma ${initData}` };

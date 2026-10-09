@@ -1,60 +1,108 @@
 import { config as loadDotenv } from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { z } from 'zod';
 import {
+  cleanupFinished,
   cleanupOrphanMedia,
+  ConfigError,
   createPool,
+  createTelegramClient,
+  fireDueTimers,
+  loadWorkerConfig,
   S3Storage,
-  storageEnvSchema,
-  toStorageConfig,
+  sendDueMessages,
 } from '@cookbook/api/jobs';
 
-// Timer and outbox worker: a separate process from the API (PRD 4.1). Sprint 2 adds the hourly
-// clean-up of orphaned photos (BE-05); the timer poller (BE-09) and outbox sender (BE-08) arrive later.
+// The worker: a separate process from the API (PRD 4.1). It fires due timers (BE-09), sends the
+// bot's messages from the outbox (BE-08), and cleans up (orphaned photos, old timers and messages).
+// Any number of workers may run at once: the database makes every step happen exactly once.
 loadDotenv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env') });
 
-const parsed = z
-  .object({
-    DATABASE_URL: z.string().url(),
-    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-    MEDIA_CLEANUP_INTERVAL_MIN: z.coerce.number().int().min(1).default(60),
-  })
-  .merge(storageEnvSchema)
-  .safeParse(process.env);
+const LEVELS = ['debug', 'info', 'warn', 'error'] as const;
+let minLevel = 1;
+const log = (level: (typeof LEVELS)[number], msg: string, extra: Record<string, unknown> = {}) => {
+  if (LEVELS.indexOf(level) >= minLevel) {
+    console.log(JSON.stringify({ level, time: Date.now(), msg, ...extra }));
+  }
+};
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-const log = (level: string, msg: string, extra: Record<string, unknown> = {}) =>
-  console.log(JSON.stringify({ level, time: Date.now(), msg, ...extra }));
-
-if (!parsed.success) {
-  console.error(
-    `Invalid environment configuration:\n${parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n')}`,
-  );
-  process.exit(1);
-}
-const env = parsed.data;
-const db = createPool(env.DATABASE_URL);
-const storage = new S3Storage(toStorageConfig(env));
-
-async function cleanup(): Promise<void> {
+const config = (() => {
   try {
+    return loadWorkerConfig();
+  } catch (err) {
+    console.error(err instanceof ConfigError ? err.message : errorText(err));
+    return process.exit(1);
+  }
+})();
+minLevel = LEVELS.indexOf(config.logLevel);
+const db = createPool(config.databaseUrl);
+const storage = new S3Storage(config.storage);
+const telegram = config.telegram ? createTelegramClient(config.telegram) : null;
+
+/** Runs `job` every `everyMs`, never two at once; an error is logged and the loop goes on. */
+function loop(name: string, everyMs: number, job: () => Promise<void>): () => Promise<void> {
+  let stopped = false;
+  let running: Promise<void> = Promise.resolve();
+  let timer: NodeJS.Timeout | undefined;
+  const tick = () => {
+    running = job()
+      .catch((err) => log('error', `${name} failed`, { error: errorText(err) }))
+      .finally(() => {
+        if (!stopped) timer = setTimeout(tick, everyMs);
+      });
+  };
+  tick();
+  return async () => {
+    stopped = true;
+    clearTimeout(timer);
+    await running;
+  };
+}
+
+const stops = [
+  loop('timers', config.timerPollMs, async () => {
+    const { fired } = await fireDueTimers(db);
+    for (const t of fired) {
+      // A timer that ended while the worker was down fires now, once; the delay is logged.
+      log(t.lateSec > 5 ? 'warn' : 'debug', 'timer fired', {
+        id: t.id,
+        lateSec: Math.round(t.lateSec),
+      });
+    }
+  }),
+  loop('outbox', config.outboxPollMs, async () => {
+    if (!telegram) return; // no Bot API configured: messages wait in the outbox
+    const s = await sendDueMessages(db, telegram, { links: config.links, log });
+    if (s.sent || s.failed || s.blocked || s.retried) log('info', 'outbox', s);
+  }),
+  loop('timers clean-up', 60 * 60_000, async () => {
+    const removed = await cleanupFinished(db);
+    if (removed.timers || removed.outbox || removed.abandoned)
+      log('info', 'timers clean-up done', removed);
+  }),
+  loop('media clean-up', config.mediaCleanupMin * 60_000, async () => {
     const removed = await cleanupOrphanMedia(db, storage);
     log('info', 'media clean-up done', { removed });
-  } catch (err) {
-    log('error', 'media clean-up failed', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
+  }),
+];
 
-log('info', 'worker started', { mediaCleanupEveryMin: env.MEDIA_CLEANUP_INTERVAL_MIN });
-void cleanup();
-const timer = setInterval(() => void cleanup(), env.MEDIA_CLEANUP_INTERVAL_MIN * 60_000);
+log('info', 'worker started', {
+  telegram: config.telegram
+    ? config.telegram.allowReal
+      ? 'api.telegram.org'
+      : `local stand-in ${new URL(config.telegram.baseUrl).host}`
+    : 'off (no TELEGRAM_API_BASE: messages wait in the outbox)',
+  timerPollMs: config.timerPollMs,
+  mediaCleanupEveryMin: config.mediaCleanupMin,
+});
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
-    clearInterval(timer);
-    log('info', `worker stopped on ${signal}`);
-    void db.end().then(() => process.exit(0));
+    log('info', `worker stopping on ${signal}`);
+    // Finish the step in progress; a message mid-send is reclaimed by the next worker anyway.
+    void Promise.all(stops.map((stop) => stop()))
+      .then(() => db.end())
+      .then(() => process.exit(0));
   });
 }

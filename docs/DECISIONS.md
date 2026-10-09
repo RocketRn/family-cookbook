@@ -371,3 +371,44 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - it binds to 127.0.0.1 and is never deployed.
     The Telegram client refuses `api.telegram.org` unless explicitly allowed (production only). It also refuses to send the token to any other host unless explicitly allowed (development only), so a test or the demo can never reach Telegram.
 - **The worker's database role** `cookbook_worker` can touch only timers, the outbox, the gates, and the user columns needed to send (Telegram id, language, `bot_started`, preferences). A timer keeps a snapshot of its recipe title and step number, so the worker never reads recipes.
+
+### D-040 Server timers and cooking sessions
+
+- **Limits (PRD 4.6, owner's answer for Sprint 4).**
+  - Up to 10 running timers per person, each from 1 second to 24 hours, with a label of 1–100 characters.
+  - Starts by the same person run one at a time (a lock per person in the database), so ten taps at once cannot make an eleventh timer.
+  - The database checks every limit again.
+- **Exactly once, enforced by the database.**
+  - A trigger allows only running → fired or cancelled, and fired → failed. Nothing goes back to running, and the moment a timer fired never changes.
+  - The worker fires due timers in one statement (`FOR UPDATE SKIP LOCKED`), which also queues the message under the unique key `timer:<id>`.
+  - Tested:
+    - two workers at the same time with 40 timers;
+    - a worker restart;
+    - a timer that ended while the worker was down: it fires on the first tick after the restart, once, and the delay is logged;
+    - a duplicate message inserted by hand: refused.
+- **Retries and offline starts.**
+  - The app sends its own `client_timer_id`; the same id again returns the same timer (200, not a second one).
+  - A timer started offline sends its real `started_at`. A start in the future (a fast phone clock) counts from now, and a timer that is already over is refused (`TIMER_EXPIRED`).
+- **The server clock.** Every answer carries `server_now`, so the app corrects its countdown when the phone's clock is wrong.
+- **Ownership.**
+  - Timers and cooking sessions are visible only to their owner (row-level security). The user role has no right to change a timer directly.
+  - Cancel and "+1 min" go through two database functions that touch only the caller's own running timer.
+  - Another person, even in the same book, gets 404, as for a timer that does not exist.
+  - A timer can be started only for a recipe the person can read. Its title and step number are copied for the message.
+  - Tested through the API and directly in the database.
+- **Errors:**
+  - `TOO_MANY_TIMERS` (409);
+  - `TIMER_NOT_RUNNING` (409, already ended or cancelled);
+  - `TIMER_TOO_LONG` (409, "+1 min" past 24 hours);
+  - `TIMER_EXPIRED` (422).
+- **`GET /timers?active=1`** returns running timers and those that ended in the last 15 minutes, so the app can show "done".
+- **Cooking sessions** are for analytics and for linking timers to a cooking run. The progress itself (step, ticks, scale) stays on the device (PRD 4.8). The server records only the furthest step reached, and the end. A session left for 24 hours becomes "abandoned".
+- **Clean-up.** Finished timers go after 7 days, and sent or failed messages after 30.
+- **The bot may write (PRD 4.5).**
+  - Sign-in records Telegram's signed `allows_write_to_pm`. Telegram leaves the field out rather than sending false, so sign-in only ever turns it on; a 403 from the bot turns it off.
+  - `PATCH /me` stays as PRD 4.9 describes it: language and notification settings.
+  - The worker tries to deliver whatever `bot_started` says. The app uses the flag only to warn "the notification will not arrive".
+- **Where the worker sends.**
+  - Production: only `https://api.telegram.org`, with a token of the real shape that is not a placeholder, the real bot username (the deep links use it) and no development storage keys. Otherwise the worker refuses to start.
+  - Elsewhere: only a local stand-in (this computer or a one-word Docker host name).
+  - With nothing configured, messages wait in the database.

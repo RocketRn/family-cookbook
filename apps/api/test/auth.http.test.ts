@@ -113,6 +113,18 @@ describe('auth middleware + GET /me', () => {
     await resetData(admin);
   });
 
+  it('records that the bot may write (allows_write_to_pm, PRD 4.5); a later sign-in without it keeps it', async () => {
+    const me = (extra: { allows_write_to_pm?: boolean }) =>
+      app.inject({ method: 'GET', url: '/me', headers: authHeader(5004, extra) });
+    expect((await me({})).json().bot_started).toBe(false);
+    expect((await me({ allows_write_to_pm: true })).json().bot_started).toBe(true);
+    // Telegram leaves the field out rather than sending false; only a 403 from the bot turns it off.
+    expect((await me({})).json().bot_started).toBe(true);
+    await admin.query('UPDATE users SET bot_started = false WHERE tg_user_id = 5004');
+    expect((await me({ allows_write_to_pm: true })).json().bot_started).toBe(true);
+    await resetData(admin);
+  });
+
   it('401 without the header', async () => {
     const res = await app.inject({ method: 'GET', url: '/me' });
     expect(res.statusCode).toBe(401);

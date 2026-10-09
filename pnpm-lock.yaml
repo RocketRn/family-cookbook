@@ -163,9 +163,6 @@ importers:
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
-      zod:
-        specifier: ^3.24.1
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^24.19.1

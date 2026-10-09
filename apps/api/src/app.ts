@@ -9,6 +9,7 @@ import Fastify, {
 import { randomUUID } from 'node:crypto';
 import { createAuthenticate } from './auth/plugin.js';
 import { registerBooks } from './books/routes.js';
+import { registerCookSessions } from './cook/routes.js';
 import type { Config } from './config.js';
 import type { Db } from './db/pool.js';
 import { AppError, registerErrorHandling } from './errors.js';
@@ -21,6 +22,7 @@ import { WorkerParserPool, type ImportParser } from './import/parserPool.js';
 import { registerImport } from './import/routes.js';
 import { registerMe } from './routes/me.js';
 import { S3Storage, type ObjectStorage } from './storage/storage.js';
+import { registerTimers } from './timers/routes.js';
 
 export type AppDeps = {
   config: Config;
@@ -132,6 +134,8 @@ export async function buildApp({
     registerRecipes(authed, db, files);
     registerMedia(authed, db, files, uploads);
     registerImport(authed, db, files, parser, imports);
+    registerTimers(authed, db);
+    registerCookSessions(authed, db);
   });
 
   return app;

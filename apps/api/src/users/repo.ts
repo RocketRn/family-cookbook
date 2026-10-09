@@ -27,17 +27,20 @@ export function uiLangFromTelegram(code: string | undefined): UiLang {
 
 /**
  * Find-or-create by Telegram id; the profile is refreshed on every sign-in, ui_lang only on creation.
+ * bot_started becomes true when Telegram's signed initData says the bot may write (PRD 4.5). Telegram
+ * leaves the field out rather than sending false, so it never turns it off: a 403 from the bot does.
  * A soft-deleted (anonymised, PRD 7.1) account is never refreshed: that would write the name and
  * photo back into a profile that was deliberately erased. It is returned as is, and the caller rejects it.
  */
 export async function upsertFromTelegram(tx: Tx, tg: TelegramUser): Promise<User> {
   const r = await tx.query<User>(
-    `INSERT INTO users (tg_user_id, tg_username, first_name, photo_url, ui_lang)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO users (tg_user_id, tg_username, first_name, photo_url, ui_lang, bot_started)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (tg_user_id) DO UPDATE
        SET tg_username = EXCLUDED.tg_username,
            first_name = EXCLUDED.first_name,
            photo_url = EXCLUDED.photo_url,
+           bot_started = users.bot_started OR EXCLUDED.bot_started,
            last_seen_at = now()
        WHERE users.deleted_at IS NULL
      RETURNING *`,
@@ -47,6 +50,7 @@ export async function upsertFromTelegram(tx: Tx, tg: TelegramUser): Promise<User
       tg.first_name || null,
       tg.photo_url ?? null,
       uiLangFromTelegram(tg.language_code),
+      tg.allows_write_to_pm === true,
     ],
   );
   if (r.rows[0]) return r.rows[0];

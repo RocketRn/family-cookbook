@@ -185,7 +185,11 @@
     "HEIC_NOT_SUPPORTED": "HEIC photos (the iPhone format) are not supported yet. Please choose a JPEG, PNG or WebP photo.",
     "IMAGE_INVALID": "This photo could not be read. Try another one.",
     "IMPORT_TIMEOUT": "This text took too long to read. Try a shorter text, or split it into several recipes.",
-    "IMPORT_FAILED": "This text could not be read. Try again, or enter the recipe by hand."
+    "IMPORT_FAILED": "This text could not be read. Try again, or enter the recipe by hand.",
+    "TOO_MANY_TIMERS": "At most 10 timers can run at once. Stop one of them first.",
+    "TIMER_NOT_RUNNING": "This timer has already ended or been stopped.",
+    "TIMER_TOO_LONG": "A timer can run for at most 24 hours.",
+    "TIMER_EXPIRED": "This timer has already run out."
   },
   "time": {
     "h": "{{count}} h",
