@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dbUrlProblem, isPlaceholder, PLACEHOLDER_BOT } from './prodGuard.js';
 import {
   DEV_S3_KEYS,
   storageEnvSchema,
@@ -70,6 +71,25 @@ const envSchema = z
         path: ['S3_ACCESS_KEY'],
         message: 'the local development S3 keys must not be used in production',
       });
+    }
+    if (env.NODE_ENV === 'production') {
+      // D-045: no demo or placeholder secrets, and the real bot (links in messages use it).
+      const db = dbUrlProblem(env.DATABASE_URL);
+      if (db) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['DATABASE_URL'], message: db });
+      if (env.BOT_USERNAME === PLACEHOLDER_BOT)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['BOT_USERNAME'],
+          message: 'must be the real bot username in production',
+        });
+      for (const key of ['S3_ACCESS_KEY', 'S3_SECRET_KEY'] as const) {
+        if (isPlaceholder(env[key]))
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: 'still has the placeholder value',
+          });
+      }
     }
     if (env.DEV_BOT_TOKEN && env.DEV_BOT_TOKEN === env.BOT_TOKEN) {
       ctx.addIssue({

@@ -7,3 +7,7 @@ coverage
 .vite
 # Local demo state and logs (scripts/demo.sh)
 .demo/
+
+# Production settings and backups on the server (deploy/gcp)
+deploy/gcp/.env
+deploy/gcp/*.dump

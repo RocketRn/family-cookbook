@@ -1,0 +1,35 @@
+# HTTPS, the web app and the API on one address (docs/DEPLOY-GCP.ru.md, D-045).
+# Caddy gets and renews the certificate from Let's Encrypt by itself: DOMAIN must point at this
+# server, and ports 80 and 443 must be open. No e-mail is needed.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# The API: /api/me -> api:3000/me. Caddy tells it the visitor's address (TRUST_PROXY=true).
+	handle_path /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		import /etc/caddy/csp.caddy
+		header {
+			X-Content-Type-Options nosniff
+			Referrer-Policy strict-origin-when-cross-origin
+			Strict-Transport-Security "max-age=31536000"
+			-Server
+		}
+		# Built files have a hash in their name: they never change, so they may be kept a year.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+		# Every app address (/recipe/..., /cook/...) is the same page.
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

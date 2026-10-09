@@ -1,0 +1,168 @@
+# Production on one Google Cloud VM (docs/DEPLOY-GCP.ru.md, D-045).
+#   cd ~/family-cookbook/deploy/gcp && docker compose up -d --build
+# Settings come from .env next to this file. The owner makes it by hand on the server; it is never
+# committed, pasted into a chat or shown in a screenshot. Each service gets only what it needs.
+# Memory limits come from measurements of this stack under load (D-045): api 232 MB, postgres 93 MB,
+# worker 32 MB, web 19 MB at their peaks. Together they fit a 1 GB VM with a swap file. On a
+# bigger VM they can be raised in .env (API_MEM=512m and so on).
+name: cookbook
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: '10m', max-file: '3' }
+
+x-app: &app
+  image: cookbook-app
+  build: { context: ../.., dockerfile: deploy/Dockerfile, target: app }
+  restart: unless-stopped
+  networks: [backend]
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cookbook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Fill in POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: cookbook
+    # Sized for a small VM: a family cookbook is a few megabytes of data.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - effective_cache_size=96MB
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=16MB
+      - -c
+      - max_connections=30
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cookbook -d cookbook']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [backend]
+    mem_limit: ${POSTGRES_MEM:-160m}
+    logging: *logging
+
+  # Applies new migrations and keeps the API's restricted database user in shape, then exits.
+  migrate:
+    <<: *app
+    restart: 'no'
+    command: [node, apps/api/dist/db/cli.js, migrate]
+    environment:
+      NODE_ENV: production
+      MIGRATION_DATABASE_URL: postgres://cookbook:${POSTGRES_PASSWORD}@postgres:5432/cookbook
+      DATABASE_URL: postgres://cookbook_api:${API_DB_PASSWORD:?Fill in API_DB_PASSWORD in .env}@postgres:5432/cookbook
+    depends_on:
+      postgres: { condition: service_healthy }
+    mem_limit: 160m
+
+  api:
+    <<: *app
+    command: [node, apps/api/dist/server.js]
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '3000'
+      LOG_LEVEL: info
+      NODE_OPTIONS: --max-old-space-size=128
+      DATABASE_URL: postgres://cookbook_api:${API_DB_PASSWORD}@postgres:5432/cookbook
+      BOT_TOKEN: ${BOT_TOKEN:?Fill in BOT_TOKEN in .env}
+      BOT_USERNAME: ${BOT_USERNAME:?Fill in BOT_USERNAME in .env}
+      MINI_APP_SHORT_NAME: ${MINI_APP_SHORT_NAME:?Fill in MINI_APP_SHORT_NAME in .env}
+      ALLOW_DEV_INIT_DATA: 'false'
+      CORS_ORIGIN: https://${DOMAIN:?Fill in DOMAIN in .env}
+      # Caddy is the only way in: trust its X-Forwarded-For so limits see the visitor's address.
+      TRUST_PROXY: 'true'
+      # Photos: Google Cloud Storage through its S3-compatible API with HMAC keys.
+      S3_ENDPOINT: https://storage.googleapis.com
+      S3_REGION: auto
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_BUCKET: ${S3_BUCKET:?Fill in S3_BUCKET in .env}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Fill in S3_ACCESS_KEY in .env}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Fill in S3_SECRET_KEY in .env}
+      # One background thread for reading pasted recipes is enough for a family, and saves memory.
+      IMPORT_WORKERS: '1'
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: ${API_MEM:-320m}
+
+  worker:
+    <<: *app
+    command: [node, apps/worker/dist/index.js]
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      NODE_OPTIONS: --max-old-space-size=96
+      DATABASE_URL: postgres://cookbook_api:${API_DB_PASSWORD}@postgres:5432/cookbook
+      # TELEGRAM_API_BASE is left unset: in production the worker sends only to api.telegram.org.
+      BOT_TOKEN: ${BOT_TOKEN}
+      BOT_USERNAME: ${BOT_USERNAME}
+      MINI_APP_SHORT_NAME: ${MINI_APP_SHORT_NAME}
+      S3_ENDPOINT: https://storage.googleapis.com
+      S3_REGION: auto
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    mem_limit: ${WORKER_MEM:-128m}
+
+  # HTTPS (a free Let's Encrypt certificate, renewed by Caddy), the web app, and /api -> api.
+  web:
+    image: cookbook-web
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile
+      target: web
+      args:
+        VITE_BOT_USERNAME: ${BOT_USERNAME}
+        VITE_MINI_APP_SHORT_NAME: ${MINI_APP_SHORT_NAME}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports: ['80:80', '443:443']
+    volumes: [caddy_data:/data, caddy_config:/config]
+    depends_on: [api]
+    networks: [backend]
+    mem_limit: ${WEB_MEM:-64m}
+    logging: *logging
+
+  # A check, not a service: `docker compose run --rm s3check` runs the S3 contract test against
+  # the photo bucket (writes and deletes a few objects under contract-test/).
+  s3check:
+    profiles: [tools]
+    image: cookbook-tools
+    build: { context: ../.., dockerfile: deploy/Dockerfile, target: tools }
+    environment:
+      S3_TEST_ENDPOINT: https://storage.googleapis.com
+      S3_TEST_REGION: auto
+      S3_TEST_BUCKET: ${S3_BUCKET}
+      S3_TEST_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_TEST_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_TEST_PREFIX: contract-test/
+    networks: [backend]
+
+networks:
+  backend: {}
+
+volumes:
+  pgdata: {}
+  caddy_data: {}
+  caddy_config: {}

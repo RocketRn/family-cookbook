@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BOT_TOKEN_SHAPE, ConfigError, KNOWN_FAKE_TOKEN } from './config.js';
+import { dbUrlProblem, isPlaceholder, PLACEHOLDER_BOT } from './prodGuard.js';
 import type { ClientOptions } from './notify/telegram.js';
 import type { Links } from './notify/templates.js';
 import {
@@ -11,8 +12,6 @@ import {
 
 /** The real Bot API, used only by the production worker (D-039). */
 const REAL_API = 'https://api.telegram.org';
-/** Placeholder from .env.example: the deep links in messages would point at nobody's bot. */
-const PLACEHOLDER_BOT = 'your_cookbook_bot';
 
 /**
  * Outside production the token may go only to a local stand-in (apps/fakebot): this computer, or
@@ -85,6 +84,11 @@ const envSchema = z
       if (DEV_S3_KEYS.test(env.S3_ACCESS_KEY) || DEV_S3_KEYS.test(env.S3_SECRET_KEY)) {
         issue('S3_ACCESS_KEY', 'the local development S3 keys must not be used in production');
       }
+      for (const key of ['S3_ACCESS_KEY', 'S3_SECRET_KEY'] as const) {
+        if (isPlaceholder(env[key])) issue(key, 'still has the placeholder value');
+      }
+      const db = dbUrlProblem(env.DATABASE_URL);
+      if (db) issue('DATABASE_URL', db);
     } else if (env.TELEGRAM_API_BASE) {
       if (!isLocalStandIn(env.TELEGRAM_API_BASE) || sameApi(env.TELEGRAM_API_BASE)) {
         issue(

@@ -1,6 +1,6 @@
 import {
   CreateBucketCommand,
-  DeleteObjectsCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
@@ -9,7 +9,11 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { StorageConfig } from './config.js';
 
-/** Everything the app does with files. Only the S3 API is used, so any S3-compatible store works. */
+/**
+ * Everything the app does with files. Only the S3 API is used, so any S3-compatible store works:
+ * SeaweedFS locally, Google Cloud Storage's XML API with HMAC keys in production (D-045). For GCS
+ * the client sends checksums only where S3 requires them, and deletes one object at a time.
+ */
 export interface ObjectStorage {
   put(key: string, body: Buffer, contentType: string): Promise<void>;
   get(key: string): Promise<Buffer | null>;
@@ -39,6 +43,10 @@ export class S3Storage implements ObjectStorage {
       region: cfg.region,
       forcePathStyle: cfg.forcePathStyle,
       credentials: { accessKeyId: cfg.accessKey, secretAccessKey: cfg.secretKey },
+      // The SDK's newer default adds x-amz-checksum-* headers (and checksum links) that GCS's
+      // S3-compatible API refuses; only send them where the S3 API requires them.
+      requestChecksumCalculation: 'WHEN_REQUIRED' as const,
+      responseChecksumValidation: 'WHEN_REQUIRED' as const,
     };
     this.client = new S3Client({ ...base, endpoint: cfg.endpoint });
     this.publicClient = new S3Client({ ...base, endpoint: cfg.publicEndpoint });
@@ -66,17 +74,17 @@ export class S3Storage implements ObjectStorage {
     }
   }
 
+  /** One request per object: GCS has no multi-object delete. A missing object is not an error. */
   async delete(keys: string[]): Promise<void> {
-    for (let i = 0; i < keys.length; i += 1000) {
-      const chunk = keys.slice(i, i + 1000);
-      if (chunk.length) {
-        await this.client.send(
-          new DeleteObjectsCommand({
-            Bucket: this.cfg.bucket,
-            Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
-          }),
-        );
-      }
+    const PARALLEL = 8;
+    for (let i = 0; i < keys.length; i += PARALLEL) {
+      await Promise.all(
+        keys
+          .slice(i, i + PARALLEL)
+          .map((Key) =>
+            this.client.send(new DeleteObjectCommand({ Bucket: this.cfg.bucket, Key })),
+          ),
+      );
     }
   }
 

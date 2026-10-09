@@ -493,3 +493,51 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - **What the author sees:** the bot's message with the photo, the words and "Open the recipe".
   - **Your own recipe:** the mark is kept, and nobody gets a message (PRD 2.4: cook = author).
 - **Still open for Sprint 5:** whether one cook can mark the same recipe more than once, and whether a later photo replaces the first.
+
+### D-045 Production on one Google Cloud VM (owner's Sprint 4 answer 4)
+
+- **Shape.** One Compute Engine VM running Docker Compose (`deploy/gcp/compose.yml`):
+  - Caddy, with automatic HTTPS from Let's Encrypt, serves the built web app and passes `/api` to the API;
+  - the API, the worker, and Postgres 15;
+  - a one-off `migrate` step that runs before the API and the worker start.
+  - Photos go to Google Cloud Storage through its S3-compatible XML API with an HMAC key, through the same S3 settings as before. SeaweedFS stays for the local demo and CI.
+  - The owner deploys by following `docs/DEPLOY-GCP.ru.md`; nothing is deployed from here.
+- **Images.**
+  - One `deploy/Dockerfile` builds three targets: `app` (API and worker; non-root user; production dependencies only), `web` (Caddy plus the static app) and `tools` (for the storage check).
+  - The CSP Report-Only header of the build goes into Caddy (docs/CSP.md).
+  - Images are built on the server from the repository; nothing is pushed to a registry. CI builds them on every push to keep the Dockerfile working.
+  - An optional build secret adds a CA certificate on networks that inspect TLS (this sandbox). It is never stored in an image.
+- **Secrets only in `deploy/gcp/.env` on the server**, made by hand; the repository has only `.env.example` with `CHANGE_ME`.
+  - Compose passes each service only what it needs: the database owner's password reaches only Postgres and the migration step.
+  - In production the API, the worker and the migration tool refuse to start with:
+    - the local demo's passwords or keys, or any placeholder;
+    - a database password shorter than 16 characters;
+    - the placeholder bot name;
+    - and, for the worker, a Telegram address other than `api.telegram.org`.
+  - The messages name the setting, never its value. Tests check all of this, including that the example file as it is can start nothing.
+- **Cloud Storage differences.**
+  - The S3 client now sends checksums only where S3 requires them (`WHEN_REQUIRED`). The SDK's newer default adds `x-amz-checksum-*` headers and a checksum flag in signed links, which S3-compatible services other than AWS often refuse.
+  - Objects are deleted one by one (8 at a time). Google has recently added a multi-object delete, but single deletes work everywhere.
+  - A local stand-in that refuses both is tested (`gcs-compat.test.ts`).
+  - The S3 contract test can point at an existing bucket (`S3_TEST_BUCKET`, `S3_TEST_REGION=auto`, `S3_TEST_PREFIX`) without a database. On the server, `docker compose run --rm s3check` runs it against the real bucket before going live (A-25).
+- **Memory, measured on this stack** (production images and settings, idle, then load: five users, four 12-megapixel photos uploaded at once, three imports at once, 200 reads, 10 timers).
+
+  | Container   | Idle          | Peak under load (incl. cache) | Limit  |
+  | ----------- | ------------- | ----------------------------- | ------ |
+  | api         | 33 MB         | 232 MB                        | 320 MB |
+  | postgres    | 5 MB (+cache) | 93 MB                         | 160 MB |
+  | worker      | 25 MB         | 32 MB                         | 128 MB |
+  | web (Caddy) | 11 MB         | 19 MB                         | 64 MB  |
+  - The sum of the peaks is about 380 MB; the API's peak comes from decoding four full-size phone photos at the same moment (the app normally shrinks photos to 2048 px before upload).
+  - The image library's cache is now off and it uses at most two threads.
+  - Postgres runs with `shared_buffers=32MB` and 30 connections.
+  - Building on the server is heavier than running: the largest single build process (the web app's typecheck and bundle) peaked at about 520 MB.
+  - **Verdict:** a 1 GB e2-micro is enough to run the app for a family, with the 2 GB swap file the guide adds (for builds). The OS and Docker take an estimated 250–300 MB, not measured on a real VM. e2-small (2 GB) costs roughly 6–12 USD a month more and makes builds faster.
+
+- **Address.** A free DuckDNS name points at the VM's ephemeral address and is updated by `duckdns.sh` every 5 minutes and at boot. That way a stopped VM costs no IP reservation, and Caddy's HTTP-01 certificate works without DNS plugins.
+- **Backups.**
+  - `backup.sh` runs nightly by cron: `pg_dump` in custom format, sent to a separate bucket with `gcloud`, using the VM's own service account (no key on disk).
+  - That account may create and read backups but not delete them. A lifecycle rule removes them after 30 days.
+  - `restore-test.sh` restores the newest backup into a temporary database, compares row counts and drops it. `restore.sh` restores for real after asking.
+  - All three were run here against the production stack, with a stand-in `gcloud` that writes to a folder: the backup, the comparison, and a restore that brought deleted rows back.
+- **Budget, region and costs** are in the guide: alerts at 5 and 10 USD first; a US Free Tier region (about 4 USD a month) or Europe (about 11–12 USD a month), with a note to check Google's pricing pages.

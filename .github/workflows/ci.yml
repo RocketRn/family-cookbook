@@ -30,6 +30,31 @@ jobs:
       - name: Production bundle has no dev mock or fake token
         run: pnpm check:bundle
 
+  images:
+    name: Production images (deploy/Dockerfile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Built only to check them; nothing is pushed or deployed (docs/DEPLOY-GCP.ru.md, D-045).
+      - name: Build the app and web images
+        run: |
+          docker build -f deploy/Dockerfile --target app -t cookbook-app .
+          docker build -f deploy/Dockerfile --target web -t cookbook-web \
+            --build-arg VITE_BOT_USERNAME=ci_cookbook_bot --build-arg VITE_MINI_APP_SHORT_NAME=cook .
+      - name: Entry points start, and refuse to run without settings
+        run: |
+          out=$(docker run --rm cookbook-app node apps/api/dist/db/cli.js migrate 2>&1 || true)
+          echo "$out" | grep -q 'MIGRATION_DATABASE_URL is required'
+          out=$(docker run --rm cookbook-app node apps/worker/dist/index.js 2>&1 || true)
+          echo "$out" | grep -q 'Invalid environment configuration'
+          out=$(docker run --rm cookbook-app node apps/api/dist/server.js 2>&1 || true)
+          echo "$out" | grep -q 'Invalid environment configuration'
+          docker run --rm cookbook-app sh -c 'test "$(id -u)" != 0 && ls db/migrations/0007_timers_outbox.up.sql'
+      - name: Caddy configuration is valid, with the CSP header
+        run: |
+          docker run --rm -e DOMAIN=ci.example.org cookbook-web caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker run --rm cookbook-web grep -q 'Content-Security-Policy-Report-Only' /etc/caddy/csp.caddy
+
   test:
     name: Tests (Postgres ${{ matrix.postgres }})
     runs-on: ubuntu-latest

@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { AppError } from '../errors.js';
 
+// Each photo is processed once: the image cache (up to 50 MB by default) would only hold memory a
+// small server needs (D-045), and two threads per image are enough for a family's uploads.
+sharp.cache(false);
+sharp.concurrency(Math.min(2, sharp.concurrency()));
+
 /** PRD 7.1: photo <= 10 MB. */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 /** Decompression-bomb guard: refuse images with more pixels than this before decoding them. */

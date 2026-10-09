@@ -8,11 +8,12 @@ const base = {
   DATABASE_URL: 'postgres://u:p@localhost:5432/db',
   S3_ENDPOINT: 'https://storage.googleapis.com',
   S3_BUCKET: 'cookbook-media',
-  S3_ACCESS_KEY: 'GOOG1EXAMPLEKEY',
-  S3_SECRET_KEY: 'secret-value',
+  S3_ACCESS_KEY: 'GOOG1EREALLOOKINGKEY',
+  S3_SECRET_KEY: 'real-looking-secret-0123456789',
 };
 const prod = {
   ...base,
+  DATABASE_URL: 'postgres://cookbook_api:3f9c1e7a5b2d4c6e8f0a1b3c5d7e9f21@postgres:5432/cookbook',
   NODE_ENV: 'production',
   BOT_TOKEN: REAL_SHAPE,
   BOT_USERNAME: 'family_cookbook_bot',
@@ -40,6 +41,12 @@ describe('the worker in production', () => {
     [{ TELEGRAM_API_BASE: 'http://api.telegram.org' }, /TELEGRAM_API_BASE/],
     [{ BOT_USERNAME: undefined }, /BOT_USERNAME/],
     [{ BOT_USERNAME: 'your_cookbook_bot' }, /BOT_USERNAME/],
+    [
+      { DATABASE_URL: 'postgres://cookbook_api:cookbook_api@postgres:5432/cookbook' },
+      /DATABASE_URL/,
+    ],
+    [{ DATABASE_URL: 'postgres://cookbook_api:short@postgres:5432/cookbook' }, /DATABASE_URL/],
+    [{ S3_SECRET_KEY: 'CHANGE_ME' }, /S3_SECRET_KEY/],
   ])('refuses to start with %j', (over, field) => {
     expect(() => loadWorkerConfig({ ...prod, ...over })).toThrow(ConfigError);
     expect(() => loadWorkerConfig({ ...prod, ...over })).toThrow(field);

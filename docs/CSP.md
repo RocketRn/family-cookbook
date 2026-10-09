@@ -18,7 +18,7 @@ Built by `apps/web/csp.ts` from the build environment:
 | `CSP_FRAME_ANCESTORS` | `'self' https://web.telegram.org`  | who may show the app inside a frame (Telegram Web, A-23)            |
 | `CSP_REPORT_URI`      | `<API>/csp-report`                 | where reports go                                                    |
 
-`pnpm build` writes the header into `apps/web/dist/_headers` (Netlify / Cloudflare Pages format) and the bare policy into `apps/web/dist/csp-report-only.txt`. With another web server, send the same header. For example, nginx: `add_header Content-Security-Policy-Report-Only "<contents of csp-report-only.txt>" always;`. `pnpm --filter @cookbook/web preview` serves the build with the header, for local checks.
+`pnpm build` writes the header into `apps/web/dist/_headers` (Netlify / Cloudflare Pages format) and the bare policy into `apps/web/dist/csp-report-only.txt`. In production on Google Cloud (`deploy/gcp`, D-045) Caddy sends it: `deploy/Dockerfile` turns the policy into `/etc/caddy/csp.caddy`. With another web server, send the same header. For example, nginx: `add_header Content-Security-Policy-Report-Only "<contents of csp-report-only.txt>" always;`. `pnpm --filter @cookbook/web preview` serves the build with the header, for local checks.
 
 **Never blocked:**
 

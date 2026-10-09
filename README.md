@@ -25,6 +25,8 @@ pnpm demo:reset    # deletes all demo data (asks first)
 
 Step-by-step guide for a first-time terminal user (Russian): [`docs/RUN-LOCALLY.ru.md`](docs/RUN-LOCALLY.ru.md).
 
+First real Telegram test on one Google Cloud VM (Russian, click by click): [`docs/DEPLOY-GCP.ru.md`](docs/DEPLOY-GCP.ru.md). Production files: `deploy/Dockerfile`, `deploy/gcp/` (D-045).
+
 - The demo uses only fake local values: the dev bot token and the dev S3 keys. Every port listens on 127.0.0.1.
 - Ports are `DEMO_WEB_PORT` (5173), `DEMO_API_PORT` (3000), `POSTGRES_PORT` (5432) and `S3_PORT` (8333). They are remembered in `.demo/ports.env`.
 - Logs are in `.demo/logs/`.

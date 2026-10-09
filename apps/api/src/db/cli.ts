@@ -1,4 +1,5 @@
 import '../loadEnv.js';
+import { migrateEnvProblems } from '../prodGuard.js';
 import { createPool } from './pool.js';
 import { migrateDown, migrateUp } from './migrate.js';
 import { ensureRuntimeRole } from './roles.js';
@@ -14,6 +15,9 @@ async function main(): Promise<void> {
   const runtimeUrl = process.env.DATABASE_URL;
   if (!ownerUrl)
     throw new Error('MIGRATION_DATABASE_URL is required (the owner user; see .env.example)');
+  const problems = migrateEnvProblems(process.env);
+  if (problems.length)
+    throw new Error(`Refusing to run in production:\n  - ${problems.join('\n  - ')}`);
   const db = createPool(ownerUrl);
   const ensureRole = async () => {
     if (!runtimeUrl) throw new Error('DATABASE_URL is required (the API user; see .env.example)');
