@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeHash, InitDataError, validateInitData } from '../src/auth/initData.js';
+import {
+  buildDataCheckString,
+  computeHash,
+  InitDataError,
+  validateInitData,
+} from '../src/auth/initData.js';
 import { signInitData, TEST_BOT_TOKEN } from './helpers/signInitData.js';
 
 const vector = JSON.parse(
@@ -11,6 +16,12 @@ const vector = JSON.parse(
   dataCheckString: string;
   hash: string;
   initData: string;
+  withSignature: {
+    dataCheckString: string;
+    hash: string;
+    initData: string;
+    hashIfSignatureWereExcluded: string;
+  };
 };
 
 const AUTH = 1_760_000_000;
@@ -62,6 +73,53 @@ describe('known-good vector (produced by scripts/initdata_vector.py using Python
   });
 });
 
+describe('signature field (A-01b): kept in the data-check-string for the HMAC method', () => {
+  const sig = vector.withSignature;
+
+  it('the Python reference includes signature= in the data-check-string', () => {
+    expect(sig.dataCheckString.split('\n').some((l) => l.startsWith('signature='))).toBe(true);
+    expect(sig.hash).not.toBe(sig.hashIfSignatureWereExcluded);
+  });
+
+  it('validator accepts initData that carries a signature field', () => {
+    const r = validateInitData(sig.initData, opts());
+    expect(r.user.id).toBe(279058397);
+  });
+
+  it('builds exactly the reference data-check-string (signature included, only hash dropped)', () => {
+    expect(buildDataCheckString(new URLSearchParams(sig.initData))).toBe(sig.dataCheckString);
+  });
+
+  it('rejects a hash computed with signature excluded (the third-party method rule)', () => {
+    const wrong = sig.initData.replace(
+      `hash=${sig.hash}`,
+      `hash=${sig.hashIfSignatureWereExcluded}`,
+    );
+    expect(reasonOf(() => validateInitData(wrong, opts()))).toBe('BAD_SIGNATURE');
+  });
+
+  it('rejects a tampered or stripped signature field', () => {
+    const tampered = sig.initData.replace('signature=c2ln', 'signature=X2ln');
+    expect(reasonOf(() => validateInitData(tampered, opts()))).toBe('BAD_SIGNATURE');
+    const stripped = sig.initData.replace(/&?signature=[^&]*/, '');
+    expect(reasonOf(() => validateInitData(stripped, opts()))).toBe('BAD_SIGNATURE');
+  });
+
+  it('the TS test signer reproduces the reference hash when it signs a signature field', () => {
+    const p = new URLSearchParams(sig.initData);
+    const signed = signInitData({
+      authDate: AUTH,
+      user: JSON.parse(p.get('user')!),
+      extra: {
+        query_id: p.get('query_id')!,
+        start_param: p.get('start_param')!,
+        signature: p.get('signature')!,
+      },
+    });
+    expect(new URLSearchParams(signed).get('hash')).toBe(sig.hash);
+  });
+});
+
 describe('validateInitData', () => {
   const good = () => signInitData({ authDate: AUTH });
 
@@ -110,14 +168,24 @@ describe('validateInitData', () => {
     expect(reasonOf(() => validateInitData(good(), opts(-30)))).toBeUndefined();
   });
 
-  it('rejects a missing or non-numeric auth_date even if correctly signed', () => {
-    const raw = signInitData({ authDate: AUTH, extra: {} }).replace(
-      `auth_date=${AUTH}`,
-      'auth_date=abc',
-    );
-    // Re-sign by hand is not possible; a changed auth_date breaks the signature first.
+  it('rejects a changed auth_date (signature breaks first)', () => {
+    const raw = good().replace(`auth_date=${AUTH}`, `auth_date=${AUTH + 1}`);
     expect(reasonOf(() => validateInitData(raw, opts()))).toBe('BAD_SIGNATURE');
   });
+
+  it('rejects a correctly signed payload without auth_date', () => {
+    const raw = signInitData({ authDate: null });
+    expect(reasonOf(() => validateInitData(raw, opts()))).toBe('MISSING_AUTH_DATE');
+  });
+
+  it.each([['abc'], ['-5'], ['1.5'], ['99999999999999999999'], ['1e9']])(
+    'rejects a correctly signed but nonsensical auth_date %s',
+    (authDate) => {
+      expect(reasonOf(() => validateInitData(signInitData({ authDate }), opts()))).toBe(
+        'BAD_AUTH_DATE',
+      );
+    },
+  );
 
   it.each([
     ['empty string', ''],
@@ -141,6 +209,14 @@ describe('validateInitData', () => {
       user: 'not an object' as unknown as Record<string, unknown>,
     });
     expect(reasonOf(() => validateInitData(noUser, opts()))).toBe('BAD_USER');
+    const absent = signInitData({ authDate: AUTH, user: null });
+    expect(reasonOf(() => validateInitData(absent, opts()))).toBe('BAD_USER');
+    const tooBig = signInitData({ authDate: AUTH, user: { id: 2 ** 60, first_name: 'x' } });
+    expect(reasonOf(() => validateInitData(tooBig, opts()))).toBe('BAD_USER');
+    for (const user of [{ id: -1 }, { id: 1.5 }, { id: '7' }, []]) {
+      const r = signInitData({ authDate: AUTH, user: user as Record<string, unknown> });
+      expect(reasonOf(() => validateInitData(r, opts()))).toBe('BAD_USER');
+    }
   });
 
   it('accepts a second (dev) token only when it is in the token list', () => {

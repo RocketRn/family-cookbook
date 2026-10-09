@@ -2,11 +2,13 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 
 /**
- * Telegram Mini App initData validation (PRD 4.3).
+ * Telegram Mini App initData validation (PRD 4.3), bot-token HMAC method.
  *   secret_key = HMAC_SHA256(key = "WebAppData", message = bot_token)
  *   hash       = hex(HMAC_SHA256(key = secret_key, message = data_check_string))
- * data_check_string = all received fields except `hash`, sorted by key, as `key=value`, joined by "\n".
- * Status: implemented from PRD 4.3; not yet verified against the official page (docs/ASSUMPTIONS.md A-01).
+ * data_check_string = ALL received fields except `hash`, sorted by key, as `key=<value>`, joined by "\n".
+ * `signature` stays in the data-check-string: removing it applies only to the third-party Ed25519
+ * method, which we do not use. Source: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ * (docs/ASSUMPTIONS.md A-01b, confirmed by the product owner).
  */
 
 export type InitDataFailure =
@@ -15,6 +17,7 @@ export type InitDataFailure =
   | 'MISSING_HASH'
   | 'BAD_SIGNATURE'
   | 'MISSING_AUTH_DATE'
+  | 'BAD_AUTH_DATE'
   | 'EXPIRED'
   | 'FROM_THE_FUTURE'
   | 'BAD_USER';
@@ -26,7 +29,8 @@ export class InitDataError extends Error {
 }
 
 const userSchema = z.object({
-  id: z.number().int().positive(),
+  // Telegram ids fit in 52 bits; anything beyond a safe integer cannot be a real id.
+  id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   first_name: z.string().default(''),
   last_name: z.string().optional(),
   username: z.string().optional(),
@@ -58,7 +62,8 @@ export function computeHash(dataCheckString: string, botToken: string): string {
   return createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 }
 
-function buildDataCheckString(params: URLSearchParams): string {
+/** Only `hash` is excluded (NOT `signature`): see the header comment. */
+export function buildDataCheckString(params: URLSearchParams): string {
   return [...params.entries()]
     .filter(([k]) => k !== 'hash')
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
@@ -96,8 +101,12 @@ export function validateInitData(raw: string, opts: ValidateOptions): ValidInitD
   if (!matches.some(Boolean)) throw new InitDataError('BAD_SIGNATURE');
 
   const authDateRaw = params.get('auth_date');
-  if (!authDateRaw || !/^\d+$/.test(authDateRaw)) throw new InitDataError('MISSING_AUTH_DATE');
-  const authDate = new Date(Number(authDateRaw) * 1000);
+  if (!authDateRaw) throw new InitDataError('MISSING_AUTH_DATE');
+  // Unix seconds as plain digits. Bound it so a huge value cannot become NaN / Invalid Date,
+  // which would make both freshness comparisons false and silently pass.
+  const authSeconds = /^\d{1,12}$/.test(authDateRaw) ? Number(authDateRaw) : NaN;
+  const authDate = new Date(authSeconds * 1000);
+  if (!Number.isFinite(authDate.getTime())) throw new InitDataError('BAD_AUTH_DATE');
   const ageSeconds = (opts.now.getTime() - authDate.getTime()) / 1000;
   if (ageSeconds > opts.maxAgeSeconds) throw new InitDataError('EXPIRED');
   if (ageSeconds < -(opts.futureSkewSeconds ?? 60)) throw new InitDataError('FROM_THE_FUTURE');

@@ -6,7 +6,20 @@ import { __resetTelegramRuntime, haptic, initTelegram } from '../src/telegram/sd
 
 const vector = JSON.parse(
   readFileSync(path.resolve(__dirname, '../../api/test/fixtures/initdata-vector.json'), 'utf8'),
-) as { botToken: string; hash: string; initData: string };
+) as {
+  botToken: string;
+  hash: string;
+  initData: string;
+  withSignature: { hash: string; initData: string };
+};
+
+async function resign(initData: string): Promise<string | null> {
+  const fields: Record<string, string> = {};
+  new URLSearchParams(initData).forEach((v, k) => {
+    if (k !== 'hash') fields[k] = v;
+  });
+  return new URLSearchParams(await signInitData(fields, vector.botToken)).get('hash');
+}
 
 beforeEach(() => {
   __resetTelegramRuntime();
@@ -14,6 +27,11 @@ beforeEach(() => {
 });
 
 describe('dev initData signer (browser WebCrypto)', () => {
+  it('includes the signature field in the HMAC (matches the Python reference vector)', async () => {
+    expect(new URLSearchParams(vector.withSignature.initData).get('signature')).toBeTruthy();
+    expect(await resign(vector.withSignature.initData)).toBe(vector.withSignature.hash);
+  });
+
   it('reproduces the Python hmac reference hash for the committed vector', async () => {
     const src = new URLSearchParams(vector.initData);
     const fields: Record<string, string> = {};
@@ -35,6 +53,7 @@ describe('Telegram runtime', () => {
     const ageSeconds = Date.now() / 1000 - Number(params.get('auth_date'));
     expect(ageSeconds).toBeLessThan(5); // freshly signed, never a stale committed string
     expect(JSON.parse(params.get('user')!).id).toBe(100000001);
+    expect(params.get('signature')).toBeTruthy(); // mirrors real clients (A-01b)
   });
 
   it('installs the mock once when initialised concurrently (React StrictMode runs effects twice)', async () => {

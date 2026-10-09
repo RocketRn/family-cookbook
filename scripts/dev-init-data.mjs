@@ -17,7 +17,12 @@ if (!user) {
   process.exit(1);
 }
 
-const fields = { auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify(user) };
+// `signature` mirrors real clients; for the HMAC method it is signed like any other field.
+const fields = {
+  auth_date: String(Math.floor(Date.now() / 1000)),
+  user: JSON.stringify(user),
+  signature: 'DEV-SCRIPT-SIGNATURE-not-verified-by-the-hmac-method',
+};
 const dcs = Object.keys(fields)
   .sort()
   .map((k) => `${k}=${fields[k]}`)

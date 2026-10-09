@@ -19,6 +19,7 @@ async function hmac(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayB
 const toHex = (buf: ArrayBuffer): string =>
   [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
+/** Signs every given field (including `signature`); only `hash` is added, never part of the input. */
 export async function signInitData(
   fields: Record<string, string>,
   botToken: string,

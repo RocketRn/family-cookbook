@@ -81,6 +81,9 @@ export async function installMockWebApp(): Promise<TelegramWebApp> {
       query_id: 'MOCK_QUERY',
       user: JSON.stringify(user),
       ...(query.get('startapp') ? { start_param: query.get('startapp')! } : {}),
+      // Real clients also send an Ed25519 `signature` (third-party validation). It is part of the
+      // HMAC data-check-string, so the mock includes one to exercise the same path (A-01b).
+      signature: 'DEV-MOCK-SIGNATURE-not-verified-by-the-hmac-method',
     },
     token,
   );
