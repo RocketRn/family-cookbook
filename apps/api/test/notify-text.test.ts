@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { renderTimerFired } from '../src/notify/templates.js';
 import { cleanText, escapeHtml, isolate, truncate } from '../src/notify/text.js';
 
 /** Bot message text from user content (D-039): escaped for HTML, cleaned, cut safely. */
@@ -28,5 +29,20 @@ describe('text for bot messages', () => {
 
   it('isolates user text so right-to-left words cannot reorder the sentence around them', () => {
     expect(isolate('עוגת תפוחים')).toBe('\u2068עוגת תפוחים\u2069');
+  });
+
+  it('text that looks like a placeholder stays text (one pass, never filled twice)', () => {
+    const r = renderTimerFired(
+      {
+        timer_id: 't',
+        label: '{title} {n}',
+        recipe_id: null,
+        recipe_title: 'Пирог {label}',
+        step_number: 2,
+      },
+      'ru',
+      { botUsername: 'b', appShortName: 'a' },
+    );
+    expect(r.text).toBe('⏰ \u2068{title} {n}\u2069 — готово!\n«\u2068Пирог {label}\u2069», шаг 2');
   });
 });

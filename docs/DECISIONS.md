@@ -341,3 +341,33 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - The whole step is the swipe zone (left = next, right = previous), with vertical swipes off.
   - Back and Next buttons are always shown, because Telegram Desktop has no gestures.
 - **Test plan.** [`docs/QA.md`](QA.md) covers the test levels and where each lives, how to run them, test data, the browser paths checked each sprint, the real-device checks tied to open assumptions, severities, and which test covers which PRD acceptance criterion. Browser paths are run by hand each sprint until Sprint 5 adds them to CI as Playwright tests.
+
+## Sprint 4
+
+### D-039 Bot messages: outbox, sender, local Telegram stand-in
+
+- **Outbox (PRD 4.4).** Every message goes first into `notification_outbox`, with a unique `dedupe_key` (`timer:<id>` …) so one event can never queue two messages. The worker sends due rows; `timer_fired` has priority 0 and goes first.
+- **Several workers, no loss.**
+  - A worker claims rows with `FOR UPDATE SKIP LOCKED` and marks them "sending" with a 30-second lease. If the worker dies, the lease runs out and another worker sends the message.
+  - Delivery is at least once. The only duplicate possible is a crash in the moment between Telegram's answer and our update.
+  - Tested with two senders at once and with a worker that stopped half-way.
+- **Telegram's limits**, shared by all workers through the database (`outbox_gates`):
+  - one message per chat per second, and 25 a second for the whole bot (Telegram allows about 30);
+  - a **429** pauses that chat and the whole bot for `retry_after` seconds and does not count as a failed attempt;
+  - a **403** stops all messages to that person, sets `bot_started = false`, and marks the timers behind those messages "failed" (PRD 4.4). The app can then show "the bot cannot write to you";
+  - a **400** (Telegram refuses the message) is not retried;
+  - other errors are retried after 1 s, 5 s, 30 s and 5 min, and fail after 5 attempts.
+- **Text from user content.** Recipe titles and timer labels are never put into a message as they are:
+  - control characters and invisible direction overrides (a spoofing trick) are removed, and all whitespace becomes single spaces;
+  - the text is cut on a grapheme boundary (an emoji family or a flag is never split): 100 characters for a label, 64 for a title;
+  - it is escaped for Telegram's HTML parse mode (`& < > "`);
+  - it is wrapped in Unicode isolates, so Hebrew or Arabic cannot reorder the sentence around it;
+  - placeholders are filled in one pass, so a label like `{title}` stays text.
+    Tested with HTML, Markdown, entities, emoji, right-to-left text, a direction override, control characters and very long titles.
+- **The message (PRD 4.4, 4.7).** "⏰ {label} — готово!", then «{title}», шаг {n}, in the recipient's interface language. The button "Открыть шаг" opens `t.me/<bot>/<app>?startapp=cook_<recipe>_<step>`.
+- **Local stand-in, never the real Telegram.** `apps/fakebot` imitates `sendMessage`:
+  - it gives the same answers, including 429, 403 and 400 for HTML Telegram would refuse;
+  - its page at <http://127.0.0.1:8081> shows what was "sent";
+  - it binds to 127.0.0.1 and is never deployed.
+    The Telegram client refuses `api.telegram.org` unless explicitly allowed (production only). It also refuses to send the token to any other host unless explicitly allowed (development only), so a test or the demo can never reach Telegram.
+- **The worker's database role** `cookbook_worker` can touch only timers, the outbox, the gates, and the user columns needed to send (Telegram id, language, `bot_started`, preferences). A timer keeps a snapshot of its recipe title and step number, so the worker never reads recipes.

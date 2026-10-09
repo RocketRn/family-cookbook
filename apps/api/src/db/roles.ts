@@ -1,8 +1,10 @@
 import type { Db } from './pool.js';
 
-/** Group roles created by the migrations. The API login role is a NOINHERIT member of both. */
+/** Group roles created by the migrations. The API login role is a NOINHERIT member of all three. */
 export const APP_ROLE = 'cookbook_app';
 export const SYSTEM_ROLE = 'cookbook_system';
+/** The worker process (timers, outbox; migration 0007). */
+export const WORKER_ROLE = 'cookbook_worker';
 
 /**
  * Creates or updates the API login role named in `runtimeUrl` (DATABASE_URL), using the owner
@@ -40,8 +42,8 @@ export async function ensureRuntimeRole(owner: Db, runtimeUrl: string): Promise<
   await owner.query(stmt);
   const grant = (
     await owner.query<{ sql: string }>(
-      `SELECT format('GRANT %I, %I TO %I', $1::text, $2::text, $3::text) AS sql`,
-      [APP_ROLE, SYSTEM_ROLE, role],
+      `SELECT format('GRANT %I, %I, %I TO %I', $1::text, $2::text, $3::text, $4::text) AS sql`,
+      [APP_ROLE, SYSTEM_ROLE, WORKER_ROLE, role],
     )
   ).rows[0]!.sql;
   await owner.query(grant);
@@ -55,11 +57,11 @@ export async function ensureRuntimeRole(owner: Db, runtimeUrl: string): Promise<
 export async function verifyRuntimeRole(db: Db): Promise<string[]> {
   const roles = await db.query<{ rolname: string }>(
     'SELECT rolname FROM pg_roles WHERE rolname = ANY($1)',
-    [[APP_ROLE, SYSTEM_ROLE]],
+    [[APP_ROLE, SYSTEM_ROLE, WORKER_ROLE]],
   );
-  if (roles.rowCount !== 2) {
+  if (roles.rowCount !== 3) {
     return [
-      'Database roles cookbook_app / cookbook_system are missing: run `pnpm db:migrate` first',
+      'Database roles cookbook_app / cookbook_system / cookbook_worker are missing: run `pnpm db:migrate` first',
     ];
   }
   const r = (
@@ -71,14 +73,16 @@ export async function verifyRuntimeRole(db: Db): Promise<string[]> {
       owns: boolean;
       app: boolean;
       system: boolean;
+      worker: boolean;
     }>(
       `SELECT r.rolname AS name, r.rolsuper, r.rolbypassrls, r.rolinherit,
               EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
                        WHERE n.nspname = 'public' AND c.relowner = r.oid) AS owns,
               pg_has_role(r.oid, $1, 'MEMBER') AS app,
-              pg_has_role(r.oid, $2, 'MEMBER') AS system
+              pg_has_role(r.oid, $2, 'MEMBER') AS system,
+              pg_has_role(r.oid, $3, 'MEMBER') AS worker
          FROM pg_roles r WHERE r.rolname = current_user`,
-      [APP_ROLE, SYSTEM_ROLE],
+      [APP_ROLE, SYSTEM_ROLE, WORKER_ROLE],
     )
   ).rows[0]!;
   const problems: string[] = [];
@@ -87,8 +91,8 @@ export async function verifyRuntimeRole(db: Db): Promise<string[]> {
   if (r.rolbypassrls) problems.push(`${who} has BYPASSRLS`);
   if (r.owns) problems.push(`${who} owns tables (it must not be the migration/owner user)`);
   if (r.rolinherit) problems.push(`${who} must be NOINHERIT`);
-  if (!r.app || !r.system)
-    problems.push(`${who} is not a member of ${APP_ROLE} and ${SYSTEM_ROLE}`);
+  if (!r.app || !r.system || !r.worker)
+    problems.push(`${who} is not a member of ${APP_ROLE}, ${SYSTEM_ROLE} and ${WORKER_ROLE}`);
   return problems.map(
     (p) => `${p}. Fix DATABASE_URL (see .env.example) and run \`pnpm db:migrate\`.`,
   );

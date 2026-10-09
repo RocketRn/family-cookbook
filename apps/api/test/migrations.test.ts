@@ -15,11 +15,15 @@ const ALL = [
   '0004_recipe_content',
   '0005_media',
   '0006_search',
+  '0007_timers_outbox',
 ];
 const TABLES = [
   'book_members',
   'books',
+  'cook_sessions',
   'media',
+  'notification_outbox',
+  'outbox_gates',
   'recipe_ingredients',
   'recipe_steps',
   'recipe_tags',
@@ -28,6 +32,7 @@ const TABLES = [
   'step_ingredients',
   'step_timers',
   'tags',
+  'timers',
   'units',
   'users',
 ];

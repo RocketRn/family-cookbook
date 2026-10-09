@@ -1,0 +1,15 @@
+REVOKE UPDATE (bot_started) ON users FROM cookbook_app;
+REVOKE INSERT (bot_started), UPDATE (bot_started) ON users FROM cookbook_system;
+DROP POLICY users_worker ON users;
+REVOKE ALL ON users FROM cookbook_worker;
+DROP FUNCTION extend_timer(uuid, int);
+DROP FUNCTION cancel_timer(uuid);
+DROP TABLE outbox_gates;
+DROP TABLE notification_outbox;
+DROP TYPE outbox_status;
+DROP TABLE timers;
+DROP FUNCTION timers_transition_guard();
+DROP TYPE timer_status;
+DROP TABLE cook_sessions;
+DROP TYPE cook_session_state;
+REVOKE USAGE ON SCHEMA public FROM cookbook_worker;

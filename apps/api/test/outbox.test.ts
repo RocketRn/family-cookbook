@@ -94,6 +94,10 @@ describe('sending', () => {
   it('sends a due timer message in the recipient language, HTML-escaped, with "open the step"', async () => {
     const u = await user('ru');
     const recipe = '0b6f0a39-1e7e-4f5b-9f8e-0c1d2e3f4a5b';
+    await admin.query(`INSERT INTO recipes (id, author_id, title) VALUES ($1, $2, 'Голубцы')`, [
+      recipe,
+      u.id,
+    ]);
     const id = await fired(u.id, {
       label: 'Тушить <на> медленном & огне',
       title: 'Голубцы',

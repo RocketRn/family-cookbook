@@ -60,3 +60,17 @@ export function withUser<T>(db: Db, ctx: RlsContext, fn: (c: Tx) => Promise<T>):
     fn,
   );
 }
+
+/**
+ * Worker transaction (timers and outbox, migration 0007): the `cookbook_worker` role. Its column
+ * GRANTs are the limit: timers, the outbox, and only the user columns needed to send a message.
+ */
+export function withWorker<T>(db: Db, fn: (c: Tx) => Promise<T>): Promise<T> {
+  return run(
+    db,
+    async (c) => {
+      await c.query('SET LOCAL ROLE cookbook_worker');
+    },
+    fn,
+  );
+}
