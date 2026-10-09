@@ -43,7 +43,7 @@
     "success": "You joined the book"
   },
   "book": {
-    "search_placeholder": "Search by title or ingredient",
+    "search_placeholder": "Title or ingredient",
     "scope_book": "Whole book",
     "scope_mine": "Mine",
     "filters": "Filters",

@@ -43,7 +43,7 @@
     "success": "Вы в книге"
   },
   "book": {
-    "search_placeholder": "Поиск по названию или ингредиенту",
+    "search_placeholder": "Название или ингредиент",
     "scope_book": "Вся книга",
     "scope_mine": "Мои",
     "filters": "Фильтры",

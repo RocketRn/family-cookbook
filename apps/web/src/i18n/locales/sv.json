@@ -46,7 +46,7 @@
     "success": "Du är med i boken"
   },
   "book": {
-    "search_placeholder": "Sök på namn eller ingrediens",
+    "search_placeholder": "Namn eller ingrediens",
     "scope_book": "Hela boken",
     "scope_mine": "Mina",
     "filters": "Filter",

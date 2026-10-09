@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { getMe, type Me } from './api/endpoints';
@@ -29,6 +29,10 @@ type Boot =
 /** Boots Telegram (real or dev mock), signs in via GET /me, applies the language, follows start_param. */
 function useBoot(): { boot: Boot; retry: () => void } {
   const navigate = useNavigate();
+  // `navigate` changes identity on every route change; the boot must NOT re-run because of that.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const startParamHandled = useRef(false);
   const [boot, setBoot] = useState<Boot>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -51,7 +55,10 @@ function useBoot(): { boot: Boot; retry: () => void } {
         );
         const target = parseStartParam(rt.webApp.initDataUnsafe.start_param);
         const route = target && routeForTarget(target);
-        if (route && attempt === 0) navigate(route, { replace: true });
+        if (route && !startParamHandled.current) {
+          startParamHandled.current = true;
+          navigateRef.current(route, { replace: true });
+        }
         setBoot({ status: 'ready', me });
       } catch (error) {
         if (!cancelled) setBoot({ status: 'error', error });
@@ -60,7 +67,7 @@ function useBoot(): { boot: Boot; retry: () => void } {
     return () => {
       cancelled = true;
     };
-  }, [attempt, navigate]);
+  }, [attempt]);
 
   return { boot, retry: () => setAttempt((n) => n + 1) };
 }

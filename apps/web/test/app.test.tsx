@@ -141,6 +141,43 @@ describe('demo: sign-in through Telegram (dev mock) against the API contract', (
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
   });
 
+  it('boots once: navigating between tabs does not sign in again or restart the app', async () => {
+    await setLanguage('en');
+    const calls = stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+    renderApp();
+    await screen.findByRole('heading', { name: 'Семья' });
+    fireEvent.click(screen.getByRole('link', { name: /Saved/ }));
+    await screen.findByRole('heading', { name: 'Saved' });
+    fireEvent.click(screen.getByRole('link', { name: /Profile/ }));
+    await screen.findByRole('heading', { name: 'Profile' });
+    expect(calls.filter((c) => c.url === '/api/me')).toHaveLength(1);
+    expect(screen.queryByText('Signing in…')).toBeNull();
+  });
+
+  it('after joining through a deep link the user lands on the book (start_param is not replayed)', async () => {
+    await setLanguage('en');
+    window.history.replaceState({}, '', '/?startapp=join_devinvitecode');
+    let joined = false;
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () =>
+        joined
+          ? json(200, BOOK)
+          : json(404, { error: { code: 'NOT_IN_BOOK', message: 'n', request_id: 'r' } }),
+      'POST /api/books/join': () => {
+        joined = true;
+        return json(201, { id: 'b1', title: 'Семья', role: 'member' });
+      },
+    });
+    renderApp();
+    fireEvent.click(await screen.findByRole('button', { name: 'Join the book' }));
+    expect(await screen.findByRole('heading', { name: 'Семья' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Join this book?' })).toBeNull();
+  });
+
   it('follows a join_ deep link from start_param', async () => {
     await setLanguage('en');
     window.history.replaceState({}, '', '/?startapp=join_devinvitecode');

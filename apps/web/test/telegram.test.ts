@@ -37,6 +37,12 @@ describe('Telegram runtime', () => {
     expect(JSON.parse(params.get('user')!).id).toBe(100000001);
   });
 
+  it('installs the mock once when initialised concurrently (React StrictMode runs effects twice)', async () => {
+    const [a, b] = await Promise.all([initTelegram(), initTelegram()]);
+    expect(a).toBe(b);
+    expect(document.querySelectorAll('[data-testid=mock-back-button]')).toHaveLength(1);
+  });
+
   it('selects another dev user with ?devUser=2 and forwards ?startapp=', async () => {
     window.history.replaceState({}, '', '/?devUser=2&startapp=join_devinvitecode');
     const rt = await initTelegram();

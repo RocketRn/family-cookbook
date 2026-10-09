@@ -46,7 +46,7 @@
     "success": "Ви в книзі"
   },
   "book": {
-    "search_placeholder": "Пошук за назвою або інгредієнтом",
+    "search_placeholder": "Назва або інгредієнт",
     "scope_book": "Уся книга",
     "scope_mine": "Мої",
     "filters": "Фільтри",

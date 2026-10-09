@@ -3,6 +3,8 @@ import type { TelegramWebApp } from './types';
 export type TelegramRuntime = { webApp: TelegramWebApp; mocked: boolean };
 
 let runtime: TelegramRuntime | null = null;
+/** In-flight init, shared so concurrent callers (React StrictMode runs effects twice) install the mock once. */
+let pending: Promise<TelegramRuntime | null> | null = null;
 
 /** Mirrors Telegram's color scheme and viewport insets into CSS so the design tokens can follow them. */
 function syncChrome(webApp: TelegramWebApp): void {
@@ -25,7 +27,12 @@ function syncChrome(webApp: TelegramWebApp): void {
  * (the real SDK script defines an inert WebApp with an empty initData, so that is the test).
  * Outside Telegram in a production build there is no mock: the caller shows an "open in Telegram" screen.
  */
-export async function initTelegram(): Promise<TelegramRuntime | null> {
+export function initTelegram(): Promise<TelegramRuntime | null> {
+  pending ??= doInit();
+  return pending;
+}
+
+async function doInit(): Promise<TelegramRuntime | null> {
   if (runtime) return runtime;
 
   let webApp = window.Telegram?.WebApp;
@@ -64,4 +71,5 @@ export function haptic(kind: 'select' | 'success' | 'error' = 'select'): void {
 /** Test helper. */
 export function __resetTelegramRuntime(): void {
   runtime = null;
+  pending = null;
 }

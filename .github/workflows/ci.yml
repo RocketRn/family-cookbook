@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cookbook
+          POSTGRES_PASSWORD: cookbook
+          POSTGRES_DB: cookbook_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cookbook -d cookbook_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Tests read the database from DATABASE_URL. The name must contain "test": the suite resets the schema.
+      DATABASE_URL: postgres://cookbook:cookbook@localhost:5432/cookbook_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint (ESLint + Prettier)
+        run: pnpm lint
+      - name: i18n key completeness
+        run: pnpm i18n:check
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
