@@ -640,3 +640,28 @@ h2 {
 .toast--static {
   position: static;
 }
+
+/* ---- Import review (FE-05): the original next to the form on a wide screen ---- */
+.review-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+@media (min-width: 720px) {
+  .review-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: start;
+  }
+  .review-layout__original {
+    position: sticky;
+    top: var(--space-3);
+    max-height: calc(100vh - 2 * var(--space-3));
+    overflow-y: auto;
+  }
+}
+.original-text mark {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: inherit;
+  border-radius: 4px;
+}

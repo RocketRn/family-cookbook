@@ -48,8 +48,9 @@ export type EdIngredient = {
   rounding: { name: string; roundClass: RoundClass; minPiece: number | null } | null;
 };
 
-export type EdLink = { key: string; share: number };
-export type EdTimer = { key: string; label: string; minutes: string };
+/** `suggested`: found by the text import, not yet kept or removed by the author (FE-05). */
+export type EdLink = { key: string; share: number; suggested?: boolean };
+export type EdTimer = { key: string; label: string; minutes: string; suggested?: boolean };
 export type EdStep = {
   key: string;
   id: string | null;
@@ -94,6 +95,38 @@ const LANGS: readonly Lang[] = ['ru', 'uk', 'en', 'sv'];
 let counter = 0;
 /** A key for a new line; never a uuid, so it cannot clash with a saved id. */
 export const newKey = (prefix = 'n'): string => `${prefix}${++counter}`;
+
+/**
+ * An editor state read back from the device (the import review, D-043) holds keys made in an
+ * earlier session; new keys must start after them.
+ */
+export function reserveKeys(r: EdRecipe): void {
+  const keys = [
+    ...r.ingredients.map((i) => i.key),
+    ...r.steps.flatMap((s) => [s.key, ...s.timers.map((t) => t.key)]),
+  ];
+  for (const k of keys) {
+    const m = /^[a-z](\d+)$/.exec(k);
+    if (m) counter = Math.max(counter, Number(m[1]));
+  }
+}
+
+/** FE-05: every timer and ingredient link the import found starts as a suggestion. */
+export const markSuggested = (r: EdRecipe): EdRecipe => ({
+  ...r,
+  steps: r.steps.map((s) => ({
+    ...s,
+    links: s.links.map((l) => ({ ...l, suggested: true })),
+    timers: s.timers.map((t) => ({ ...t, suggested: true })),
+  })),
+});
+
+export const countSuggestions = (r: EdRecipe): number =>
+  r.steps.reduce(
+    (n, s) =>
+      n + s.links.filter((l) => l.suggested).length + s.timers.filter((t) => t.suggested).length,
+    0,
+  );
 
 export const emptyIngredient = (group: string | null = null): EdIngredient => ({
   key: newKey(),
@@ -440,6 +473,21 @@ export function moveIngredient(list: EdIngredient[], key: string, dir: -1 | 1): 
   }
   [next[i], next[j]] = [next[j]!, next[i]!];
   return next;
+}
+
+/** FE-05: a line goes to the end of another section (sections stay in one piece). */
+export function moveToSection(list: EdIngredient[], key: string, group: string): EdIngredient[] {
+  const line = list.find((x) => x.key === key);
+  if (!line || line.group === group) return list;
+  const rest = list.filter((x) => x.key !== key);
+  let at = rest.length;
+  for (let i = rest.length - 1; i >= 0; i--) {
+    if (rest[i]!.group === group) {
+      at = i + 1;
+      break;
+    }
+  }
+  return [...rest.slice(0, at), { ...line, group }, ...rest.slice(at)];
 }
 
 export function move<T extends { key: string }>(list: T[], key: string, dir: -1 | 1): T[] {

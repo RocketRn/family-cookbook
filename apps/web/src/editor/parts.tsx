@@ -140,6 +140,7 @@ export function IngredientRow({
   lang,
   errors,
   reasons,
+  onFocus,
   onChange,
   onDetails,
 }: {
@@ -147,6 +148,8 @@ export function IngredientRow({
   lang: Lang;
   errors: Errors;
   reasons?: string[];
+  /** The import review marks this line in the original text (FE-05). */
+  onFocus?: () => void;
   onChange: (patch: Partial<EdIngredient>) => void;
   onDetails: () => void;
 }) {
@@ -165,6 +168,7 @@ export function IngredientRow({
           aria-invalid={!!nameError}
           maxLength={200}
           lang={lang}
+          onFocus={onFocus}
           onChange={(e) => onChange({ name: e.target.value })}
         />
         {noAmount ? (
@@ -180,6 +184,7 @@ export function IngredientRow({
               aria-label={t('editor.amount')}
               aria-invalid={!!amountError}
               maxLength={20}
+              onFocus={onFocus}
               onChange={(e) =>
                 onChange({
                   amount: e.target.value,
@@ -200,7 +205,10 @@ export function IngredientRow({
           </>
         )}
       </div>
-      {ing.kind === 'unparsed' && <p className="hint">{t('review.reason_unparsed')}</p>}
+      {/* Said once: the import's reasons already say it for a highlighted line. */}
+      {ing.kind === 'unparsed' && !(low && reasons?.includes('unparsed')) && (
+        <p className="hint">{t('review.reason_unparsed')}</p>
+      )}
       {low && reasons && reasons.length > 0 && (
         <ul className="edit-line__reasons hint">
           {reasons.map((r) => (
@@ -228,6 +236,8 @@ export function IngredientSheet({
   lang,
   onChange,
   onMove,
+  sections = [],
+  onSection,
   onRemove,
   onClose,
 }: {
@@ -235,6 +245,9 @@ export function IngredientSheet({
   lang: Lang;
   onChange: (patch: Partial<EdIngredient>) => void;
   onMove: (dir: -1 | 1) => void;
+  /** Named sections of the recipe; the line can move to any of them (FE-05). */
+  sections?: string[];
+  onSection?: (group: string) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
@@ -314,6 +327,18 @@ export function IngredientSheet({
           lang={lang}
           onChange={(e) => onChange({ note: e.target.value })}
         />
+        {onSection && sections.length > 1 && (
+          <fieldset className="plain">
+            <legend className="label">{t('editor.section')}</legend>
+            <div className="row row--wrap" lang={lang}>
+              {sections.map((g) => (
+                <Chip key={g} selected={ing.group === g} onToggle={() => onSection(g)}>
+                  {g}
+                </Chip>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <div className="row row--wrap">
           <Button variant="secondary" onClick={() => onMove(-1)}>
             {t('editor.move_up')}
@@ -381,7 +406,21 @@ export function StepCard({
   const byKey = new Map(ingredients.map((i) => [i.key, i]));
   const shown = displayText(step.text, labels);
   const named = ingredients.filter((i) => i.name.trim());
-  const linked = step.links.filter((l) => byKey.has(l.key));
+  const linked = step.links.filter((l) => byKey.has(l.key) && !l.suggested);
+  const suggestedLinks = step.links.filter((l) => byKey.has(l.key) && l.suggested);
+  const suggestedTimers = step.timers.filter((tm) => tm.suggested);
+  const decideLink = (key: string, keep: boolean) =>
+    onChange({
+      links: keep
+        ? step.links.map((l) => (l.key === key ? { ...l, suggested: false } : l))
+        : step.links.filter((l) => l.key !== key),
+    });
+  const decideTimer = (key: string, keep: boolean) =>
+    onChange({
+      timers: keep
+        ? step.timers.map((x) => (x.key === key ? { ...x, suggested: false } : x))
+        : step.timers.filter((x) => x.key !== key),
+    });
   const unlinked = named.filter((i) => !step.links.some((l) => l.key === i.key));
   const preview = step.text.includes('{ing:') ? previewText(step, ingredients, langs) : null;
   const link = linkFor ? step.links.find((l) => l.key === linkFor) : undefined;
@@ -469,6 +508,40 @@ export function StepCard({
       )}
 
       <span className="label">{t('recipe.step_ingredients')}</span>
+      {suggestedLinks.length > 0 && (
+        <div
+          className="notice stack stack--tight"
+          role="group"
+          aria-label={t('review.links_found')}
+        >
+          <span className="label">{t('review.links_found')}</span>
+          {suggestedLinks.map((l) => {
+            const name = byKey.get(l.key)!.name.trim() || '?';
+            const text = `${name} · ${shareLabel(l.share, t('editor.share_all'))}`;
+            return (
+              <div key={l.key} className="row">
+                <span className="grow" lang={lang}>
+                  {text}
+                </span>
+                <Button
+                  variant="secondary"
+                  aria-label={t('review.link_keep', { name })}
+                  onClick={() => decideLink(l.key, true)}
+                >
+                  {t('review.keep')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  aria-label={t('review.link_remove', { name })}
+                  onClick={() => decideLink(l.key, false)}
+                >
+                  {t('review.remove')}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="row row--wrap">
         {linked.map((l) => {
           const ing = byKey.get(l.key)!;
@@ -497,55 +570,81 @@ export function StepCard({
         onChange={(photo) => onChange({ photo })}
       />
 
-      {step.timers.map((tm) => (
-        <div key={tm.key} className="stack stack--tight">
+      {suggestedTimers.map((tm) => (
+        <div
+          key={tm.key}
+          className="notice stack stack--tight"
+          role="group"
+          aria-label={t('review.timer_found', { time: tm.minutes })}
+        >
+          <span>
+            {'⏱ '}
+            {t('review.timer_found', { time: tm.minutes })}
+            <span className="hint" lang={lang}>
+              {' · '}
+              {tm.label}
+            </span>
+          </span>
           <div className="row">
-            <div className="grow">
-              <TextField
-                label={t('editor.timer_label')}
-                value={tm.label}
-                maxLength={100}
-                lang={lang}
-                onChange={(e) =>
-                  onChange({
-                    timers: step.timers.map((x) =>
-                      x.key === tm.key ? { ...x, label: e.target.value } : x,
-                    ),
-                  })
-                }
-              />
-            </div>
-            <div className="field-narrow">
-              <TextField
-                label={t('editor.timer_minutes')}
-                value={tm.minutes}
-                inputMode="decimal"
-                maxLength={8}
-                aria-invalid={!!errors[`step:${step.key}:timer:${tm.key}`]}
-                onChange={(e) =>
-                  onChange({
-                    timers: step.timers.map((x) =>
-                      x.key === tm.key ? { ...x, minutes: e.target.value } : x,
-                    ),
-                  })
-                }
-              />
-            </div>
-            <Button
-              variant="ghost"
-              aria-label={t('editor.remove_timer')}
-              onClick={() => onChange({ timers: step.timers.filter((x) => x.key !== tm.key) })}
-            >
-              {'✕'}
+            <Button onClick={() => decideTimer(tm.key, true)}>{t('review.timer_add')}</Button>
+            <Button variant="ghost" onClick={() => decideTimer(tm.key, false)}>
+              {t('review.timer_skip')}
             </Button>
           </div>
-          {errors[`step:${step.key}:timer:${tm.key}`] && (
-            <p className="error-text" role="alert">
-              {t('editor.err_timer')}
-            </p>
-          )}
         </div>
       ))}
+
+      {step.timers
+        .filter((tm) => !tm.suggested)
+        .map((tm) => (
+          <div key={tm.key} className="stack stack--tight">
+            <div className="row">
+              <div className="grow">
+                <TextField
+                  label={t('editor.timer_label')}
+                  value={tm.label}
+                  maxLength={100}
+                  lang={lang}
+                  onChange={(e) =>
+                    onChange({
+                      timers: step.timers.map((x) =>
+                        x.key === tm.key ? { ...x, label: e.target.value } : x,
+                      ),
+                    })
+                  }
+                />
+              </div>
+              <div className="field-narrow">
+                <TextField
+                  label={t('editor.timer_minutes')}
+                  value={tm.minutes}
+                  inputMode="decimal"
+                  maxLength={8}
+                  aria-invalid={!!errors[`step:${step.key}:timer:${tm.key}`]}
+                  onChange={(e) =>
+                    onChange({
+                      timers: step.timers.map((x) =>
+                        x.key === tm.key ? { ...x, minutes: e.target.value } : x,
+                      ),
+                    })
+                  }
+                />
+              </div>
+              <Button
+                variant="ghost"
+                aria-label={t('editor.remove_timer')}
+                onClick={() => onChange({ timers: step.timers.filter((x) => x.key !== tm.key) })}
+              >
+                {'✕'}
+              </Button>
+            </div>
+            {errors[`step:${step.key}:timer:${tm.key}`] && (
+              <p className="error-text" role="alert">
+                {t('editor.err_timer')}
+              </p>
+            )}
+          </div>
+        ))}
 
       {showVideo && (
         <div className="stack stack--tight">

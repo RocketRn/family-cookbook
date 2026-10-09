@@ -459,3 +459,24 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - timers on the recipe card outside cooking mode;
   - the "failed to deliver" state from a 403, shown on the chip;
   - sound.
+
+### D-043 Full import review (FE-05)
+
+- **Same editor, review mode.** After "Parse" the editor opens as "Check the recipe", as in Sprint 3 (D-036), now with the parts of the full review.
+- **Suggestions.** Every timer and every ingredient link the parser found starts as a suggestion.
+  - A timer shows "Timer found: 40 min · <label>" with "Keep this timer" or "Skip".
+  - The links of a step are listed under "Suggested ingredients", each with "Keep" or "Remove".
+  - The notice counts the suggestions still waiting.
+  - Saving with some still waiting keeps them (they came from the text), so nothing found is lost by accident.
+- **The original next to the result.**
+  - From 720 px wide (Telegram Desktop, a tablet), the original text stays on the left while the form scrolls on the right.
+  - On a phone it is a folded panel above the form.
+  - The ingredient line being edited is marked in the original, using the line it was read from.
+- **Moving lines between sections.** An ingredient's details have a "Section" choice listing the recipe's sections; the line moves to the end of the one chosen. Up / Down still work, and at a section edge they move the line into the next section.
+  - Dragging was in the earlier plan. It is not built: a choice works the same with a finger, a mouse and a keyboard (Telegram Desktop), and drag and drop inside Telegram's in-app browsers would need checking on real phones.
+- **Kept on the device** (PRD 4.8 `import-draft`).
+  - Before "Parse" it holds the pasted text, as in Sprint 3.
+  - After it, it holds the review in progress: the draft recipe it made, the original text, the parser's notes, and every edit and decision, written on each change.
+  - Reopening the draft's editor, or the paste screen ("Continue checking «…»"), continues where the author was.
+  - The review is cleared once the recipe is saved. A saved review whose recipe has since changed on the server is not used.
+  - New lines added after a restore get keys after the restored ones, so they cannot collide.

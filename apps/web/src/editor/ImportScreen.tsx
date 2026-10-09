@@ -6,43 +6,27 @@ import { recipeApi } from '../api/recipeApi';
 import { Button } from '../design/Button';
 import { errorMessage } from '../errors';
 import type { EditorState } from './EditorScreen';
+import { IMPORT_DRAFT_KEY, readImportDraft, startReview, writeImportText } from './importDraft';
 
 /** PRD 7.1: an import text is at most 20,000 characters. */
 export const IMPORT_MAX_CHARS = 20_000;
-/** PRD 4.8 localStorage key: the pasted text survives closing the app until the recipe is saved. */
-export const IMPORT_DRAFT_KEY = 'import-draft';
-
-function readDraft(): string {
-  try {
-    const v = JSON.parse(localStorage.getItem(IMPORT_DRAFT_KEY) ?? 'null') as { text?: unknown };
-    return typeof v?.text === 'string' ? v.text : '';
-  } catch {
-    return '';
-  }
-}
-function writeDraft(text: string): void {
-  try {
-    if (text) localStorage.setItem(IMPORT_DRAFT_KEY, JSON.stringify({ v: 1, text }));
-    else localStorage.removeItem(IMPORT_DRAFT_KEY);
-  } catch {
-    /* private mode or storage full: the text simply is not kept */
-  }
-}
+export { IMPORT_DRAFT_KEY };
 
 /**
- * PRD 2.2 variant A, steps 1-6 (thin version, owner decision 1): paste, "Parse", then the editor
- * opens on the new private draft with uncertain lines highlighted. The full review screen is FE-05.
+ * PRD 2.2 variant A, steps 1-6: paste, "Parse", then the editor opens on the new private draft as
+ * the review (FE-05, D-043). A review not finished yet can be continued from here.
  */
 export function ImportScreen() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [text, setText] = useState(readDraft);
+  const [text, setText] = useState(() => readImportDraft().text ?? '');
+  const [review] = useState(() => readImportDraft().review);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tooLong = text.length > IMPORT_MAX_CHARS;
 
-  useEffect(() => writeDraft(text), [text]);
+  useEffect(() => writeImportText(text), [text]);
 
   async function parse() {
     setBusy(true);
@@ -50,18 +34,24 @@ export function ImportScreen() {
     try {
       const lang = (['ru', 'uk', 'en', 'sv'] as const).find((l) => l === i18n.language) ?? 'en';
       const res = await recipeApi.importText(text, lang);
-      writeDraft('');
+      const imported = {
+        original: text,
+        warnings: res.import.warnings,
+        reasons: Object.fromEntries(
+          res.import.lines.map((l) => [l.ingredient_id, l.reasons] as const),
+        ),
+      };
+      // The text has become a draft recipe; the review in progress is kept instead (D-043).
+      startReview({
+        recipe_id: res.recipe.id,
+        recipe_version: res.recipe.version,
+        title: res.recipe.title,
+        ...imported,
+        editor: null,
+      });
       qc.setQueryData(['recipe', res.recipe.id], res.recipe);
       void qc.invalidateQueries({ queryKey: ['recipes'] });
-      const state: EditorState = {
-        imported: {
-          original: text,
-          warnings: res.import.warnings,
-          reasons: Object.fromEntries(
-            res.import.lines.map((l) => [l.ingredient_id, l.reasons] as const),
-          ),
-        },
-      };
+      const state: EditorState = { imported };
       navigate(`/recipe/${res.recipe.id}/edit`, { replace: true, state });
     } catch (err) {
       setError(errorMessage(t, err));
@@ -73,6 +63,19 @@ export function ImportScreen() {
   return (
     <div className="stack">
       <h1>{t('import.title')}</h1>
+      {review && (
+        <section className="notice stack stack--tight" aria-label={t('review.title')}>
+          <p>{t('review.in_progress')}</p>
+          <div>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/recipe/${review.recipe_id}/edit`)}
+            >
+              {t('review.continue_checking', { title: review.editor?.title || review.title })}
+            </Button>
+          </div>
+        </section>
+      )}
       <p className="hint">{t('import.hint')}</p>
       <textarea
         className="field textarea textarea--tall"

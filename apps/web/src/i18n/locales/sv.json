@@ -308,7 +308,8 @@
     "missing_title": "ett namn",
     "missing_ingredient": "minst en ingrediens",
     "unit_free": "Enhet som du skriver den",
-    "cover_photo": "Receptfoto"
+    "cover_photo": "Receptfoto",
+    "section": "Avsnitt"
   },
   "review": {
     "title": "Kontrollera receptet",
@@ -323,7 +324,7 @@
     "reason_unparsed": "Inte igenkänd: raden står kvar som den är och räknas inte om",
     "links_suggested": "Ingredienser i det här steget",
     "timer_found": "Timer hittad: {{time}} min",
-    "timer_add": "Lägg till timer",
+    "timer_add": "Behåll timern",
     "timer_skip": "Hoppa över",
     "timer_added": "Timer tillagd",
     "timer_skipped": "Timer överhoppad",
@@ -333,7 +334,15 @@
     "warn_no_ingredients": "Vi hittade inga ingredienser. Lägg till dem nedan.",
     "warn_no_steps": "Vi hittade inga steg. Lägg till dem nedan.",
     "warn_truncated": "Texten var mycket lång: bara de första 100 ingredienserna och 60 stegen togs med.",
-    "nothing_to_check": "Vi delade upp texten i ingredienser och steg. Inget såg tveksamt ut, men titta igenom receptet innan du sparar."
+    "nothing_to_check": "Vi delade upp texten i ingredienser och steg. Inget såg tveksamt ut, men titta igenom receptet innan du sparar.",
+    "links_found": "Föreslagna ingredienser",
+    "link_keep": "Behåll ”{{name}}”",
+    "link_remove": "Ta bort ”{{name}}”",
+    "keep": "Behåll",
+    "remove": "Ta bort",
+    "continue_checking": "Fortsätt granska ”{{title}}”",
+    "in_progress": "Du har inte granskat klart ett recept från en text. Dina ändringar sparas på den här enheten.",
+    "suggestions_left": "Förslag som väntar på ditt beslut: {{count}}"
   },
   "dev": {
     "design_title": "Skissvyer",

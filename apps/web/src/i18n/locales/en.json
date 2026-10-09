@@ -305,7 +305,8 @@
     "missing_title": "a title",
     "missing_ingredient": "at least one ingredient",
     "unit_free": "Unit as you write it",
-    "cover_photo": "Recipe photo"
+    "cover_photo": "Recipe photo",
+    "section": "Section"
   },
   "review": {
     "title": "Check the recipe",
@@ -320,7 +321,7 @@
     "reason_unparsed": "Not recognized: it stays as written and is not recalculated",
     "links_suggested": "Ingredients used in this step",
     "timer_found": "Timer found: {{time}} min",
-    "timer_add": "Add timer",
+    "timer_add": "Keep this timer",
     "timer_skip": "Skip",
     "timer_added": "Timer added",
     "timer_skipped": "Timer skipped",
@@ -330,7 +331,15 @@
     "warn_no_ingredients": "We found no ingredients. Add them below.",
     "warn_no_steps": "We found no steps. Add them below.",
     "warn_truncated": "The text was very long: only the first 100 ingredients and 60 steps were taken.",
-    "nothing_to_check": "We split your text into ingredients and steps. Nothing looked doubtful, but please look it over before saving."
+    "nothing_to_check": "We split your text into ingredients and steps. Nothing looked doubtful, but please look it over before saving.",
+    "links_found": "Suggested ingredients",
+    "link_keep": "Keep “{{name}}”",
+    "link_remove": "Remove “{{name}}”",
+    "keep": "Keep",
+    "remove": "Remove",
+    "continue_checking": "Continue checking “{{title}}”",
+    "in_progress": "You have not finished checking a recipe from a text. Your changes are kept on this device.",
+    "suggestions_left": "Suggestions waiting for your decision: {{count}}"
   },
   "dev": {
     "design_title": "Design previews",

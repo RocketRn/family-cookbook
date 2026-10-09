@@ -1,6 +1,6 @@
 import type { Lang } from '@cookbook/recipe-core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
@@ -18,14 +18,18 @@ import { useLeaveGuard, useToastStore } from '../state/store';
 import { setClosingConfirmation } from '../telegram/sdk';
 import {
   check,
+  countSuggestions,
   emptyIngredient,
   emptyRecipe,
   emptyStep,
   fromRecipe,
+  markSuggested,
   MAX_TAGS,
   move,
   moveIngredient,
+  moveToSection,
   removeIngredient,
+  reserveKeys,
   sections,
   serverErrors,
   tokenLabels,
@@ -35,26 +39,26 @@ import {
   type EdStep,
   type Errors,
 } from './model';
+import { endReview, reviewFor, saveReviewEdits } from './importDraft';
 import { IngredientRow, IngredientSheet, LOW_CONFIDENCE, PhotoSlot, StepCard } from './parts';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 const VISIBILITIES = ['private', 'book', 'link'] as const;
 
-/** What the paste screen passes along (thin import review, PRD 2.2 step 6). */
-export type EditorState = {
-  imported?: {
-    original: string;
-    warnings: ImportWarning[];
-    /** Why the parser was unsure, by ingredient id. */
-    reasons: Record<string, string[]>;
-  };
+/** What the paste screen passes along (import review, PRD 2.2 step 6). */
+export type Imported = {
+  original: string;
+  warnings: ImportWarning[];
+  /** Why the parser was unsure, by ingredient id. */
+  reasons: Record<string, string[]>;
 };
+export type EditorState = { imported?: Imported };
 
 /** FE-04: /recipe/new and /recipe/:id/edit (PRD 2.2 steps 7-10, D-035). */
 export function EditorScreen() {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
-  const imported = (useLocation().state as EditorState | null)?.imported;
+  const fromImport = (useLocation().state as EditorState | null)?.imported;
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
   const recipe = useQuery({
     queryKey: ['recipe', id],
@@ -72,21 +76,45 @@ export function EditorScreen() {
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   if (!recipe.data) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
   if (!recipe.data.can_edit) return <EmptyState icon={'🔒'} title={t('editor.not_allowed')} />;
-  const initial = fromRecipe(recipe.data, uiLang);
-  // The import made a private draft by default; "Publish" should still mean "to the book".
-  if (imported && book.data && initial.status === 'draft' && initial.visibility === 'private')
-    initial.visibility = 'book';
-  return <Editor key={id} initial={initial} inBook={!!book.data} />;
+  // FE-05: a review of this recipe in progress on this device continues where it was (D-043).
+  const review = reviewFor(recipe.data.id, recipe.data.version);
+  const imported: Imported | undefined =
+    fromImport ??
+    (review
+      ? { original: review.original, warnings: review.warnings, reasons: review.reasons }
+      : undefined);
+  let initial: EdRecipe;
+  if (review?.editor) {
+    initial = review.editor;
+    reserveKeys(initial);
+  } else {
+    initial = fromRecipe(recipe.data, uiLang);
+    if (imported) {
+      initial = markSuggested(initial);
+      // The import made a private draft by default; "Publish" should still mean "to the book".
+      if (book.data && initial.status === 'draft' && initial.visibility === 'private')
+        initial.visibility = 'book';
+    }
+  }
+  return <Editor key={id} initial={initial} inBook={!!book.data} imported={imported} />;
 }
 
-function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
+function Editor({
+  initial,
+  inBook,
+  imported,
+}: {
+  initial: EdRecipe;
+  inBook: boolean;
+  imported?: Imported;
+}) {
   const { t, i18n } = useTranslation();
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
   const qc = useQueryClient();
   const navigate = useNavigate();
   const toast = useToastStore((s) => s.show);
-  const imported = (useLocation().state as EditorState | null)?.imported;
   const reasons = imported?.reasons;
+  const [focusRaw, setFocusRaw] = useState<string | null>(null);
   const [r, setR] = useState(initial);
   const [baseline] = useState(() => JSON.stringify(initial));
   const [errors, setErrors] = useState<Errors>({});
@@ -115,6 +143,11 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
     },
     [],
   );
+
+  // PRD 4.8: the review is kept on the device as the author goes, until the recipe is saved.
+  useEffect(() => {
+    if (imported && r.id) saveReviewEdits(r.id, r);
+  }, [r]);
 
   const set = (patch: Partial<EdRecipe>) => setR((x) => ({ ...x, ...patch }));
   const setIng = (key: string, patch: Partial<EdIngredient>) =>
@@ -151,6 +184,7 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
       const saved = r.id ? await recipeApi.update(r.id, body) : await recipeApi.create(body);
       useLeaveGuard.getState().set(null);
       setClosingConfirmation(false);
+      endReview(saved.id);
       qc.setQueryData(['recipe', saved.id], saved);
       void qc.invalidateQueries({ queryKey: ['recipes'] });
       toast(status === 'published' ? t('editor.published') : t('editor.saved'));
@@ -181,11 +215,13 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
   const published = r.status === 'published';
 
   return (
-    <div className="stack">
+    <ReviewLayout imported={imported} focusRaw={focusRaw}>
       <h1>
         {imported ? t('review.title') : r.id ? t('editor.title_edit') : t('editor.title_new')}
       </h1>
-      {imported && <ImportNotice imported={imported} toCheck={toCheck} />}
+      {imported && (
+        <ImportNotice imported={imported} toCheck={toCheck} suggestions={countSuggestions(r)} />
+      )}
 
       <PhotoSlot
         photo={r.cover}
@@ -321,6 +357,7 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
                   lang={lang}
                   errors={errors}
                   reasons={reasons?.[i.key]}
+                  onFocus={() => setFocusRaw(i.rawLine)}
                   onChange={(patch) => setIng(i.key, patch)}
                   onDetails={() => setSheetFor(i.key)}
                 />
@@ -494,6 +531,14 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
         onMove={(dir) =>
           sheetIng && set({ ingredients: moveIngredient(r.ingredients, sheetIng.key, dir) })
         }
+        sections={[
+          ...new Set(
+            r.ingredients.map((i) => i.group).filter((g): g is string => !!g && !!g.trim()),
+          ),
+        ]}
+        onSection={(group) =>
+          sheetIng && set({ ingredients: moveToSection(r.ingredients, sheetIng.key, group) })
+        }
         onRemove={() => {
           if (sheetIng) setR((x) => removeIngredient(x, sheetIng.key, langs));
           setSheetFor(null);
@@ -531,17 +576,69 @@ function Editor({ initial, inBook }: { initial: EdRecipe; inBook: boolean }) {
           </>
         )}
       </div>
+    </ReviewLayout>
+  );
+}
+
+/**
+ * FE-05 review layout (D-043): the original text next to the form on a wide screen, above it
+ * (folded) on a phone. The ingredient line in focus is marked in the original.
+ */
+function ReviewLayout({
+  imported,
+  focusRaw,
+  children,
+}: {
+  imported: Imported | undefined;
+  focusRaw: string | null;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const details = useRef<HTMLDetailsElement>(null);
+  const mark = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (details.current && window.matchMedia?.('(min-width: 720px)').matches)
+      details.current.open = true;
+  }, []);
+  useEffect(() => {
+    mark.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [focusRaw]);
+  if (!imported) return <div className="stack">{children}</div>;
+  const wanted = focusRaw?.trim();
+  let marked = false;
+  return (
+    <div className="review-layout">
+      <aside className="review-layout__original" aria-label={t('review.original')}>
+        <details ref={details} className="section">
+          <summary>{t('review.original')}</summary>
+          <pre className="original-text">
+            {imported.original.split('\n').map((line, i) => {
+              const hit = !marked && !!wanted && line.trim() === wanted;
+              if (hit) marked = true;
+              return (
+                <span key={i}>
+                  {i > 0 && '\n'}
+                  {hit ? <mark ref={mark}>{line}</mark> : line}
+                </span>
+              );
+            })}
+          </pre>
+        </details>
+      </aside>
+      <div className="stack">{children}</div>
     </div>
   );
 }
 
-/** Thin import review (owner decision 1): what was done, what to check, and the original text. */
+/** What was done, what to check, and how many suggestions wait for a decision. */
 function ImportNotice({
   imported,
   toCheck,
+  suggestions,
 }: {
-  imported: NonNullable<EditorState['imported']>;
+  imported: Imported;
   toCheck: number;
+  suggestions: number;
 }) {
   const { t } = useTranslation();
   return (
@@ -556,15 +653,12 @@ function ImportNotice({
       ) : (
         <p>{t('review.nothing_to_check')}</p>
       )}
+      {suggestions > 0 && <p>{t('review.suggestions_left', { count: suggestions })}</p>}
       {imported.warnings.map((w) => (
         <p key={w} className="hint">
           {t(`review.warn_${w}`)}
         </p>
       ))}
-      <details>
-        <summary>{t('review.original')}</summary>
-        <pre className="original-text">{imported.original}</pre>
-      </details>
     </section>
   );
 }

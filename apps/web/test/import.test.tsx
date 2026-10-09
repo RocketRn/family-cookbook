@@ -127,7 +127,11 @@ describe('paste recipe text', () => {
       text: TEXT,
       ui_lang: 'en',
     });
-    expect(localStorage.getItem(IMPORT_DRAFT_KEY)).toBeNull();
+    // Now it keeps the review instead of the text, until the recipe is saved (FE-05, D-043).
+    expect(JSON.parse(localStorage.getItem(IMPORT_DRAFT_KEY)!)).toMatchObject({
+      v: 1,
+      review: { recipe_id: DRAFT_ID, original: TEXT },
+    });
     expect(screen.getByText('Lines to check: 2')).toBeTruthy();
     expect(screen.getByText(/There were no headings/)).toBeTruthy();
     expect(screen.getByText('Original text')).toBeTruthy();
