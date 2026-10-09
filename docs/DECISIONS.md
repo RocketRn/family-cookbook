@@ -210,3 +210,12 @@ PRD 2.3 says a step should reference an ingredient with `{ing:<id>}` so that "th
 - Reactions are shown as disabled markup with a "later version" note. Saving them is BE-10/FE-10 (Sprint 5).
 - Saved tab (owner decision 5): production shows a neutral empty shelf. The dev build shows two seed recipes marked "Development sample". `pnpm check:bundle` fails if the sample reaches a production build (checked by removing the guard: the check failed as expected).
 - Language choice is applied at once, kept on the device, and saved to the profile with `PATCH /me`. If saving fails, the choice stays and the user is told.
+
+### D-031 UX-03 designs live in the dev build
+
+UX-01/02 were delivered as working screens in code, and so is UX-03. The recipe editor (`/dev/editor`) and the import review (`/dev/review`) are built from the design system with sample data. They open from Profile → "Design previews" in development builds only, nothing on them is saved, and `pnpm check:bundle` keeps them out of production. They follow PRD 2.2 (steps 6–9) and 5.1:
+
+- Review: the original text is folded at the top. Lines with confidence < 0.7 are highlighted, with the PRD 5.1.3 reasons in plain words (amount after the name, no unit, a number in brackets moved to the note, not recognized). Suggested ingredient links are chips per step, a found timer can be added or skipped, and a found YouTube link is attached to its step. Sections are editable headings.
+- Editor: photo slot, title, servings stepper ("needed for recalculation"), difficulty, times, recipe language (numbers and units follow it; the recipe is never translated). Each ingredient line opens a details sheet: how much (exact, from–to, to taste, a pinch), the unit picked from recipe-core's list in the recipe's language, optional, note. Each step has text, linked ingredients, a photo, timers, and a YouTube link with a start time. Then tags (system and your own), who can see it (only me / book / by link), and Save draft / Publish. A publish attempt with something missing says what is missing, which mirrors the API's `NOT_PUBLISHABLE`.
+
+The UX-03 texts are already translated into all four languages, so FE-04 and FE-05 reuse them.

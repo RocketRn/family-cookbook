@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { getMe, type Me } from './api/endpoints';
@@ -19,6 +19,9 @@ import { PlainShell, TabShell, ToastHost } from './screens/Shell';
 import { initTelegram } from './telegram/sdk';
 import { parseStartParam, routeForTarget } from './telegram/startParam';
 import { useBackButton } from './telegram/useBackButton';
+
+// UX-03 design screens: development builds only (the import is dropped from production bundles).
+const DesignScreens = import.meta.env.DEV ? lazy(() => import('./dev/design/DesignScreens')) : null;
 
 type Boot =
   | { status: 'loading' }
@@ -94,6 +97,16 @@ function Ready({ me }: { me: Me }) {
           <Route path="/recipe/:id" element={<RecipeScreen />} />
           <Route path="/join/:code" element={<JoinScreen />} />
           <Route path="/r/:token" element={<LinkRecipeScreen />} />
+          {DesignScreens && (
+            <Route
+              path="/dev/*"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <DesignScreens />
+                </Suspense>
+              }
+            />
+          )}
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

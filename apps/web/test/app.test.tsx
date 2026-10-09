@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
@@ -495,5 +495,69 @@ describe('PATCH /me: the interface language is saved to the profile', () => {
     ).toBeTruthy();
     expect(document.documentElement.lang).toBe('uk');
     expect(localStorage.getItem('ui_lang')).toBe('uk');
+  });
+});
+
+describe('UX-03 design screens (development build only)', () => {
+  const boot = () =>
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+
+  it('import review highlights lines below confidence 0.7 with the PRD 5.1.3 reasons', async () => {
+    await setLanguage('en');
+    boot();
+    renderApp('/dev/review');
+    expect(await screen.findByRole('heading', { name: 'Check the recipe' })).toBeTruthy();
+    expect(screen.getByText('Lines to check: 2')).toBeTruthy();
+    const low = document.querySelectorAll('[data-low]');
+    expect(low).toHaveLength(2);
+    expect(low[0]!.textContent).toContain('No unit: check the amount');
+    expect(low[0]!.textContent).toContain('A number in brackets was moved to the note');
+    expect(low[1]!.textContent).toContain('Not recognized');
+    // A suggested timer is accepted or skipped; suggested ingredient links can be toggled.
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.getByText('Timer skipped')).toBeTruthy();
+    const [firstStepLinks] = screen.getAllByRole('group', {
+      name: 'Ingredients used in this step',
+    });
+    const eggs = within(firstStepLinks!).getByRole('button', { name: 'яйца' });
+    expect(eggs.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(eggs);
+    expect(eggs.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('editor: publishing with a missing part says what is missing', async () => {
+    await setLanguage('en');
+    boot();
+    renderApp('/dev/editor');
+    expect(await screen.findByRole('heading', { name: 'New recipe' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'More servings' }));
+    expect(screen.getByText('7')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /Only me/ }));
+    expect(screen.getByRole('radio', { name: /Only me/ }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    expect(screen.getByRole('alert').textContent).toBe('To publish, add at least one step.');
+  });
+
+  it('editor: a line opens its details; unit names come from recipe-core in the recipe language', async () => {
+    await setLanguage('en');
+    boot();
+    renderApp('/dev/editor');
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Ingredient details' }))[0]!);
+    const sheet = screen.getByRole('dialog', { name: 'Ingredient details' });
+    expect(within(sheet).getByRole('button', { name: 'ст. л.' })).toBeTruthy();
+    expect(within(sheet).getByRole('button', { name: 'To taste' })).toBeTruthy();
+  });
+
+  it('is reachable from Profile in development', async () => {
+    await setLanguage('en');
+    boot();
+    renderApp('/profile');
+    fireEvent.click(await screen.findByRole('link', { name: 'Design previews' }));
+    expect(await screen.findByRole('link', { name: 'Import review' })).toBeTruthy();
   });
 });

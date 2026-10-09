@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import {
   leaveBook,
   removeMember,
@@ -107,6 +108,11 @@ export function ProfileScreen({ me }: { me: Me }) {
         <p className="dev-badge" role="note">
           {t('profile.dev_mode')}
         </p>
+      )}
+      {import.meta.env.DEV && (
+        <Link className="card" to="/dev">
+          {t('dev.design_title')}
+        </Link>
       )}
 
       <section className="section stack stack--tight" aria-labelledby="lang-h">

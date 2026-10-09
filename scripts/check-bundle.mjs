@@ -16,6 +16,7 @@ const FORBIDDEN = [
   'devUser',
   'dev-saved-shelf', // sample Saved shelf (apps/web/src/dev/DevSavedShelf.tsx), owner decision 5
   '00000000-0000-4000-8000-0000000000c2', // a dev seed recipe id used by that sample
+  'dev-design-screens', // UX-03 design screens (apps/web/src/dev/design)
 ];
 
 function files(dir) {
