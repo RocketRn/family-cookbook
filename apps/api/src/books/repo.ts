@@ -16,6 +16,14 @@ export type Membership = { book_id: string; role: BookRole };
 /** 9 random bytes -> 12 chars of [A-Za-z0-9_-], safe inside a `startapp=join_<code>` payload. */
 export const newInviteCode = (): string => randomBytes(9).toString('base64url');
 
+/**
+ * Serialises one user's membership changes (double-tapped "Create", two joins at once). Without it
+ * both requests pass the "not in a book yet" check and one dies on a unique constraint with a 500.
+ */
+export async function lockUser(tx: Tx, userId: string): Promise<void> {
+  await tx.query('SELECT 1 FROM users WHERE id = $1 FOR UPDATE', [userId]);
+}
+
 export async function membershipOf(tx: Tx, userId: string): Promise<Membership | null> {
   const r = await tx.query<Membership>(
     'SELECT book_id, role FROM book_members WHERE user_id = $1',
@@ -29,8 +37,9 @@ export async function getBook(tx: Tx, bookId: string): Promise<Book> {
   return r.rows[0]!;
 }
 
-export async function findBookByInviteCode(tx: Tx, code: string): Promise<Book | null> {
-  const r = await tx.query<Book>('SELECT * FROM books WHERE invite_code = $1', [code]);
+/** Locks the book row so concurrent joins are counted one at a time (50-member cap). */
+export async function findBookByInviteCodeForUpdate(tx: Tx, code: string): Promise<Book | null> {
+  const r = await tx.query<Book>('SELECT * FROM books WHERE invite_code = $1 FOR UPDATE', [code]);
   return r.rows[0] ?? null;
 }
 

@@ -5,6 +5,11 @@ const boolFlag = z
   .default('false')
   .transform((v) => v === 'true');
 
+/** Values that ship in .env.example or tests and must never be accepted as the real token. */
+const KNOWN_FAKE_TOKEN = /placeholder|fake|dev-only|test|example/i;
+/** Telegram bot token shape: `<bot id>:<secret>` (docs/ASSUMPTIONS.md A-18). */
+const BOT_TOKEN_SHAPE = /^\d+:[A-Za-z0-9_-]{30,}$/;
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -22,6 +27,25 @@ const envSchema = z
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
   })
   .superRefine((env, ctx) => {
+    // A placeholder token in production would let anyone who read .env.example forge initData.
+    if (
+      env.NODE_ENV === 'production' &&
+      (KNOWN_FAKE_TOKEN.test(env.BOT_TOKEN) || !BOT_TOKEN_SHAPE.test(env.BOT_TOKEN))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['BOT_TOKEN'],
+        message:
+          'BOT_TOKEN must be the real token from @BotFather in production (a placeholder or malformed value was given)',
+      });
+    }
+    if (env.DEV_BOT_TOKEN && env.DEV_BOT_TOKEN === env.BOT_TOKEN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['DEV_BOT_TOKEN'],
+        message: 'DEV_BOT_TOKEN must differ from BOT_TOKEN',
+      });
+    }
     if (env.ALLOW_DEV_INIT_DATA && env.NODE_ENV !== 'development') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

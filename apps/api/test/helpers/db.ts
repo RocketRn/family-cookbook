@@ -17,8 +17,14 @@ export function testConfig(overrides: Record<string, string> = {}): Config {
   });
 }
 
+/** What the app under test uses: the restricted API user (DATABASE_URL). */
 export function testPool(): Db {
   return createPool(process.env.DATABASE_URL!);
+}
+
+/** Owner user (MIGRATION_DATABASE_URL): schema resets, fixtures and assertions on raw tables. */
+export function adminPool(): Db {
+  return createPool(process.env.MIGRATION_DATABASE_URL!);
 }
 
 export async function testApp(db: Db): Promise<FastifyInstance> {

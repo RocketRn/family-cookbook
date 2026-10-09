@@ -1,20 +1,31 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db/pool.js';
-import { authHeader, NOW, resetData, testApp, testConfig, testPool } from './helpers/db.js';
+import {
+  adminPool,
+  authHeader,
+  NOW,
+  resetData,
+  testApp,
+  testConfig,
+  testPool,
+} from './helpers/db.js';
 import { signInitData } from './helpers/signInitData.js';
 
 let db: Db;
+let admin: Db;
 let app: FastifyInstance;
 beforeAll(async () => {
   db = testPool();
+  admin = adminPool();
   app = await testApp(db);
 });
 afterAll(async () => {
   await app.close();
   await db.end();
+  await admin.end();
 });
-beforeEach(() => resetData(db));
+beforeEach(() => resetData(admin));
 
 const seconds = Math.floor(NOW.getTime() / 1000);
 
@@ -23,6 +34,25 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: 'ok', db: 'ok' });
+  });
+});
+
+describe('request id', () => {
+  it('echoes a plain x-request-id and replaces an unsafe one', async () => {
+    const ok = await app.inject({
+      method: 'GET',
+      url: '/nope',
+      headers: { 'x-request-id': 'abc-123.x' },
+    });
+    expect(ok.json().error.request_id).toBe('abc-123.x');
+    for (const bad of ['a b', 'x'.repeat(200), 'line\nbreak', '<script>']) {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/nope',
+        headers: { 'x-request-id': bad },
+      });
+      expect(res.json().error.request_id).toMatch(/^[0-9a-f-]{36}$/);
+    }
   });
 });
 
@@ -48,7 +78,7 @@ describe('auth middleware + GET /me', () => {
       ui_lang: 'sv',
       bot_started: false,
     });
-    const count = await db.query('SELECT count(*) FROM users');
+    const count = await admin.query('SELECT count(*) FROM users');
     expect(count.rows[0].count).toBe('1');
   });
 
@@ -64,7 +94,7 @@ describe('auth middleware + GET /me', () => {
       headers: authHeader(5002, { language_code: 'en', first_name: 'New' }),
     });
     expect(res.json()).toMatchObject({ first_name: 'New', ui_lang: 'uk' });
-    expect((await db.query('SELECT count(*) FROM users')).rows[0].count).toBe('1');
+    expect((await admin.query('SELECT count(*) FROM users')).rows[0].count).toBe('1');
   });
 
   it.each([
@@ -80,7 +110,7 @@ describe('auth middleware + GET /me', () => {
     });
     // authHeader defaults to "en" when undefined, which still exercises the fallback path
     expect(res.json().ui_lang).toBe(expected);
-    await resetData(db);
+    await resetData(admin);
   });
 
   it('401 without the header', async () => {
@@ -116,12 +146,32 @@ describe('auth middleware + GET /me', () => {
       expect(res.statusCode).toBe(401);
       expect(res.json().error.message).toBe('Invalid or expired initData');
     }
-    expect((await db.query('SELECT count(*) FROM users')).rows[0].count).toBe('0');
+    expect((await admin.query('SELECT count(*) FROM users')).rows[0].count).toBe('0');
+  });
+
+  it('never writes the Telegram profile back into an anonymised (soft-deleted) account', async () => {
+    await app.inject({
+      method: 'GET',
+      url: '/me',
+      headers: authHeader(5005, { first_name: 'Real' }),
+    });
+    await admin.query(
+      `UPDATE users SET deleted_at = now(), first_name = NULL, tg_username = NULL, photo_url = NULL
+        WHERE tg_user_id = 5005`,
+    );
+    const res = await app.inject({
+      method: 'GET',
+      url: '/me',
+      headers: authHeader(5005, { first_name: 'Real' }),
+    });
+    expect(res.statusCode).toBe(403);
+    const row = (await admin.query('SELECT first_name FROM users WHERE tg_user_id = 5005')).rows[0];
+    expect(row.first_name).toBeNull();
   });
 
   it('403 for a soft-deleted account', async () => {
     await app.inject({ method: 'GET', url: '/me', headers: authHeader(5004) });
-    await db.query('UPDATE users SET deleted_at = now() WHERE tg_user_id = 5004');
+    await admin.query('UPDATE users SET deleted_at = now() WHERE tg_user_id = 5004');
     const res = await app.inject({ method: 'GET', url: '/me', headers: authHeader(5004) });
     expect(res.statusCode).toBe(403);
   });

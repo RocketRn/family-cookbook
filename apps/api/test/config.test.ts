@@ -41,6 +41,36 @@ describe('loadConfig', () => {
     }
   });
 
+  it('REFUSES a placeholder or malformed BOT_TOKEN in production', () => {
+    const prod = { DATABASE_URL: base.DATABASE_URL, NODE_ENV: 'production' };
+    for (const BOT_TOKEN of [
+      '000000:placeholder-not-a-real-token',
+      '000000:DEV-ONLY-FAKE-TOKEN',
+      '123456:TEST-FAKE-TOKEN-FOR-UNIT-TESTS',
+      'not-a-token',
+      '123:short',
+    ]) {
+      expect(() => loadConfig({ ...prod, BOT_TOKEN }), BOT_TOKEN).toThrow(
+        /real token from @BotFather/,
+      );
+    }
+    // A well-formed token (random letters, not a real one) is accepted.
+    expect(() =>
+      loadConfig({ ...prod, BOT_TOKEN: '7000000001:AAEhBP0av28eZqAbCdEfGhIjKlMnOpQrStU' }),
+    ).not.toThrow();
+  });
+
+  it('rejects DEV_BOT_TOKEN equal to BOT_TOKEN', () => {
+    expect(() =>
+      loadConfig({
+        ...base,
+        NODE_ENV: 'development',
+        ALLOW_DEV_INIT_DATA: 'true',
+        DEV_BOT_TOKEN: base.BOT_TOKEN,
+      }),
+    ).toThrow(/must differ/);
+  });
+
   it('requires DEV_BOT_TOKEN when the dev flag is on', () => {
     expect(() =>
       loadConfig({ ...base, NODE_ENV: 'development', ALLOW_DEV_INIT_DATA: 'true' }),

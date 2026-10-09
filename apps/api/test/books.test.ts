@@ -1,19 +1,22 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db/pool.js';
-import { authHeader, resetData, testApp, testPool } from './helpers/db.js';
+import { adminPool, authHeader, resetData, testApp, testPool } from './helpers/db.js';
 
 let db: Db;
+let admin: Db;
 let app: FastifyInstance;
 beforeAll(async () => {
   db = testPool();
+  admin = adminPool();
   app = await testApp(db);
 });
 afterAll(async () => {
   await app.close();
   await db.end();
+  await admin.end();
 });
-beforeEach(() => resetData(db));
+beforeEach(() => resetData(admin));
 
 const KEEPER = 7001;
 const MEMBER = 7002;
@@ -27,7 +30,7 @@ async function setup() {
   const joined = await call('POST', '/books/join', MEMBER, { invite_code: created.invite_code });
   expect(joined.statusCode).toBe(201);
   const userId = async (tg: number) =>
-    (await db.query<{ id: string }>('SELECT id FROM users WHERE tg_user_id = $1', [tg])).rows[0]!
+    (await admin.query<{ id: string }>('SELECT id FROM users WHERE tg_user_id = $1', [tg])).rows[0]!
       .id;
   return { book: created, keeperId: await userId(KEEPER), memberId: await userId(MEMBER) };
 }
@@ -41,7 +44,7 @@ describe('POST /books', () => {
       role: 'owner',
       invite_code: expect.stringMatching(/^[A-Za-z0-9_-]{12}$/),
     });
-    const m = await db.query(`SELECT role FROM book_members`);
+    const m = await admin.query(`SELECT role FROM book_members`);
     expect(m.rows).toEqual([{ role: 'owner' }]);
   });
 
@@ -50,7 +53,7 @@ describe('POST /books', () => {
     const b = await call('POST', '/books', KEEPER, { title: 'Семья' });
     expect(b.statusCode).toBe(200);
     expect(b.json().id).toBe(a.json().id);
-    expect((await db.query('SELECT count(*) FROM books')).rows[0].count).toBe('1');
+    expect((await admin.query('SELECT count(*) FROM books')).rows[0].count).toBe('1');
   });
 
   it('409 ALREADY_IN_BOOK for a user who is already in a book (different title or member)', async () => {
@@ -74,7 +77,7 @@ describe('POST /books/join', () => {
     const { book } = await setup();
     const again = await call('POST', '/books/join', MEMBER, { invite_code: book.invite_code });
     expect(again.statusCode).toBe(200);
-    expect((await db.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('2');
+    expect((await admin.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('2');
   });
 
   it('404 INVALID_INVITE_CODE for an unknown code', async () => {
@@ -95,11 +98,15 @@ describe('POST /books/join', () => {
     const { book, keeperId } = await setup();
     for (let i = 0; i < 48; i++) {
       const id = (
-        await db.query<{ id: string }>(`INSERT INTO users (tg_user_id) VALUES ($1) RETURNING id`, [
-          9000 + i,
-        ])
+        await admin.query<{ id: string }>(
+          `INSERT INTO users (tg_user_id) VALUES ($1) RETURNING id`,
+          [9000 + i],
+        )
       ).rows[0]!.id;
-      await db.query(`INSERT INTO book_members (book_id, user_id) VALUES ($1, $2)`, [book.id, id]);
+      await admin.query(`INSERT INTO book_members (book_id, user_id) VALUES ($1, $2)`, [
+        book.id,
+        id,
+      ]);
     }
     expect(keeperId).toBeTruthy();
     const res = await call('POST', '/books/join', OUTSIDER, { invite_code: book.invite_code });
@@ -154,7 +161,7 @@ describe('invite re-issue', () => {
 describe('leaving and removing', () => {
   async function seedRecipes(bookId: string, authorId: string) {
     const ins = (title: string, visibility: string, token: string | null) =>
-      db.query(
+      admin.query(
         `INSERT INTO recipes (author_id, book_id, title, status, visibility, share_token) VALUES ($1, $2, $3, 'published', $4, $5)`,
         [authorId, bookId, title, visibility, token],
       );
@@ -168,7 +175,7 @@ describe('leaving and removing', () => {
     await seedRecipes(book.id, memberId);
     const res = await call('POST', '/books/leave', MEMBER);
     expect(res.statusCode).toBe(204);
-    const r = await db.query(
+    const r = await admin.query(
       `SELECT title, visibility, book_id, share_token FROM recipes ORDER BY title`,
     );
     expect(r.rows).toEqual([
@@ -184,7 +191,7 @@ describe('leaving and removing', () => {
     const res = await call('POST', '/books/leave', KEEPER);
     expect(res.statusCode).toBe(409);
     expect(res.json().error.code).toBe('KEEPER_CANNOT_LEAVE');
-    expect((await db.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('2');
+    expect((await admin.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('2');
   });
 
   it('leave without a book: 404 NOT_IN_BOOK', async () => {
@@ -197,9 +204,9 @@ describe('leaving and removing', () => {
     const res = await call('DELETE', `/books/current/members/${memberId}`, KEEPER);
     expect(res.statusCode).toBe(204);
     expect(
-      (await db.query(`SELECT count(*) FROM recipes WHERE visibility = 'book'`)).rows[0].count,
+      (await admin.query(`SELECT count(*) FROM recipes WHERE visibility = 'book'`)).rows[0].count,
     ).toBe('0');
-    expect((await db.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('1');
+    expect((await admin.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('1');
   });
 
   it('a member cannot remove anyone (403); the keeper cannot remove themselves (409)', async () => {
@@ -219,11 +226,57 @@ describe('leaving and removing', () => {
     await setup();
     await call('POST', '/books', OUTSIDER, { title: 'Другая' });
     const other = (
-      await db.query<{ id: string }>('SELECT id FROM users WHERE tg_user_id = $1', [OUTSIDER])
+      await admin.query<{ id: string }>('SELECT id FROM users WHERE tg_user_id = $1', [OUTSIDER])
     ).rows[0]!.id;
     expect((await call('DELETE', `/books/current/members/${other}`, KEEPER)).statusCode).toBe(404);
     expect((await call('DELETE', '/books/current/members/not-a-uuid', KEEPER)).statusCode).toBe(
       400,
     );
+  });
+});
+
+describe('concurrency (double taps, simultaneous joins)', () => {
+  it('five simultaneous POST /books from one user create exactly one book and no 500', async () => {
+    const res = await Promise.all(
+      Array.from({ length: 5 }, () => call('POST', '/books', KEEPER, { title: 'Семья' })),
+    );
+    const codes = res.map((r) => r.statusCode).sort();
+    expect(codes).toEqual([200, 200, 200, 200, 201]);
+    expect(new Set(res.map((r) => r.json().id)).size).toBe(1);
+    expect((await admin.query('SELECT count(*) FROM books')).rows[0].count).toBe('1');
+  });
+
+  it('simultaneous joins by one user end with one membership and no 500', async () => {
+    const created = (await call('POST', '/books', KEEPER, { title: 'Семья' })).json();
+    const res = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        call('POST', '/books/join', MEMBER, { invite_code: created.invite_code }),
+      ),
+    );
+    expect(res.map((r) => r.statusCode).sort()).toEqual([200, 200, 200, 200, 201]);
+    expect((await admin.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('2');
+  });
+
+  it('the 50-member cap holds when two people join the last free seat at the same time', async () => {
+    const created = (await call('POST', '/books', KEEPER, { title: 'Семья' })).json();
+    for (let i = 0; i < 48; i++) {
+      const id = (
+        await admin.query<{ id: string }>(
+          `INSERT INTO users (tg_user_id) VALUES ($1) RETURNING id`,
+          [9100 + i],
+        )
+      ).rows[0]!.id;
+      await admin.query(`INSERT INTO book_members (book_id, user_id) VALUES ($1, $2)`, [
+        created.id,
+        id,
+      ]);
+    }
+    // 49 members now: one seat left, two candidates at once.
+    const res = await Promise.all([
+      call('POST', '/books/join', MEMBER, { invite_code: created.invite_code }),
+      call('POST', '/books/join', OUTSIDER, { invite_code: created.invite_code }),
+    ]);
+    expect(res.map((r) => r.statusCode).sort()).toEqual([201, 409]);
+    expect((await admin.query('SELECT count(*) FROM book_members')).rows[0].count).toBe('50');
   });
 });

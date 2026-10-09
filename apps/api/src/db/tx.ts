@@ -27,12 +27,19 @@ async function run<T>(
 }
 
 /**
- * System transaction: runs as the login role and bypasses RLS. Only for work that has no
+ * System transaction: switches to the restricted `cookbook_system` role. It is not filtered by row
+ * but can only do what its column-level GRANTs allow (migration 0003). Only for work that has no
  * user identity yet (sign-in upsert) or that is authorised in application code (membership
  * management). Never for reading recipes on behalf of a user.
  */
 export function withSystem<T>(db: Db, fn: (c: Tx) => Promise<T>): Promise<T> {
-  return run(db, async () => undefined, fn);
+  return run(
+    db,
+    async (c) => {
+      await c.query('SET LOCAL ROLE cookbook_system');
+    },
+    fn,
+  );
 }
 
 /**

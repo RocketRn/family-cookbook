@@ -9,9 +9,10 @@ import {
   countMembers,
   createBook,
   detachRecipes,
-  findBookByInviteCode,
+  findBookByInviteCodeForUpdate,
   getBook,
   listMembers,
+  lockUser,
   MAX_BOOK_MEMBERS,
   membershipOf,
   removeMember,
@@ -33,6 +34,7 @@ export function registerBooks(app: FastifyInstance, db: Db): void {
     const user = currentUser(req);
     const { title } = createBody.parse(req.body);
     const { book, created } = await withSystem(db, async (tx) => {
+      await lockUser(tx, user.id);
       const existing = await membershipOf(tx, user.id);
       if (existing) {
         const book = await getBook(tx, existing.book_id);
@@ -51,7 +53,8 @@ export function registerBooks(app: FastifyInstance, db: Db): void {
     const user = currentUser(req);
     const { invite_code } = joinBody.parse(req.body);
     const { book, joined } = await withSystem(db, async (tx) => {
-      const book = await findBookByInviteCode(tx, invite_code);
+      await lockUser(tx, user.id);
+      const book = await findBookByInviteCodeForUpdate(tx, invite_code);
       if (!book) throw new AppError(404, 'INVALID_INVITE_CODE', 'Invite code is not valid');
       const existing = await membershipOf(tx, user.id);
       if (existing) {
@@ -90,6 +93,7 @@ export function registerBooks(app: FastifyInstance, db: Db): void {
     const user = currentUser(req);
     const { user_id } = memberParams.parse(req.params);
     await withSystem(db, async (tx) => {
+      await lockUser(tx, user.id);
       const me = await membershipOf(tx, user.id);
       if (!me) throw notInBook();
       if (me.role !== 'owner')
@@ -124,6 +128,7 @@ export function registerBooks(app: FastifyInstance, db: Db): void {
   app.post('/books/leave', async (req, reply) => {
     const user = currentUser(req);
     await withSystem(db, async (tx) => {
+      await lockUser(tx, user.id);
       const me = await membershipOf(tx, user.id);
       if (!me) throw notInBook();
       if (me.role === 'owner') {

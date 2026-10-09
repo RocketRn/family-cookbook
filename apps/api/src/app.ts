@@ -11,14 +11,19 @@ import { registerMe } from './routes/me.js';
 
 export type AppDeps = { config: Config; db: Db; now?: () => Date };
 
+/** Honour a caller's x-request-id only if it is short and plain; otherwise generate one. */
+const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+export function requestIdFrom(header: unknown): string {
+  return typeof header === 'string' && SAFE_REQUEST_ID.test(header) ? header : randomUUID();
+}
+
 export async function buildApp({ config, db, now }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.logLevel,
       redact: ['req.headers.authorization'],
     },
-    genReqId: (req) =>
-      typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'] : randomUUID(),
+    genReqId: (req) => requestIdFrom(req.headers['x-request-id']),
     bodyLimit: 1024 * 1024,
   });
 

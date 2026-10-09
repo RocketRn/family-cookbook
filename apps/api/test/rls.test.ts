@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db/pool.js';
 import { withUser, withSystem } from '../src/db/tx.js';
-import { insertUser, resetData, testPool } from './helpers/db.js';
+import { adminPool, insertUser, resetData, testPool } from './helpers/db.js';
 
 /**
  * PRD 3.3 access matrix, enforced by Row Level Security. Every read here goes through
  * withUser(), i.e. the restricted `cookbook_app` role with the per-transaction identity.
  */
 let db: Db;
+let admin: Db;
 const ids = {} as Record<'author' | 'member' | 'keeper' | 'outsider', string>;
 let bookId: string;
 let otherBookId: string;
@@ -15,8 +16,12 @@ const TOKEN = 'share-token-for-link-recipe';
 
 beforeAll(() => {
   db = testPool();
+  admin = adminPool();
 });
-afterAll(() => db.end());
+afterAll(async () => {
+  await db.end();
+  await admin.end();
+});
 
 async function insertRecipe(o: {
   title: string;
@@ -27,7 +32,7 @@ async function insertRecipe(o: {
   deleted?: boolean;
   author?: string;
 }) {
-  await db.query(
+  await admin.query(
     `INSERT INTO recipes (author_id, book_id, title, status, visibility, share_token, deleted_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
@@ -43,21 +48,21 @@ async function insertRecipe(o: {
 }
 
 beforeEach(async () => {
-  await resetData(db);
-  ids.author = await insertUser(db, 1);
-  ids.member = await insertUser(db, 2);
-  ids.keeper = await insertUser(db, 3);
-  ids.outsider = await insertUser(db, 4);
+  await resetData(admin);
+  ids.author = await insertUser(admin, 1);
+  ids.member = await insertUser(admin, 2);
+  ids.keeper = await insertUser(admin, 3);
+  ids.outsider = await insertUser(admin, 4);
   const mk = async (title: string, code: string, owner: string) =>
     (
-      await db.query<{ id: string }>(
+      await admin.query<{ id: string }>(
         `INSERT INTO books (title, owner_id, invite_code) VALUES ($1, $2, $3) RETURNING id`,
         [title, owner, code],
       )
     ).rows[0]!.id;
   bookId = await mk('family', 'code-a', ids.keeper);
   otherBookId = await mk('other', 'code-b', ids.outsider);
-  await db.query(
+  await admin.query(
     `INSERT INTO book_members (book_id, user_id, role) VALUES ($1,$2,'owner'),($1,$3,'member'),($1,$4,'member'),($5,$6,'owner')`,
     [bookId, ids.keeper, ids.author, ids.member, otherBookId, ids.outsider],
   );
@@ -167,7 +172,7 @@ describe('books and book_members visibility', () => {
       }));
     expect(await q(ids.member)).toEqual({ books: 1, members: 3 });
     expect(await q(ids.outsider)).toEqual({ books: 1, members: 1 }); // only their own book
-    const nobody = await db.query<{ id: string }>(
+    const nobody = await admin.query<{ id: string }>(
       `INSERT INTO users (tg_user_id) VALUES (99) RETURNING id`,
     );
     expect(await q(nobody.rows[0]!.id)).toEqual({ books: 0, members: 0 });
@@ -253,5 +258,154 @@ describe('identity does not leak across pooled connections', () => {
     } finally {
       await one.end();
     }
+  });
+});
+
+describe('users visibility (A2): self + members of my book, display columns only', () => {
+  const visibleUsers = (userId: string) =>
+    withUser(db, { userId }, async (tx) =>
+      (await tx.query<{ id: string }>('SELECT id FROM users ORDER BY id')).rows.map((r) => r.id),
+    );
+
+  it('a member sees themselves and the other members of their book, nobody else', async () => {
+    const expected = [ids.author, ids.member, ids.keeper].sort();
+    expect(await visibleUsers(ids.member)).toEqual(expected);
+    expect(await visibleUsers(ids.keeper)).toEqual(expected);
+  });
+
+  it('a user in another book sees only themselves; a user without a book sees only themselves', async () => {
+    expect(await visibleUsers(ids.outsider)).toEqual([ids.outsider]);
+    const loner = await insertUser(admin, 77);
+    expect(await visibleUsers(loner)).toEqual([loner]);
+  });
+
+  it('no identity sees no users', async () => {
+    const rows = await withUser(
+      db,
+      { userId: '' },
+      async (tx) => (await tx.query('SELECT id FROM users')).rows,
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it('only display columns are readable (no tg_user_id, notify_prefs, bot_started, ...)', async () => {
+    const ok = await withUser(db, { userId: ids.member }, (tx) =>
+      tx.query('SELECT id, first_name, tg_username, photo_url FROM users'),
+    );
+    expect(ok.rowCount).toBe(3);
+    for (const col of [
+      '*',
+      'tg_user_id',
+      'notify_prefs',
+      'bot_started',
+      'ui_lang',
+      'last_seen_at',
+    ]) {
+      await expect(
+        withUser(db, { userId: ids.member }, (tx) => tx.query(`SELECT ${col} FROM users`)),
+      ).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it('after leaving the book, former co-members disappear from view both ways', async () => {
+    await admin.query('DELETE FROM book_members WHERE user_id = $1', [ids.member]);
+    expect(await visibleUsers(ids.member)).toEqual([ids.member]);
+    expect(await visibleUsers(ids.keeper)).not.toContain(ids.member);
+  });
+
+  it('no policy recursion between users and book_members (joins in both directions work)', async () => {
+    const r = await withUser(db, { userId: ids.member }, async (tx) => ({
+      membersWithNames: (
+        await tx.query(
+          `SELECT m.role, u.first_name FROM book_members m JOIN users u ON u.id = m.user_id`,
+        )
+      ).rowCount,
+      usersInMyBook: (
+        await tx.query(`SELECT id FROM users WHERE id IN (SELECT user_id FROM book_members)`)
+      ).rowCount,
+      membershipsOfVisibleUsers: (
+        await tx.query(`SELECT book_id FROM book_members WHERE user_id IN (SELECT id FROM users)`)
+      ).rowCount,
+      booksViaUsers: (
+        await tx.query(
+          `SELECT b.id FROM books b JOIN book_members m ON m.book_id = b.id JOIN users u ON u.id = m.user_id`,
+        )
+      ).rowCount,
+    }));
+    expect(r).toEqual({
+      membersWithNames: 3,
+      usersInMyBook: 3,
+      membershipsOfVisibleUsers: 3,
+      booksViaUsers: 3,
+    });
+  });
+
+  it('the cross-table checks are SECURITY DEFINER functions (the mechanism that prevents recursion)', async () => {
+    const r = await admin.query<{ proname: string; prosecdef: boolean }>(
+      `SELECT proname, prosecdef FROM pg_proc WHERE proname IN ('is_book_member', 'shares_book_with') ORDER BY 1`,
+    );
+    expect(r.rows).toEqual([
+      { proname: 'is_book_member', prosecdef: true },
+      { proname: 'shares_book_with', prosecdef: true },
+    ]);
+  });
+});
+
+describe("recipe_author_name: the narrow path to an author's display name", () => {
+  const recipeId = async (title: string) =>
+    (await admin.query<{ id: string }>('SELECT id FROM recipes WHERE title = $1', [title])).rows[0]!
+      .id;
+  const authorName = async (userId: string, title: string, shareToken?: string) =>
+    withUser(
+      db,
+      { userId, shareToken },
+      async (tx) =>
+        (
+          await tx.query<{ n: string | null }>('SELECT recipe_author_name($1) AS n', [
+            await recipeId(title),
+          ])
+        ).rows[0]!.n,
+    );
+
+  it('a share-token holder outside the book gets the author name without seeing the users row', async () => {
+    expect(await authorName(ids.outsider, 'link', TOKEN)).toBe('User1');
+    const usersRow = await withUser(db, { userId: ids.outsider, shareToken: TOKEN }, (tx) =>
+      tx.query('SELECT id FROM users WHERE id = $1', [ids.author]),
+    );
+    expect(usersRow.rowCount).toBe(0);
+  });
+
+  it('works after the author left the book (link recipe no longer in any book)', async () => {
+    expect(await authorName(ids.outsider, 'link-no-book', TOKEN + '-nb')).toBe('User1');
+  });
+
+  it('returns nothing for a recipe the caller cannot read', async () => {
+    expect(await authorName(ids.outsider, 'link')).toBeNull(); // no token
+    expect(await authorName(ids.outsider, 'link', 'wrong')).toBeNull();
+    expect(await authorName(ids.outsider, 'draft-link', TOKEN + '-draft')).toBeNull(); // draft
+    expect(await authorName(ids.member, 'private-published')).toBeNull(); // someone else's private
+    expect(await authorName(ids.member, 'deleted-book')).toBeNull(); // soft-deleted
+    expect(await authorName('', 'link')).toBeNull(); // no identity, no token
+  });
+
+  it('members of the book get it for book recipes; the author for their own', async () => {
+    expect(await authorName(ids.member, 'book')).toBe('User1');
+    expect(await authorName(ids.author, 'private-published')).toBe('User1');
+  });
+
+  it('returns nothing for an anonymised (soft-deleted) author', async () => {
+    await admin.query('UPDATE users SET deleted_at = now() WHERE id = $1', [ids.author]);
+    expect(await authorName(ids.member, 'book')).toBeNull();
+  });
+
+  it('the policy and the function share one predicate (can_read_recipe), so they cannot drift', async () => {
+    const r = await admin.query<{ qual: string }>(
+      `SELECT qual FROM pg_policies WHERE tablename = 'recipes' AND policyname = 'recipes_select'`,
+    );
+    expect(r.rows[0]!.qual).toMatch(/can_read_recipe\(/);
+    const fn = await admin.query<{ src: string }>(
+      `SELECT prosrc AS src FROM pg_proc WHERE proname = 'recipe_author_name'`,
+    );
+    expect(fn.rows[0]!.src).toMatch(/can_read_recipe\(/);
   });
 });

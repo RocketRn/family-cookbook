@@ -25,7 +25,11 @@ export function uiLangFromTelegram(code: string | undefined): UiLang {
   return SUPPORTED.find((l) => l === primary) ?? 'en';
 }
 
-/** Find-or-create by Telegram id; the profile is refreshed on every sign-in, ui_lang only on creation. */
+/**
+ * Find-or-create by Telegram id; the profile is refreshed on every sign-in, ui_lang only on creation.
+ * A soft-deleted (anonymised, PRD 7.1) account is never refreshed: that would write the name and
+ * photo back into a profile that was deliberately erased. It is returned as is, and the caller rejects it.
+ */
 export async function upsertFromTelegram(tx: Tx, tg: TelegramUser): Promise<User> {
   const r = await tx.query<User>(
     `INSERT INTO users (tg_user_id, tg_username, first_name, photo_url, ui_lang)
@@ -35,6 +39,7 @@ export async function upsertFromTelegram(tx: Tx, tg: TelegramUser): Promise<User
            first_name = EXCLUDED.first_name,
            photo_url = EXCLUDED.photo_url,
            last_seen_at = now()
+       WHERE users.deleted_at IS NULL
      RETURNING *`,
     [
       tg.id,
@@ -44,5 +49,7 @@ export async function upsertFromTelegram(tx: Tx, tg: TelegramUser): Promise<User
       uiLangFromTelegram(tg.language_code),
     ],
   );
-  return r.rows[0]!;
+  if (r.rows[0]) return r.rows[0];
+  const existing = await tx.query<User>('SELECT * FROM users WHERE tg_user_id = $1', [tg.id]);
+  return existing.rows[0]!;
 }

@@ -2,6 +2,7 @@ import './loadEnv.js';
 import { buildApp } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createPool } from './db/pool.js';
+import { verifyRuntimeRole } from './db/roles.js';
 
 async function main(): Promise<void> {
   let config;
@@ -15,6 +16,13 @@ async function main(): Promise<void> {
     throw err;
   }
   const db = createPool(config.databaseUrl);
+  // Refuse to serve if the API's database user could bypass row-level security (D-013).
+  const problems = await verifyRuntimeRole(db);
+  if (problems.length > 0) {
+    console.error(`Unsafe database user:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
+    await db.end();
+    process.exit(1);
+  }
   const app = await buildApp({ config, db });
   if (config.initDataTokens.length > 1) {
     app.log.warn('ALLOW_DEV_INIT_DATA is on: initData signed with the fake dev token is accepted');
