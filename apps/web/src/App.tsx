@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, Loading } from './design/Feedback';
 import { errorMessage } from './errors';
 import { readManualLanguage, resolveLanguage, setLanguage } from './i18n';
 import { bookQuery } from './queries';
+import { CookScreen } from './cook/CookScreen';
 import { BookScreen } from './screens/BookScreen';
 import { JoinScreen } from './screens/JoinScreen';
 import { LinkRecipeScreen } from './screens/LinkRecipeScreen';
@@ -100,6 +101,7 @@ function Ready({ me }: { me: Me }) {
           <Route path="/import" element={<ImportScreen />} />
           <Route path="/recipe/:id/edit" element={<EditorScreen />} />
           <Route path="/recipe/:id" element={<RecipeScreen />} />
+          <Route path="/cook/:id" element={<CookScreen />} />
           <Route path="/join/:code" element={<JoinScreen />} />
           <Route path="/r/:token" element={<LinkRecipeScreen />} />
           {DesignScreens && (

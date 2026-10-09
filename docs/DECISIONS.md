@@ -412,3 +412,25 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - Production: only `https://api.telegram.org`, with a token of the real shape that is not a placeholder, the real bot username (the deep links use it) and no development storage keys. Otherwise the worker refuses to start.
   - Elsewhere: only a local stand-in (this computer or a one-word Docker host name).
   - With nothing configured, messages wait in the database.
+
+### D-041 Cooking mode on the device
+
+- **Progress lives on the phone** (PRD 4.8 `cook:<recipe_id>`). It holds the step, the ticked ingredients, the recalculation cooking started with, the timers, the server's session id, and a copy of the recipe.
+  - It is written at once on every step and every tick (no 300 ms delay: a write is cheap and nothing is lost if the app is closed straight away).
+  - It is dropped after 24 hours without activity, and when cooking is finished; the recalculation `recalc:<id>` is cleared then too (PRD 4.8).
+  - A saved state that is damaged or belongs to another recipe is dropped, never half-used.
+- **The recipe copy** lets cooking go on after a reload or without a connection. It also means a recipe the author edits during cooking is finished on the version it started with, and the Done screen says the recipe was changed (PRD 2.4). When the server sends the same version again, its copy replaces the saved one, so photo links stay fresh. A photo that no longer loads is hidden.
+- **The recalculation** is the one chosen on the card when "Start cooking" is tapped. Changing it on the card later does not change a cooking run in progress.
+- **Navigation.**
+  - Swipes: left for the next step, right for the previous one, at least 60 px or a quarter of the width, and more sideways than vertical.
+  - Back / Next buttons too, because Telegram Desktop has no gestures.
+  - The last step is finished only with the button, never by a swipe.
+  - A timer message opens `cook_<recipe>_<step>` straight at that step, without the "continue?" question.
+- **Screen kept on** with the Screen Wake Lock API, asked for again when the app comes back to the front.
+  - Where it is missing or refused, one notice per cooking screen asks to turn off auto-lock.
+  - The PRD's second fallback, a hidden looping video, is not built: it needs a media file and has its own autoplay rules. Whether Telegram's in-app browsers on iPhone and Android allow Wake Lock must be checked on real phones (first Telegram test).
+- **Server session** (`POST /cook-sessions`, then the furthest step after a 0.5 s pause, then `finished`) is best effort. Cooking never waits for it, and a failure is ignored.
+- **Done screen.**
+  - Buttons: "Back to the recipe" and "Cook it again".
+  - "I cooked it" is shown as coming soon (saving it is the reactions work in Sprint 5).
+  - "My version" is hidden (owner's answer for Sprint 4).

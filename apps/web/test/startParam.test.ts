@@ -38,11 +38,11 @@ describe('parseStartParam', () => {
     expect(undashedToUuid('xyz')).toBeNull();
   });
 
-  it('routes only targets that have a Sprint 1 screen', () => {
+  it('routes targets that have a screen; a timer message opens cooking mode at its step', () => {
     expect(routeForTarget({ kind: 'join', inviteCode: 'a b' })).toBe('/join/a%20b');
     expect(routeForTarget({ kind: 'book_recipe', recipeId: UUID })).toBe(`/recipe/${UUID}`);
     expect(routeForTarget({ kind: 'recipe_by_link', shareToken: 'tok' })).toBe('/r/tok');
     expect(routeForTarget({ kind: 'draft', draftId: UUID })).toBeNull();
-    expect(routeForTarget({ kind: 'cook', recipeId: UUID, step: 1 })).toBeNull();
+    expect(routeForTarget({ kind: 'cook', recipeId: UUID, step: 3 })).toBe(`/cook/${UUID}?step=3`);
   });
 });

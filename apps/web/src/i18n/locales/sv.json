@@ -414,6 +414,9 @@
     "bot_needed": "Starta boten en gång för att få ett meddelande när en timer är klar.",
     "bot_open": "Öppna boten",
     "recipe_updated": "Receptet ändrades medan du lagade mat. Du lagade efter den tidigare versionen.",
-    "wake_lock": "Telefonen kan släcka skärmen. Stäng av autolåset medan du lagar mat."
+    "wake_lock": "Telefonen kan släcka skärmen. Stäng av autolåset medan du lagar mat.",
+    "back_to_recipe": "Tillbaka till receptet",
+    "enjoy": "Smaklig måltid!",
+    "no_steps": "Det här receptet har inga steg än."
   }
 }

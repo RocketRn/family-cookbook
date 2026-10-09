@@ -591,6 +591,9 @@ h2 {
   font-size: 22px;
   line-height: 1.5;
 }
+.cook__title {
+  margin: 0;
+}
 .cook__nav,
 .cook__timer-btn {
   min-height: 56px;

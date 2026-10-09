@@ -411,6 +411,9 @@
     "bot_needed": "To get a message when a timer ends, start the bot once.",
     "bot_open": "Open the bot",
     "recipe_updated": "The author changed this recipe while you were cooking. You cooked the earlier version.",
-    "wake_lock": "Your phone may turn the screen off. Turn off auto-lock while you cook."
+    "wake_lock": "Your phone may turn the screen off. Turn off auto-lock while you cook.",
+    "back_to_recipe": "Back to the recipe",
+    "enjoy": "Enjoy your meal!",
+    "no_steps": "This recipe has no steps yet."
   }
 }

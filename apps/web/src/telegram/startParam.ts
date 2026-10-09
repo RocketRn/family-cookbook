@@ -52,7 +52,7 @@ export function parseStartParam(raw: string | null | undefined): StartTarget | n
   }
 }
 
-/** Route inside the SPA for a start target, or null when the target has no Sprint 1 screen. */
+/** Route inside the SPA for a start target, or null when the target has no screen yet. */
 export function routeForTarget(t: StartTarget): string | null {
   switch (t.kind) {
     case 'join':
@@ -61,7 +61,10 @@ export function routeForTarget(t: StartTarget): string | null {
       return `/recipe/${t.recipeId}`;
     case 'recipe_by_link':
       return `/r/${encodeURIComponent(t.shareToken)}`;
+    case 'cook':
+      // From a timer message (BE-08): cooking mode at the step the timer belongs to.
+      return `/cook/${t.recipeId}?step=${t.step}`;
     default:
-      return null; // draft_ (Sprint 3) and cook_ (Sprint 4) arrive with their features
+      return null; // draft_ arrives with the bot's import (Sprint 5)
   }
 }

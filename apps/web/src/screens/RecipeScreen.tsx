@@ -49,6 +49,7 @@ export function RecipeScreen() {
 
 function RecipeView({ r }: { r: Recipe }) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   // FE-07: the recalculation the user chose is kept per recipe (PRD 4.8 recalc:<id>).
   const [recalc, setRecalc] = useState<RecalcState | null>(() => readRecalc(r));
   const [recalcOpen, setRecalcOpen] = useState(false);
@@ -59,7 +60,6 @@ function RecipeView({ r }: { r: Recipe }) {
   const lang = r.language ?? undefined;
   const stepVideoIds = new Set(r.steps.map((s) => s.video_id));
   const otherVideos = r.videos.filter((v) => !stepVideoIds.has(v.id));
-  const cookLabel = `${t('recipe.cook')} · ${t('common.coming_soon')}`;
   const totalMin =
     r.prep_min === null && r.cook_min === null ? null : (r.prep_min ?? 0) + (r.cook_min ?? 0);
 
@@ -98,8 +98,13 @@ function RecipeView({ r }: { r: Recipe }) {
         <Button className="grow" variant="secondary" onClick={() => setRecalcOpen(true)}>
           {t('recipe.recalculate')}
         </Button>
-        <Button className="grow" disabled>
-          {cookLabel}
+        {/* FE-08: cooking mode starts with the recalculation chosen here. */}
+        <Button
+          className="grow"
+          disabled={r.steps.length === 0}
+          onClick={() => navigate(`/cook/${r.id}`)}
+        >
+          {t('recipe.cook')}
         </Button>
       </div>
 
