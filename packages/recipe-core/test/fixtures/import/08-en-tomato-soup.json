@@ -1,0 +1,23 @@
+{
+  "language": "en",
+  "title": "Tomato Soup",
+  "servings": null,
+  "prepMin": null,
+  "cookMin": null,
+  "ingredients": [
+    [null, "exact", 2, 2, "tbsp", "olive oil", 1.0],
+    [null, "exact", 1, 1, null, "onion, chopped", 0.8],
+    [null, "exact", 3, 3, null, "garlic cloves", 0.8],
+    [null, "exact", 2, 2, "can", "chopped tomatoes", 0.8],
+    [null, "exact", 500, 500, "ml", "vegetable stock", 1.0],
+    [null, "pinch", null, null, null, "sugar", 1.0],
+    [null, "to_taste", null, null, null, "salt and pepper", 1.0]
+  ],
+  "steps": 3,
+  "timers": [
+    [0, 300, null],
+    [1, 1200, 1500]
+  ],
+  "videos": [],
+  "notes": null
+}

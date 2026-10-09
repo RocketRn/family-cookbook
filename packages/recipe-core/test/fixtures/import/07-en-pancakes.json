@@ -1,0 +1,23 @@
+{
+  "language": "en",
+  "title": "Fluffy Pancakes",
+  "servings": 4,
+  "prepMin": 10,
+  "cookMin": 20,
+  "ingredients": [
+    [null, "exact", 1.5, 1.5, "cup", "all-purpose flour", 1.0],
+    [null, "exact", 2, 2, "tbsp", "sugar", 1.0],
+    [null, "exact", 2, 2, "tsp", "baking powder", 1.0],
+    [null, "exact", 0.5, 0.5, "tsp", "salt", 1.0],
+    [null, "exact", 1.25, 1.25, "cup", "milk", 1.0],
+    [null, "exact", 1, 1, null, "egg", 0.8],
+    [null, "exact", 3, 3, "tbsp", "melted butter", 1.0]
+  ],
+  "steps": 4,
+  "timers": [
+    [2, 300, null],
+    [3, 120, 180]
+  ],
+  "videos": [],
+  "notes": null
+}

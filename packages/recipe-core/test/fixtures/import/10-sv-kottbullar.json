@@ -1,0 +1,24 @@
+{
+  "language": "sv",
+  "title": "Köttbullar",
+  "servings": 4,
+  "prepMin": null,
+  "cookMin": null,
+  "ingredients": [
+    [null, "exact", 500, 500, "g", "köttfärs", 1.0],
+    [null, "exact", 1, 1, null, "gul lök", 0.8],
+    [null, "exact", 1, 1, null, "ägg", 0.8],
+    [null, "exact", 0.5, 0.5, "dl", "ströbröd", 1.0],
+    [null, "exact", 1, 1, "dl", "mjölk", 1.0],
+    [null, "to_taste", null, null, null, "salt och peppar", 1.0],
+    ["Till såsen", "exact", 2, 2, "dl", "grädde", 1.0],
+    ["Till såsen", "exact", 1, 1, "msk", "soja", 1.0]
+  ],
+  "steps": 4,
+  "timers": [
+    [0, 600, null],
+    [2, 480, 600]
+  ],
+  "videos": [],
+  "notes": null
+}

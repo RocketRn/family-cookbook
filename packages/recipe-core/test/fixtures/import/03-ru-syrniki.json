@@ -1,0 +1,20 @@
+{
+  "language": "ru",
+  "title": "Сырники",
+  "servings": null,
+  "prepMin": null,
+  "cookMin": null,
+  "ingredients": [
+    [null, "exact", 0.5, 0.5, "kg", "Творог 9%", 0.9],
+    [null, "exact", 1, 1, "pcs", "Яйцо", 0.9],
+    [null, "exact", 2, 2, "tbsp", "Сахар", 0.9],
+    [null, "exact", 4, 4, "tbsp", "Мука", 0.9],
+    [null, "exact", 0.5, 0.5, "tsp", "соды", 1.0],
+    [null, "unparsed", null, null, null, "немного муки для обвалки", 0.5],
+    [null, "unparsed", null, null, null, "Растительное масло для жарки", 0.5]
+  ],
+  "steps": 3,
+  "timers": [[2, 180, 240]],
+  "videos": [],
+  "notes": null
+}

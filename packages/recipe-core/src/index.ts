@@ -23,3 +23,18 @@ export { classifyProduct } from './products.js';
 export { parseYoutube } from './youtube.js';
 
 export const RECIPE_CORE_VERSION = '0.2.0';
+export {
+  detectLanguage,
+  findDurations,
+  parseIngredientLine,
+  parseRecipeText,
+} from './parse/index.js';
+export type {
+  ParsedIngredient,
+  ParsedRecipe,
+  ParsedStep,
+  ParsedTimer,
+  ParseOptions,
+  ParseReason,
+  ParseWarning,
+} from './parse/index.js';

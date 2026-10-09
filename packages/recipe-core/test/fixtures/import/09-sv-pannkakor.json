@@ -1,0 +1,21 @@
+{
+  "language": "sv",
+  "title": "Pannkakor",
+  "servings": 4,
+  "prepMin": null,
+  "cookMin": null,
+  "ingredients": [
+    [null, "exact", 3, 3, "dl", "vetemjöl", 1.0],
+    [null, "exact", 6, 6, "dl", "mjölk", 1.0],
+    [null, "exact", 3, 3, null, "ägg", 0.8],
+    [null, "exact", 1, 1, "krm", "salt", 1.0],
+    [null, "exact", 2, 2, "msk", "smör till stekning", 1.0]
+  ],
+  "steps": 4,
+  "timers": [
+    [2, 600, null],
+    [3, 60, null]
+  ],
+  "videos": [],
+  "notes": null
+}

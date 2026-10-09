@@ -1,0 +1,19 @@
+{
+  "language": "uk",
+  "title": "Деруни",
+  "servings": null,
+  "prepMin": null,
+  "cookMin": null,
+  "ingredients": [
+    [null, "exact", 1, 1, "kg", "Картопля", 0.9],
+    [null, "exact", 1, 1, "pcs", "Цибуля", 0.9],
+    [null, "exact", 2, 2, "pcs", "Яйця", 0.9],
+    [null, "exact", 2, 2, "tbsp", "Борошно", 0.9],
+    [null, "exact", 1, 1, "tsp", "Сіль", 0.9],
+    [null, "unparsed", null, null, null, "Олія для смаження", 0.5]
+  ],
+  "steps": 3,
+  "timers": [[2, 180, null]],
+  "videos": [],
+  "notes": null
+}

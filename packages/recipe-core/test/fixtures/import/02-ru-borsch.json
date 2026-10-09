@@ -1,0 +1,28 @@
+{
+  "language": "ru",
+  "title": "Борщ украинский",
+  "servings": null,
+  "prepMin": null,
+  "cookMin": 120,
+  "ingredients": [
+    [null, "exact", 500, 500, "g", "Говядина на кости", 0.9],
+    [null, "exact", 2, 2, "pcs", "Свёкла", 0.9],
+    [null, "range", 3, 4, "pcs", "Картофель", 0.9],
+    [null, "exact", 300, 300, "g", "Капуста белокочанная", 0.9],
+    [null, "exact", 1, 1, "pcs", "Морковь", 0.9],
+    [null, "exact", 1, 1, "pcs", "Лук репчатый", 0.9],
+    [null, "exact", 2, 2, "tbsp", "Томатная паста", 0.9],
+    [null, "exact", 3, 3, "clove", "Чеснок", 0.9],
+    [null, "to_taste", null, null, null, "Соль, перец", 1.0]
+  ],
+  "steps": 5,
+  "timers": [
+    [0, 5400, null],
+    [1, 600, 900],
+    [2, 900, null],
+    [3, 600, null],
+    [4, 1200, null]
+  ],
+  "videos": [],
+  "notes": null
+}
