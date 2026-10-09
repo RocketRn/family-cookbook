@@ -21,8 +21,8 @@ Node 20+, pnpm 10, and Postgres 15+ (via Docker Compose, or your own).
 ```bash
 pnpm install
 cp .env.example .env          # fake dev values; no real bot token is needed
-docker compose up -d          # Postgres (dev + test databases) and MinIO
-pnpm db:migrate               # apply migrations
+docker compose up -d          # Postgres 15 (dev + test databases) and S3-compatible storage
+pnpm db:migrate               # apply migrations and create the API's restricted database user
 pnpm db:seed                  # dev users, a book and a few recipes
 pnpm dev                      # API :3000, web :5173, worker
 ```
@@ -33,7 +33,12 @@ Open <http://localhost:5173>. Outside Telegram the web app uses a **mock Telegra
 - `?theme=dark|light`: force the theme
 - `?startapp=join_devinvitecode`: simulate a deep link
 
-Without Docker, point `DATABASE_URL` at any Postgres you control (create `cookbook` and `cookbook_test` databases).
+Without Docker, use any Postgres 15+ you control: create a user `cookbook` (password `cookbook`, with the CREATEROLE right) that owns the databases `cookbook` and `cookbook_test`. If port 5432 is already taken, start Docker with `POSTGRES_PORT=55432 docker compose up -d` and change the port in `.env`.
+
+### Two database users (why there are two URLs)
+
+- `MIGRATION_DATABASE_URL` is the owner (`cookbook`). Only `db:migrate`, `db:seed` and `db:reset` use it.
+- `DATABASE_URL` is what the API logs in as (`cookbook_api`). `pnpm db:migrate` creates it from this URL. It owns nothing and can only act through the restricted roles `cookbook_app` (everything a user does, filtered by row-level security) and `cookbook_system` (sign-in and membership changes, limited by column grants). The API refuses to start if this user is a superuser, owns tables or could bypass row-level security. See `docs/DECISIONS.md` D-013.
 
 ## Commands
 
@@ -43,12 +48,13 @@ pnpm lint          # ESLint + Prettier check
 pnpm i18n:check    # key completeness of the 4 UI locales
 pnpm test          # all tests (needs Postgres, see below)
 pnpm build
+pnpm check:bundle  # after build: the production bundle has no dev mock or fake token
 pnpm db:migrate | pnpm --filter @cookbook/api db:rollback | db:reset | pnpm db:seed
 ```
 
 ### Tests and the database
 
-API tests read the database from `DATABASE_URL`. `.env.test` defaults to `postgres://cookbook:cookbook@localhost:5432/cookbook_test`; CI overrides it with a GitHub Actions service container. The suite **drops and recreates the schema**, so it refuses to run unless the database name contains `test`.
+API tests connect the app under test through `DATABASE_URL` (the restricted API user) and set up the schema and fixtures through `MIGRATION_DATABASE_URL` (the owner). `.env.test` points both at `cookbook_test` on `localhost:5432`; CI overrides them and runs the suite on Postgres 15 and 16. The suite **drops and recreates the schema**, so it refuses to run unless the database name contains `test`.
 
 ## Configuration
 

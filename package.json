@@ -15,7 +15,8 @@
     "test": "pnpm -r --workspace-concurrency=1 test",
     "db:migrate": "pnpm --filter @cookbook/api db:migrate",
     "db:seed": "pnpm --filter @cookbook/api db:seed",
-    "i18n:check": "node scripts/check-i18n.mjs"
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

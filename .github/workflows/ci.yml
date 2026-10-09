@@ -6,25 +6,9 @@ on:
   pull_request:
 
 jobs:
-  check:
+  checks:
+    name: Typecheck, lint, i18n, build
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: cookbook
-          POSTGRES_PASSWORD: cookbook
-          POSTGRES_DB: cookbook_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U cookbook -d cookbook_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      # Tests read the database from DATABASE_URL. The name must contain "test": the suite resets the schema.
-      DATABASE_URL: postgres://cookbook:cookbook@localhost:5432/cookbook_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -39,7 +23,47 @@ jobs:
         run: pnpm lint
       - name: i18n key completeness
         run: pnpm i18n:check
-      - name: Test
-        run: pnpm test
       - name: Build
         run: pnpm build
+      - name: Production bundle has no dev mock or fake token
+        run: pnpm check:bundle
+
+  test:
+    name: Tests (Postgres ${{ matrix.postgres }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 15 is the PRD minimum (and what docker-compose uses); 16 is what local development used.
+        postgres: ['15', '16']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: cookbook
+          POSTGRES_PASSWORD: cookbook
+          POSTGRES_DB: cookbook_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cookbook -d cookbook_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The suite resets the schema, so both URLs must point at a database whose name contains "test".
+      # DATABASE_URL: the restricted API user (created by the test setup). MIGRATION_DATABASE_URL: the owner.
+      DATABASE_URL: postgres://cookbook_api:cookbook_api@localhost:5432/cookbook_test
+      MIGRATION_DATABASE_URL: postgres://cookbook:cookbook@localhost:5432/cookbook_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Show server version
+        run: psql "$MIGRATION_DATABASE_URL" -tAc 'select version()'
+      - name: Test
+        run: pnpm test

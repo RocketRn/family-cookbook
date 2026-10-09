@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "cookbook-dev",
+      "credentials": [{ "accessKey": "cookbook-dev", "secretKey": "cookbook-dev-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
