@@ -3,6 +3,9 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { roundAmount, scaleAmount, type IngredientAmount, type RoundClass } from '../src/index.js';
 
+// FC_RUNS lets a local run go deeper than CI's default 100 cases per property.
+fc.configureGlobal({ numRuns: Number(process.env.FC_RUNS ?? 200) });
+
 const EPS = 1e-9;
 const UNITS = [
   'g',

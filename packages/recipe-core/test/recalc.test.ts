@@ -201,6 +201,12 @@ describe('whole and spice items', () => {
     expect(s.scalable && s.min.hint).toBeUndefined();
   });
 
+  it('whole_item with a min_piece that is not a small fraction (0.33) uses that step', () => {
+    const third = exact(1, 'pcs', 'whole_item', { minPiece: 0.33 });
+    const s = scaleAmount(third, 0.5);
+    expect(s.scalable && s.min.value).toBeCloseTo(0.66, 12);
+  });
+
   it('whole_item within 10% needs no hint', () => {
     expect(show(exact(10, 'pcs', 'whole_item'), 1.05)).toBe('11 шт.');
     const s = scaleAmount(exact(10, 'pcs', 'whole_item'), 0.96);
