@@ -95,7 +95,7 @@ describe('cooking mode', () => {
     expect(stepText()).toBe('Заверните и тушите.');
     expect(saved().step_index).toBe(1);
     // The step's timer, video and photo.
-    expect(screen.getByText('Тушить')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '⏱ Start timer: Тушить, 1:30:00' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '▶ Video at this step' })).toBeTruthy();
     expect(screen.getByRole('img', { name: 'Photo for step 2' })).toBeTruthy();
 

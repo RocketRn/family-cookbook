@@ -70,7 +70,7 @@ export function getRuntime(): TelegramRuntime {
   return runtime;
 }
 
-export function haptic(kind: 'select' | 'success' | 'error' = 'select'): void {
+export function haptic(kind: 'select' | 'success' | 'warning' | 'error' = 'select'): void {
   const h = runtime?.webApp.HapticFeedback;
   if (!h) return;
   if (kind === 'select') h.selectionChanged();
@@ -84,6 +84,16 @@ export function confirmDialog(message: string): Promise<boolean> {
     return new Promise((resolve) => app.showConfirm!(message, resolve));
   }
   return Promise.resolve(window.confirm(message));
+}
+
+/**
+ * PRD 4.5: asks the user to let the bot write to them (Bot API 6.9+). Resolves false when refused,
+ * and null when this Telegram client cannot ask.
+ */
+export function requestWriteAccess(): Promise<boolean | null> {
+  const app = runtime?.webApp;
+  if (!app?.isVersionAtLeast('6.9')) return Promise.resolve(null);
+  return new Promise((resolve) => app.requestWriteAccess((granted) => resolve(granted)));
 }
 
 /** Telegram asks before closing the Mini App while this is on (Bot API 6.2+). */

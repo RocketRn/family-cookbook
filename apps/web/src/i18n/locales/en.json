@@ -388,7 +388,7 @@
     "step_of": "Step {{n}} of {{total}}",
     "exit": "Stop cooking",
     "video_at_step": "▶ Video at this step",
-    "timer_start": "⏱ {{label}} · {{time}}",
+    "timer_start": "⏱ Start timer: {{label}}, {{time}}",
     "swipe_hint": "Swipe left for the next step and right for the previous one, or use the buttons below.",
     "prev": "Back",
     "next": "Next step",
@@ -414,6 +414,11 @@
     "wake_lock": "Your phone may turn the screen off. Turn off auto-lock while you cook.",
     "back_to_recipe": "Back to the recipe",
     "enjoy": "Enjoy your meal!",
-    "no_steps": "This recipe has no steps yet."
+    "no_steps": "This recipe has no steps yet.",
+    "write_title": "Messages from the bot",
+    "write_text": "When a timer ends, the bot sends you a message, even if the app is closed. Telegram asks for your permission once.",
+    "write_allow": "Allow messages",
+    "write_later": "Not now",
+    "timer_no_message": "The bot may not write to you, so no Telegram message will arrive. The timer runs on this screen."
   }
 }

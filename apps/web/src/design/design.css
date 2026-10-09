@@ -622,6 +622,17 @@ h2 {
   width: 24px;
   height: 24px;
 }
+/* A timer reached zero while the app is open (PRD 4.6 #4): hard to miss from across the kitchen. */
+.cook__alarm {
+  position: sticky;
+  top: var(--safe-top, 0);
+  z-index: 5;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  border: 2px solid var(--accent);
+  /* Opaque: it stays on top of the step while scrolling. */
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
 .cook__done {
   font-size: 56px;
   margin: 0;

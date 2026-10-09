@@ -434,3 +434,28 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - Buttons: "Back to the recipe" and "Cook it again".
   - "I cooked it" is shown as coming soon (saving it is the reactions work in Sprint 5).
   - "My version" is hidden (owner's answer for Sprint 4).
+
+### D-042 Timers on screen
+
+- **Started on the server, counted by the server's clock** (PRD 4.6). A tap on "⏱ Start timer: …" first stores the timer on the phone, then sends `POST /timers` with its own `client_timer_id`.
+  - The countdown is `ends_at − (now + offset)`, where `offset` is taken from every `server_now`, so a phone clock that is wrong does not change it.
+  - Tested with a phone clock an hour behind.
+  - A timer that is already running cannot be started a second time from its button.
+- **Chips on every step** show all of the person's active timers, from `GET /timers?active=1`. The list is fetched when cooking starts and again when the app comes back to the front.
+  - The server's list is the truth for synced timers: one cancelled elsewhere disappears, and a "+1 min" made on another phone is taken over.
+  - Tapping a chip shows "+1 min" and "Cancel timer".
+- **At zero** with the app open (PRD 4.6 #4): a vibration, and a large notice that stays at the top of the screen until closed. The bot's message is still sent.
+  - Only a timer seen running on this screen rings.
+  - The check waits for the server's list, so a timer that ended while the app was closed never rings late. That bug was found in the browser walkthrough and has a test.
+- **No connection.** The timer runs on the phone, with the notice "No connection … no Telegram message will arrive".
+  - It is sent again when the connection returns, when the app comes back, and every 15 seconds, with the same `client_timer_id` and the moment it really started, so the server counts it from then.
+  - A timer that is already over by then is dropped (`TIMER_EXPIRED`).
+  - A start whose first request is still waiting is never sent twice.
+- **The bot may write (PRD 4.5).**
+  - If Telegram's signed data or the server says the bot may not write yet, the first timer opens an explanation with "Allow messages", which calls Telegram's `requestWriteAccess`, and "Not now".
+  - The timer starts either way. The answer is kept for this app session.
+  - If the bot still may not write, the timers panel says no message will arrive and offers "Open the bot".
+- **Not done yet** (FE-09 "full", Sprint 5):
+  - timers on the recipe card outside cooking mode;
+  - the "failed to deliver" state from a 403, shown on the chip;
+  - sound.

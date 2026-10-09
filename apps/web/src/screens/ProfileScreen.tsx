@@ -17,11 +17,9 @@ import { Avatar, ErrorState, Loading } from '../design/Feedback';
 import { errorMessage } from '../errors';
 import { LANGUAGES, LANGUAGE_NAMES, saveManualLanguage, setLanguage, type Language } from '../i18n';
 import { bookQuery } from '../queries';
+import { BOT_USERNAME, MINI_APP_SHORT_NAME } from '../telegram/bot';
 import { getRuntime, haptic } from '../telegram/sdk';
 import { useToastStore } from '../state/store';
-
-const BOT = import.meta.env.VITE_BOT_USERNAME ?? 'your_cookbook_bot';
-const APP = import.meta.env.VITE_MINI_APP_SHORT_NAME ?? 'cookbook';
 
 type Confirm = { kind: 'leave' } | { kind: 'rotate' } | { kind: 'remove'; member: Member } | null;
 
@@ -66,7 +64,7 @@ export function ProfileScreen({ me }: { me: Me }) {
   const handle = me.tg_username ? `@${me.tg_username}` : null;
   const youSuffix = ` (${t('profile.you')})`;
   const inviteLink = b?.invite_code
-    ? `https://t.me/${BOT}/${APP}?startapp=join_${b.invite_code}`
+    ? `https://t.me/${BOT_USERNAME}/${MINI_APP_SHORT_NAME}?startapp=join_${b.invite_code}`
     : null;
   const shareInvite = () => {
     if (!inviteLink) return;

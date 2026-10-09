@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { patchCookSession, startCookSession } from '../api/cook';
+import type { Me } from '../api/endpoints';
 import { recipeApi } from '../api/recipeApi';
 import type { Recipe, Step } from '../api/types';
 import { Button } from '../design/Button';
@@ -14,7 +15,6 @@ import {
   groupIngredients,
   photoSrcSet,
   recipeLangOf,
-  splitDuration,
   stepBodyParts,
 } from '../recipe/amounts';
 import { readRecalc, writeRecalc } from '../recipe/recalc';
@@ -30,6 +30,8 @@ import {
   writeCook,
   type CookState,
 } from './state';
+import { TimerAlarm, TimerButtons, TimersPanel, WriteAccessSheet } from './TimerParts';
+import { useCookTimers, type CookTimers } from './useCookTimers';
 import { useWakeLock } from './wakeLock';
 
 type Phase = 'resume' | 'prep' | 'step' | 'done';
@@ -48,7 +50,7 @@ const lastIndex = (r: Recipe) => Math.max(0, r.steps.length - 1);
  * lives on this device (`cook:<recipe_id>`) with a copy of the recipe, so cooking goes on after a
  * reload or without a connection, and finishes on the version it started with.
  */
-export function CookScreen() {
+export function CookScreen({ me }: { me: Me }) {
   const { t } = useTranslation();
   const { id = '' } = useParams();
   const [search] = useSearchParams();
@@ -65,7 +67,15 @@ export function CookScreen() {
       return <ErrorState error={fresh.error} onRetry={() => void fresh.refetch()} />;
     if (!fresh.data) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
   }
-  return <Cooking key={id} saved={saved} fresh={fresh.data ?? undefined} deepStep={deepStep} />;
+  return (
+    <Cooking
+      key={id}
+      saved={saved}
+      fresh={fresh.data ?? undefined}
+      deepStep={deepStep}
+      botStarted={me.bot_started}
+    />
+  );
 }
 
 function initial(
@@ -92,10 +102,12 @@ function Cooking({
   saved,
   fresh,
   deepStep,
+  botStarted,
 }: {
   saved: CookState | null;
   fresh: Recipe | undefined;
   deepStep: number | null;
+  botStarted: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -167,6 +179,7 @@ function Cooking({
   }, [phase, st.step_index]);
 
   useWakeLock(phase === 'step', () => toast(t('cook.wake_lock')));
+  const timers = useCookTimers({ active: phase === 'step', stRef, save, botStarted });
 
   const recipe = st.recipe;
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
@@ -302,6 +315,7 @@ function Cooking({
       onNext={() => go(index + 1)}
       onFinish={finish}
       onExit={toRecipe}
+      timers={timers}
     />
   );
 }
@@ -372,22 +386,6 @@ function Preparation({
   );
 }
 
-function Duration({ sec }: { sec: number }) {
-  const { t } = useTranslation();
-  const { h, m, s } = splitDuration(sec);
-  return (
-    <>
-      {[
-        h > 0 ? t('time.h', { count: h }) : null,
-        m > 0 ? t('time.min', { count: m }) : null,
-        s > 0 ? t('time.s', { count: s }) : null,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    </>
-  );
-}
-
 /** PRD 2.4 steps 5-6: one step, large text, its ingredients (recalculated), photo, video, timers. */
 function StepView({
   recipe,
@@ -400,6 +398,7 @@ function StepView({
   onNext,
   onFinish,
   onExit,
+  timers,
 }: {
   recipe: Recipe;
   step: Step;
@@ -411,6 +410,7 @@ function StepView({
   onNext: () => void;
   onFinish: () => void;
   onExit: () => void;
+  timers: CookTimers;
 }) {
   const { t } = useTranslation();
   const [video, setVideo] = useState(false);
@@ -444,6 +444,7 @@ function StepView({
 
   return (
     <div className="stack cook">
+      <TimerAlarm timers={timers} />
       <div className="row row--between">
         <span className="label">{t('cook.step_of', { n: index + 1, total })}</span>
         <Button variant="ghost" onClick={onExit}>
@@ -517,26 +518,7 @@ function StepView({
             })}
           </p>
         )}
-        {step.timers.length > 0 && (
-          <div className="row row--wrap">
-            {step.timers.map((tm) => (
-              <span key={tm.id} className="chip chip--static">
-                <span aria-hidden="true">{'⏱'}</span>
-                <span lang={lang}>{tm.label}</span>
-                <span>
-                  {' · '}
-                  <Duration sec={tm.duration_sec} />
-                </span>
-                {recalculated && (
-                  <span className="hint">
-                    {' · '}
-                    {t('recalc.time_may_differ')}
-                  </span>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
+        <TimerButtons step={step} timers={timers} lang={lang} recalculated={recalculated} />
         {stepVideo &&
           (video ? (
             <VideoPlayer video={stepVideo} startSec={step.video_start_sec} />
@@ -547,6 +529,8 @@ function StepView({
           ))}
         <p className="hint">{t('cook.swipe_hint')}</p>
       </div>
+      <TimersPanel timers={timers} />
+      <WriteAccessSheet timers={timers} />
       <div className="actionbar row">
         <Button
           variant="secondary"

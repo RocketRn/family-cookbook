@@ -391,7 +391,7 @@
     "step_of": "Steg {{n}} av {{total}}",
     "exit": "Avsluta",
     "video_at_step": "▶ Video till det här steget",
-    "timer_start": "⏱ {{label}} · {{time}}",
+    "timer_start": "⏱ Starta timer: {{label}}, {{time}}",
     "swipe_hint": "Svep åt vänster för nästa steg och åt höger för föregående, eller använd knapparna nedan.",
     "prev": "Tillbaka",
     "next": "Nästa steg",
@@ -417,6 +417,11 @@
     "wake_lock": "Telefonen kan släcka skärmen. Stäng av autolåset medan du lagar mat.",
     "back_to_recipe": "Tillbaka till receptet",
     "enjoy": "Smaklig måltid!",
-    "no_steps": "Det här receptet har inga steg än."
+    "no_steps": "Det här receptet har inga steg än.",
+    "write_title": "Meddelanden från boten",
+    "write_text": "När en timer är klar skickar boten ett meddelande, även om appen är stängd. Telegram frågar om lov en gång.",
+    "write_allow": "Tillåt meddelanden",
+    "write_later": "Inte nu",
+    "timer_no_message": "Boten får inte skriva till dig, så inget Telegram-meddelande kommer. Timern går på den här skärmen."
   }
 }
