@@ -28,6 +28,7 @@
     "@fastify/rate-limit": "^10.3.0"
   },
   "devDependencies": {
+    "@cookbook/fakebot": "workspace:*",
     "@types/node": "^24.19.1",
     "@types/pg": "^8.11.10",
     "tsx": "^4.19.2",

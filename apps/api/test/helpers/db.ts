@@ -61,6 +61,10 @@ export async function testApp(
 
 export async function resetData(db: Db): Promise<void> {
   await db.query('TRUNCATE recipes, book_members, books, users CASCADE');
+  // Sprint 4: the rate gates are not tied to any user (no cascade).
+  await db.query(
+    `DO $$ BEGIN IF to_regclass('public.outbox_gates') IS NOT NULL THEN TRUNCATE outbox_gates; END IF; END $$`,
+  );
   await db.query('DELETE FROM tags WHERE custom_name IS NOT NULL');
 }
 
