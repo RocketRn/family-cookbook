@@ -583,3 +583,46 @@ h2 {
   padding: var(--space-3) 0 calc(var(--space-3) + var(--safe-bottom));
   background: var(--bg-secondary);
 }
+
+/* ---- Cooking mode (UX-04 design; FE-08) ---- */
+/* Read from arm's length with busy hands: larger text, 56 px buttons. */
+.cook__text {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.5;
+}
+.cook__nav,
+.cook__timer-btn {
+  min-height: 56px;
+  font-size: var(--fs-title);
+}
+.cook__progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--separator);
+  overflow: hidden;
+}
+.cook__progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+/* The whole step is the swipe zone: left = next, right = previous (threshold: a quarter width). */
+.cook__swipe {
+  touch-action: pan-y;
+}
+.cook__check {
+  min-height: var(--tap);
+  align-items: center;
+}
+.cook__check input {
+  width: 24px;
+  height: 24px;
+}
+.cook__done {
+  font-size: 56px;
+  margin: 0;
+}
+.toast--static {
+  position: static;
+}

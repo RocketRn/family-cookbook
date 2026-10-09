@@ -327,3 +327,17 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - Timers and numbers typed in the step text do not change (PRD 5.2). When k ≠ 1, each timer says "time may differ" (PRD 2.3), and a note above the steps explains both.
 - **Remembered per recipe.** The choice is stored under `recalc:<recipe_id>` (PRD 4.8): the mode, the servings or the product with amount and unit, and k to 6 decimals. On reopening, k is computed again from the recipe as it is now, so an edited recipe or a removed product never gives stale numbers. A banner on the card says what was recalculated, from what, and offers "Back to the original", which clears it.
 - **Known limit.** A unit written only as text ("кочан") is not declined after recalculation ("2 кочан"). Units from the list are declined.
+
+### D-038 Cooking mode designs (UX-04) and the test plan (QA-01)
+
+- **Designs.** `/dev/cook` (development builds only, Profile → Design previews) shows the PRD 2.4 screens with sample data. FE-08 builds them in Sprints 4–5.
+  - Preparation: resume ("Continue from step N / Start over") and a checklist of ingredients.
+  - Step: "Step N of M" with a progress bar, large text, the step's ingredients, the video and timer buttons.
+  - Timers: running and finished timers as chips at the bottom, with "+1 min" and "Cancel".
+  - Done: "I cooked it" with a photo and a comment, and "I'll cook it again". "My version" is shown disabled; it is stage 2.
+  - Problems: no connection, the bot was never started, the recipe changed meanwhile, and the screen cannot be kept on.
+- **Sizes (PRD 7.1).**
+  - Step text is 22 px with line height 1.5. The main buttons are 56 px high; every tap target is at least 44 px.
+  - The whole step is the swipe zone (left = next, right = previous), with vertical swipes off.
+  - Back and Next buttons are always shown, because Telegram Desktop has no gestures.
+- **Test plan.** [`docs/QA.md`](QA.md) covers the test levels and where each lives, how to run them, test data, the browser paths checked each sprint, the real-device checks tied to open assumptions, severities, and which test covers which PRD acceptance criterion. Browser paths are run by hand each sprint until Sprint 5 adds them to CI as Playwright tests.

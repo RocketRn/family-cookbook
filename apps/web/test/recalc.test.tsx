@@ -132,9 +132,10 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('recalculation on the recipe card', () => {
   it('by servings: amounts, step placeholders and portions follow; times do not; it is remembered', async () => {
-    api();
+    const calls = api();
     renderApp(`/recipe/${GOLUBTSY_ID}`);
     fireEvent.click(await screen.findByRole('button', { name: 'Recalculate' }));
+    const before = calls.length;
     const sheet = screen.getByRole('dialog', { name: 'Recalculate the recipe' });
     expect(within(sheet).getByText('In the recipe: 4')).toBeTruthy();
     for (let i = 0; i < 4; i++)
@@ -162,6 +163,8 @@ describe('recalculation on the recipe card', () => {
       v: 1,
       k: 2,
     });
+    // PRD 2.3: recalculation works without the network (nothing is requested).
+    expect(calls.length).toBe(before);
   });
 
   it('comes back after reopening, and "Back to the original" clears it', async () => {

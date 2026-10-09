@@ -482,5 +482,29 @@ describe('UX-03 design screens (development build only)', () => {
     renderApp('/profile');
     fireEvent.click(await screen.findByRole('link', { name: 'Design previews' }));
     expect(await screen.findByRole('link', { name: 'Import review' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Recipe editor' })).toBeNull(); // the real one exists
+    fireEvent.click(screen.getByRole('link', { name: 'Cooking mode' }));
+    expect(await screen.findByRole('heading', { name: 'Cooking: Шарлотка' })).toBeTruthy();
+  });
+
+  it('cooking mode design (UX-04): preparation, step, timers, done and the problem states', async () => {
+    await setLanguage('en');
+    boot();
+    renderApp('/dev/cook');
+    expect(await screen.findByText('You stopped at step 2 of 3.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start cooking' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Step' }));
+    expect(screen.getByText('Step 2 of 3')).toBeTruthy();
+    // Desktop has no gestures: Back / Next are always there (PRD 7.3 compatibility).
+    expect(screen.getByRole('button', { name: 'Next step' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Timers' }));
+    fireEvent.click(screen.getByRole('button', { name: '⏱ Выпекайте · 38:12' }));
+    expect(screen.getByRole('button', { name: '+1 min' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: '👨‍🍳 I cooked it' }));
+    expect(screen.getByText('Add a photo of your dish')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Problems' }));
+    expect(screen.getByText(/no Telegram message will arrive/)).toBeTruthy();
+    expect(screen.getByText(/Turn off auto-lock/)).toBeTruthy();
   });
 });
