@@ -366,6 +366,7 @@
     "reset": "Tillbaka till originalet",
     "applied": "Omräknat · portioner: {{value}}",
     "applied_from": "Utifrån det du har: {{name}}, {{amount}}",
-    "time_note": "Timrar och tal som står i stegens text gäller originalmängden och räknas inte om. Kontrollera dem medan du lagar maten."
+    "time_note": "Timrar och tal som står i stegens text gäller originalmängden och räknas inte om. Kontrollera dem medan du lagar maten.",
+    "time_may_differ": "tiden kan skilja sig"
   }
 }

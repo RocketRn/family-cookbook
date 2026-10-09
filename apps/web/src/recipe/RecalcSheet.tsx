@@ -126,18 +126,26 @@ export function RecalcSheet({
             <fieldset className="plain">
               <legend className="label">{t('recalc.product')}</legend>
               <div className="row row--wrap" lang={lang}>
-                {products.map((p) => (
-                  <Chip
-                    key={p.id}
-                    selected={p.id === ingId}
-                    onToggle={() => {
-                      setIngId(p.id);
-                      setUnit(p.unit_code);
-                    }}
-                  >
-                    {p.name}
-                  </Chip>
-                ))}
+                {products.map((p) => {
+                  // PRD 2.3: the same product in two sections is two lines; the section tells them apart.
+                  const twice = products.some(
+                    (o) =>
+                      o.id !== p.id && o.name.trim().toLowerCase() === p.name.trim().toLowerCase(),
+                  );
+                  const label = twice && p.group_label ? `${p.name} · ${p.group_label}` : p.name;
+                  return (
+                    <Chip
+                      key={p.id}
+                      selected={p.id === ingId}
+                      onToggle={() => {
+                        setIngId(p.id);
+                        setUnit(p.unit_code);
+                      }}
+                    >
+                      {label}
+                    </Chip>
+                  );
+                })}
               </div>
             </fieldset>
             {ing && (

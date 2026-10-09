@@ -363,6 +363,7 @@
     "reset": "Back to the original",
     "applied": "Recalculated · servings: {{value}}",
     "applied_from": "From what you have: {{name}}, {{amount}}",
-    "time_note": "Timers and numbers typed in the step text are for the original amount and are not recalculated. Check them as you cook."
+    "time_note": "Timers and numbers typed in the step text are for the original amount and are not recalculated. Check them as you cook.",
+    "time_may_differ": "time may differ"
   }
 }

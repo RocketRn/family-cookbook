@@ -152,7 +152,10 @@ describe('recalculation on the recipe card', () => {
     expect(
       screen.getByText(/Timers and numbers typed in the step text are for the original amount/),
     ).toBeTruthy();
-    expect(screen.getByText('Тушить').parentElement!.textContent).toContain('1 h 30 min');
+    // PRD 2.3: the timer itself is not scaled, and says its time may differ.
+    expect(screen.getByText('Тушить').parentElement!.textContent).toBe(
+      '⏱Тушить · 1 h 30 min · time may differ',
+    );
     expect(JSON.parse(localStorage.getItem(`recalc:${GOLUBTSY_ID}`)!)).toEqual({
       mode: 'servings',
       servings: 8,
@@ -196,6 +199,28 @@ describe('recalculation on the recipe card', () => {
     expect(screen.getByText('Recalculated · servings: ≈ 2.5')).toBeTruthy();
     expect(screen.getByText('From what you have: Говяжий фарш, 0,5 кг')).toBeTruthy();
     expect(amounts()[1]).toBe('500 г');
+  });
+
+  it('the same product in two sections is offered as two lines, named by section (PRD 2.3)', async () => {
+    const twice: Recipe = {
+      ...GOLUBTSY,
+      ingredients: [
+        { ...MINCE!, name: 'Мука', unit_code: 'g', group_label: 'Для теста' },
+        { ...RICE!, name: 'мука', unit_code: 'g', amount_min: 50, group_label: 'Для соуса' },
+      ],
+    };
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () => json(200, BOOK),
+      [`GET /api/recipes/${GOLUBTSY_ID}`]: () => json(200, twice),
+    });
+    renderApp(`/recipe/${GOLUBTSY_ID}`);
+    fireEvent.click(await screen.findByRole('button', { name: 'Recalculate' }));
+    const sheet = screen.getByRole('dialog', { name: 'Recalculate the recipe' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'From one product' }));
+    expect(within(sheet).getByRole('button', { name: 'Мука · Для теста' })).toBeTruthy();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'мука · Для соуса' }));
+    expect(within(sheet).getByText('In the recipe: 50 г')).toBeTruthy();
   });
 
   it('hints for whole items: eggs are whisked, other items are taken (owner decision, PRD 5.3)', async () => {

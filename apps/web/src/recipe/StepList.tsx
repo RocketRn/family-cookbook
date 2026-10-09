@@ -39,6 +39,7 @@ export function StepList({
   k?: number;
 }) {
   const { t } = useTranslation();
+  const recalculated = Math.abs(k - 1) > 1e-9;
   const byId = new Map(ingredients.map((i) => [i.id, i]));
   const videoById = new Map(videos.map((v) => [v.id, v]));
   // With several sections, a step's ingredient also names its section ("мука · для теста", PRD 5.1).
@@ -47,7 +48,7 @@ export function StepList({
   return (
     <section className="stack stack--tight" aria-labelledby="steps-h">
       <h2 id="steps-h">{t('recipe.steps')}</h2>
-      {Math.abs(k - 1) > 1e-9 && (
+      {recalculated && (
         <p className="hint" role="note">
           {t('recalc.time_note')}
         </p>
@@ -132,6 +133,13 @@ export function StepList({
                           {' · '}
                           <Duration sec={tm.duration_sec} />
                         </span>
+                        {/* PRD 2.3: timers are not scaled; after a recalculation they may differ. */}
+                        {recalculated && (
+                          <span className="hint">
+                            {' · '}
+                            {t('recalc.time_may_differ')}
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>
