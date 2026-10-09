@@ -12,6 +12,24 @@ A shared family cookbook that runs inside Telegram. Product spec: [`docs/PRD.md`
 | `packages/recipe-core`      | Pure TypeScript units, recalculation, smart rounding and number formatting   |
 | `db/migrations`, `db/seeds` | SQL migrations (`NNNN_name.up.sql` / `.down.sql`) and dev seed data          |
 
+## Local demo (one command)
+
+For a visual look at the app on your own computer: Ubuntu, Docker, Node 24.
+
+```bash
+pnpm demo          # checks prerequisites, starts Postgres + S3, migrates, seeds, publishes a demo
+                   # recipe with photos, starts API + worker + web, opens http://localhost:5173/?devUser=1
+pnpm demo:stop     # stops everything, keeps the data
+pnpm demo:reset    # deletes all demo data (asks first)
+```
+
+Step-by-step guide for a first-time terminal user (Russian): [`docs/RUN-LOCALLY.ru.md`](docs/RUN-LOCALLY.ru.md).
+
+- The demo uses only fake local values: the dev bot token and the dev S3 keys. Every port listens on 127.0.0.1.
+- Ports are `DEMO_WEB_PORT` (5173), `DEMO_API_PORT` (3000), `POSTGRES_PORT` (5432) and `S3_PORT` (8333). They are remembered in `.demo/ports.env`.
+- Logs are in `.demo/logs/`.
+- The demo runs as its own Docker Compose project (`cookbook-demo`), separate from `docker compose up`.
+
 ## Requirements
 
 Node 24 LTS (see `.nvmrc`), pnpm 10, and Postgres 15+ (via Docker Compose, or your own).

@@ -17,7 +17,10 @@
     "db:seed": "pnpm --filter @cookbook/api db:seed",
     "i18n:check": "node scripts/check-i18n.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm i18n:check && pnpm build && pnpm check:bundle && pnpm test"
+    "verify": "pnpm typecheck && pnpm lint && pnpm i18n:check && pnpm build && pnpm check:bundle && pnpm test",
+    "demo": "bash scripts/demo.sh start",
+    "demo:stop": "bash scripts/demo.sh stop",
+    "demo:reset": "bash scripts/demo.sh reset"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

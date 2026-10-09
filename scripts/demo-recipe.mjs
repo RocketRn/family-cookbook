@@ -4,6 +4,8 @@
 // Needs the local stack: docker compose up -d, pnpm db:migrate, pnpm db:seed, pnpm dev.
 //   node scripts/demo-recipe.mjs            (API at http://localhost:3000)
 //   API_URL=http://localhost:3001 node scripts/demo-recipe.mjs
+//   node scripts/demo-recipe.mjs --again   (publish another copy even if one exists)
+// `pnpm demo` (scripts/demo.sh) runs this for you.
 import { createRequire } from 'node:module';
 import { devInitData } from './lib/dev-init-data.mjs';
 
@@ -42,14 +44,22 @@ async function photo(label, colors) {
   return call('POST', '/media', form, true);
 }
 
+const TITLE = 'Шарлотка (демо)';
 const me = await call('GET', '/me');
 console.log(`Signed in as ${me.first_name} (dev user 1).`);
+// Running the demo again does not add a second copy (pass --again to add one anyway).
+const mine = await call('GET', '/recipes?scope=mine&limit=100');
+const existing = mine.items.find((r) => r.title === TITLE);
+if (existing && !process.argv.includes('--again')) {
+  console.log(`"${TITLE}" is already in the book: ${WEB}/recipe/${existing.id}`);
+  process.exit(0);
+}
 const cover = await photo('Шарлотка', ['#c9772b', '#7a3b12']);
 const stepPhoto = await photo('Тесто', ['#e8c27a', '#b5832f']);
 console.log(`Uploaded 2 photos (${cover.width}x${cover.height}, stored as JPEG without metadata).`);
 
 const recipe = await call('POST', '/recipes', {
-  title: 'Шарлотка (демо)',
+  title: TITLE,
   servings: 6,
   difficulty: 'easy',
   prep_min: 15,

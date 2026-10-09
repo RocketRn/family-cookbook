@@ -20,6 +20,8 @@ describe('loadConfig', () => {
   it('applies defaults', () => {
     const c = loadConfig({ ...base });
     expect(c.port).toBe(3000);
+    expect(c.host).toBe('0.0.0.0'); // containers; the local demo sets HOST=127.0.0.1
+    expect(loadConfig({ ...base, HOST: '127.0.0.1' }).host).toBe('127.0.0.1');
     expect(c.initDataMaxAgeSeconds).toBe(86_400);
     expect(c.initDataTokens).toEqual(['1:real-looking']);
   });

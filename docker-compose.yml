@@ -7,7 +7,8 @@ services:
       POSTGRES_DB: cookbook
     ports:
       # Host port; set POSTGRES_PORT if 5432 is already taken by a local Postgres.
-      - '${POSTGRES_PORT:-5432}:5432'
+      # 127.0.0.1: reachable only from this computer, not from the local network.
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
@@ -25,7 +26,7 @@ services:
     # bucket (for example the test bucket) would find no space. Volumes grow as needed (no preallocation).
     command: server -dir=/data -volume.max=100 -master.volumeSizeLimitMB=1024 -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
     ports:
-      - '${S3_PORT:-8333}:8333'
+      - '127.0.0.1:${S3_PORT:-8333}:8333'
     volumes:
       - s3data:/data
       - ./docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro

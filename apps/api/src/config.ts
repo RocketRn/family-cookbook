@@ -20,6 +20,8 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    /** Address to listen on. 0.0.0.0 in containers; the local demo uses 127.0.0.1 (this computer only). */
+    HOST: z.string().min(1).default('0.0.0.0'),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -89,6 +91,7 @@ const envSchema = z
 export type Config = {
   nodeEnv: 'development' | 'test' | 'production';
   port: number;
+  host: string;
   logLevel: string;
   databaseUrl: string;
   botUsername: string;
@@ -120,6 +123,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   return {
     nodeEnv: e.NODE_ENV,
     port: e.PORT,
+    host: e.HOST,
     logLevel: e.LOG_LEVEL,
     databaseUrl: e.DATABASE_URL,
     botUsername: e.BOT_USERNAME,
