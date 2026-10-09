@@ -381,6 +381,40 @@ cd ~/family-cookbook/deploy/gcp && docker compose run --rm s3check
 
 В конце должно быть `Tests  2 passed`. Если видите `AccessDenied` или `SignatureDoesNotMatch`, проверьте `S3_BUCKET`, ключи и роль из раздела 5.2.
 
+#### Что проверить именно на Google Cloud Storage
+
+Google Cloud Storage понимает «язык» S3, но не целиком. Приложение уже настроено под него, и эти настройки проверяются тестами. Ниже — как убедиться, что настройки на месте, и что делать, если что-то не так.
+
+**Настройки, без которых фото не работают:**
+
+- `S3_REGION: auto` — Google ждёт именно `auto`, а не `us-east-1`.
+- `S3_FORCE_PATH_STYLE: 'true'` — адрес фото вида `storage.googleapis.com/ведро/файл`.
+- `AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED` и `AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED` — не отправлять Google контрольные суммы, которые он не принимает. Эта настройка есть и в самой программе; строки в `compose.yml` — вторая страховка.
+
+Все четыре строки уже записаны в `compose.yml` (не в `.env`), поэтому случайно их не потерять. Проверить, что сервер их видит:
+
+```bash
+cd ~/family-cookbook/deploy/gcp && docker compose config | grep -E "S3_REGION|S3_FORCE_PATH_STYLE|AWS_RE"
+```
+
+Должно быть восемь строк: по две каждого вида (для `api` и `worker`), со значениями `auto`, `"true"` и `WHEN_REQUIRED`.
+
+**После первого фото** (раздел 10) посмотрите в журнал:
+
+```bash
+cd ~/family-cookbook/deploy/gcp && docker compose logs api worker | grep -iE "checksum|InvalidArgument|NotImplemented|BadDigest|SignatureDoesNotMatch|XAmzContent"
+```
+
+Пустой ответ — всё хорошо.
+
+| Признак                                                                                                                                 | Причина                                                                                                     | Что делать                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Фото не загружается, в журнале `api` есть `x-amz-checksum`, `InvalidArgument`, `BadDigest` или `XAmzContentSHA256Mismatch`              | Программа отправила Google контрольную сумму, которую он не принимает (обычно — старая версия кода)         | Обновите код (раздел 12, «Обновить приложение») и выполните проверку выше: должно быть `WHEN_REQUIRED`. Затем `docker compose run --rm s3check`.                |
+| Фото загрузилось, но в приложении вместо него серый квадрат; если открыть ссылку на фото в браузере — `SignatureDoesNotMatch` или `403` | Неверный регион или «вид адреса»: `S3_REGION` не `auto` или `S3_FORCE_PATH_STYLE` не `'true'`               | Проверьте командой выше. Если в `compose.yml` что-то изменено вручную, верните: `git checkout deploy/gcp/compose.yml`, затем `docker compose up -d api worker`. |
+| В журнале `worker` при уборке старых фото: `NotImplemented`                                                                             | Google не умеет удалять много файлов одним запросом; программа удаляет по одному (старая версия кода — нет) | Обновите код (раздел 12, «Обновить приложение»).                                                                                                                |
+| `NoSuchBucket`                                                                                                                          | В `.env` неверное имя ведра                                                                                 | `nano .env`: `S3_BUCKET` — точно как в разделе 5.1, без `gs://` и пробелов. Затем `docker compose up -d api worker`.                                            |
+| `AccessDenied`                                                                                                                          | У аккаунта ключа нет прав на ведро                                                                          | Раздел 5.2: роль **Storage Object User** у `cookbook-photos` на ведре фото.                                                                                     |
+
 ### 9.8. Запуск приложения
 
 ```bash
@@ -562,6 +596,7 @@ cd ~/family-cookbook/deploy/gcp && docker compose ps && docker compose logs --ta
 | Сборка остановилась с `Killed` или сервер очень долго «думает»                                           | Не хватает памяти. Проверьте подкачку (`free -h`, раздел 9.2). Если подкачка есть, а проблема повторяется, перейдите на e2-small: выключите сервер, **Edit** → Machine type **e2-small**, **Save**, **Start**. |
 | `s3check`: `AccessDenied`                                                                                | Роль **Storage Object User** не выдана аккаунту `cookbook-photos` на ведре фото (раздел 5.2).                                                                                                                  |
 | `s3check`: `SignatureDoesNotMatch`                                                                       | Неверный ключ: скопировался не целиком или с пробелом. Создайте новый ключ (раздел 5.3).                                                                                                                       |
+| Фото не загружаются или не показываются                                                                  | Раздел 9.7, «Что проверить именно на Google Cloud Storage»: там признаки, причины и что делать.                                                                                                                |
 | `backup.sh`: `AccessDeniedException` / `403`                                                             | У `cookbook-vm` нет ролей на ведре копий (раздел 6.1) или сервер создан не с этим аккаунтом (раздел 6.2, пункт 6).                                                                                             |
 | Сообщение таймера не пришло                                                                              | Нажимали ли **Start** у бота? Разрешили ли сообщения? Посмотрите журнал: `docker compose logs worker \| tail -30`. Строка `bot may not write to this user` значит, что бот не может вам писать.                |
 

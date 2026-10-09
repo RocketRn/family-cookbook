@@ -4,20 +4,20 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 
 ## Progress
 
-| #     | Task                                                               | State                                                              | Commit |
-| ----- | ------------------------------------------------------------------ | ------------------------------------------------------------------ | ------ |
-| S5-0  | Plan and this progress file                                        | done                                                               | (this) |
-| S5-1  | Storage compatibility with Google Cloud Storage, and what to check | next                                                               |        |
-| S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | to do                                                              |        |
-| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | to do                                                              |        |
-| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | to do                                                              |        |
-| S5-5  | FE-10 reactions and "I cooked it" on screen                        | to do                                                              |        |
-| S5-6  | Notification settings, and the new-recipe message (off by default) | to do                                                              |        |
-| S5-7  | FE-09 timers, full version                                         | to do                                                              |        |
-| S5-8  | Saved recipes                                                      | to do                                                              |        |
-| S5-9  | QA-01 automated browser tests in CI                                | to do                                                              |        |
-| —     | Fixes from the first Telegram test                                 | placeholder: the owner sends the findings later as a separate task |        |
-| S5-10 | Wrap-up: clean clone, CI, guides, report, Sprint 6 plan            | to do                                                              |        |
+| #     | Task                                                               | State                                                              | Commit    |
+| ----- | ------------------------------------------------------------------ | ------------------------------------------------------------------ | --------- |
+| S5-0  | Plan and this progress file                                        | done                                                               | `50722d3` |
+| S5-1  | Storage compatibility with Google Cloud Storage, and what to check | done                                                               | (this)    |
+| S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | next                                                               |           |
+| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | to do                                                              |           |
+| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | to do                                                              |           |
+| S5-5  | FE-10 reactions and "I cooked it" on screen                        | to do                                                              |           |
+| S5-6  | Notification settings, and the new-recipe message (off by default) | to do                                                              |           |
+| S5-7  | FE-09 timers, full version                                         | to do                                                              |           |
+| S5-8  | Saved recipes                                                      | to do                                                              |           |
+| S5-9  | QA-01 automated browser tests in CI                                | to do                                                              |           |
+| —     | Fixes from the first Telegram test                                 | placeholder: the owner sends the findings later as a separate task |           |
+| S5-10 | Wrap-up: clean clone, CI, guides, report, Sprint 6 plan            | to do                                                              |           |
 
 ## The owner's answers (Sprint 5 approval)
 
@@ -38,3 +38,12 @@ Additions:
 - Tests first, failing on the old code. Because every task is pushed and `pnpm verify` runs before every push, each task's tests and code go into one commit; the report records that the tests were run red before the code.
 - One commit per task. CI green on Postgres 15 and 16. A clean-clone check with Docker Compose at the end.
 - No real Telegram calls from the sandbox, no real tokens, no deployments.
+
+## Task notes
+
+### S5-1 Storage compatibility with Google Cloud Storage
+
+- The client already sent checksums only when S3 requires them and used path-style addresses (Sprint 4, D-045). Now that is pinned by a test, and also set as AWS SDK variables in `deploy/gcp/compose.yml` for the API, the worker and the storage check (`s3check`).
+- Red first: `storage-config.test.ts` failed with the two settings taken out of `storage.ts` (`expected 'WHEN_SUPPORTED' to be 'WHEN_REQUIRED'`); the new `deploy-files.test.ts` check failed on the old `compose.yml`.
+- The S3 contract test stays green on SeaweedFS; the Google Cloud Storage stand-in test (it refuses checksum headers and multi-object delete) stays green.
+- `docs/DEPLOY-GCP.ru.md` 9.7 now says what to check on Google Cloud Storage: a command that shows the four settings, a log search after the first photo, and a table of symptoms, causes and fixes. Section 13 points to it.

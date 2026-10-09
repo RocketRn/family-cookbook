@@ -83,6 +83,10 @@ services:
       S3_ENDPOINT: https://storage.googleapis.com
       S3_REGION: auto
       S3_FORCE_PATH_STYLE: 'true'
+      # Cloud Storage refuses the AWS SDK's newer default checksum headers: send them only where
+      # S3 requires them. The code sets this too; this is a second safeguard (D-045).
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
       S3_BUCKET: ${S3_BUCKET:?Fill in S3_BUCKET in .env}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Fill in S3_ACCESS_KEY in .env}
       S3_SECRET_KEY: ${S3_SECRET_KEY:?Fill in S3_SECRET_KEY in .env}
@@ -117,6 +121,8 @@ services:
       S3_ENDPOINT: https://storage.googleapis.com
       S3_REGION: auto
       S3_FORCE_PATH_STYLE: 'true'
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
       S3_BUCKET: ${S3_BUCKET}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
@@ -153,6 +159,8 @@ services:
     environment:
       S3_TEST_ENDPOINT: https://storage.googleapis.com
       S3_TEST_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
       S3_TEST_BUCKET: ${S3_BUCKET}
       S3_TEST_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_TEST_SECRET_KEY: ${S3_SECRET_KEY}

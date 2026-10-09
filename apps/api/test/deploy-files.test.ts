@@ -44,6 +44,22 @@ describe('deploy/gcp/compose.yml', () => {
     expect(service('worker')).toMatch(/NODE_ENV: production/);
   });
 
+  it('the API and the worker use Cloud Storage with the settings it needs, also as SDK variables', () => {
+    for (const s of ['api', 'worker']) {
+      const block = service(s);
+      expect(block, s).toMatch(/S3_ENDPOINT: https:\/\/storage\.googleapis\.com/);
+      expect(block, s).toMatch(/S3_REGION: auto/);
+      expect(block, s).toMatch(/S3_FORCE_PATH_STYLE: 'true'/);
+      // A second safeguard: the AWS SDK reads these even if code changes (D-045).
+      expect(block, s).toMatch(/AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED/);
+      expect(block, s).toMatch(/AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED/);
+    }
+    // The storage check must test what the app will really do.
+    expect(service('s3check')).toMatch(/S3_TEST_REGION: auto/);
+    expect(service('s3check')).toMatch(/AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED/);
+    expect(service('s3check')).toMatch(/AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED/);
+  });
+
   it('every service has a memory limit (measured, D-045)', () => {
     for (const s of ['postgres', 'migrate', 'api', 'worker', 'web']) {
       expect(service(s), s).toMatch(/mem_limit: /);
