@@ -134,6 +134,7 @@
     "dev_mode": "Utvecklingsläge: Telegram simuleras"
   },
   "errors": {
+    "BAD_REQUEST": "Begäran kunde inte behandlas.",
     "NETWORK": "Ingen anslutning. Kontrollera nätverket.",
     "UNAUTHORIZED": "Sessionen är ogiltig. Öppna appen från Telegram igen.",
     "FORBIDDEN": "Du har inte behörighet att göra detta.",

@@ -54,9 +54,10 @@ export function saveManualLanguage(lang: Language): void {
   }
 }
 
-export function setLanguage(lang: Language): Promise<unknown> {
+export async function setLanguage(lang: Language): Promise<void> {
   document.documentElement.lang = lang;
-  return i18n.changeLanguage(lang);
+  await i18n.changeLanguage(lang);
+  document.title = i18n.t('app_name');
 }
 
 void i18n.use(initReactI18next).init({

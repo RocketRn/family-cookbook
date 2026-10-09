@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import { ApiError } from '../src/api/client';
+import { recipeApi } from '../src/api/recipeApi';
 import { setLanguage } from '../src/i18n';
 import { __resetTelegramRuntime } from '../src/telegram/sdk';
 
@@ -188,5 +190,100 @@ describe('demo: sign-in through Telegram (dev mock) against the API contract', (
     });
     renderApp();
     expect(await screen.findByRole('heading', { name: 'Join this book?' })).toBeTruthy();
+  });
+
+  it('sets the document title from the UI language', async () => {
+    stubApi({
+      'GET /api/me': () => json(200, ME),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+    renderApp();
+    await screen.findByRole('heading', { name: 'Семья' });
+    expect(document.title).toBe('Семейная кулинарная книга');
+  });
+});
+
+describe('error states (review round 2)', () => {
+  const serverError = () =>
+    json(500, { error: { code: 'INTERNAL', message: 'x', request_id: 'r' } });
+
+  it('Profile shows the error and a retry when the book fails to load, not "not in a book"', async () => {
+    await setLanguage('en');
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': serverError,
+    });
+    renderApp('/profile');
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.queryByText('You are not in a book yet.')).toBeNull();
+  });
+
+  it('Book tab shows the error message, not a bare button', async () => {
+    await setLanguage('en');
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': serverError,
+    });
+    renderApp('/');
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy();
+  });
+
+  it('Saved shows a network error with retry, and recovers', async () => {
+    await setLanguage('en');
+    const spy = vi
+      .spyOn(recipeApi, 'list')
+      .mockRejectedValueOnce(new ApiError(0, 'NETWORK', 'offline'));
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+    renderApp('/saved');
+    expect(await screen.findByText('No connection. Check your network.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Syrniki')).toBeTruthy();
+    spy.mockRestore();
+  });
+
+  it('a failed recipe load is not reported as "Recipe not found"', async () => {
+    await setLanguage('en');
+    const spy = vi
+      .spyOn(recipeApi, 'get')
+      .mockRejectedValueOnce(new ApiError(0, 'NETWORK', 'offline'));
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+    renderApp('/recipe/mock-pie');
+    expect(await screen.findByText('No connection. Check your network.')).toBeTruthy();
+    expect(screen.queryByText('Recipe not found')).toBeNull();
+    spy.mockRestore();
+  });
+});
+
+describe('Telegram BackButton (review round 2)', () => {
+  it('on the first screen of the session it goes to the book, never out of the app', async () => {
+    // Browser history from before the Mini App opened (window.history.length > 1).
+    window.history.pushState({}, '', '/somewhere-before-the-app');
+    stubApi({
+      'GET /api/me': () => json(200, ME),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+    renderApp('/recipe/mock-pie');
+    await screen.findByRole('heading', { name: 'Apple pie' });
+    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-testid=mock-back-button]')!);
+    expect(await screen.findByRole('heading', { name: 'Семья' })).toBeTruthy();
+  });
+
+  it('after in-app navigation it goes back one step', async () => {
+    stubApi({
+      'GET /api/me': () => json(200, ME),
+      'GET /api/books/current': () => json(200, BOOK),
+    });
+    renderApp('/saved');
+    fireEvent.click(await screen.findByText('Syrniki'));
+    await screen.findByRole('heading', { name: 'Syrniki' });
+    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-testid=mock-back-button]')!);
+    expect(await screen.findByRole('heading', { name: 'Сохранённое' })).toBeTruthy();
   });
 });

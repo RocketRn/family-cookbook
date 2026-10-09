@@ -13,4 +13,6 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-tg-scheme');
   localStorage.clear();
   delete window.Telegram;
+  // The dev mock's back button is plain DOM outside React; remove it so tests never click a stale one.
+  document.querySelectorAll('[data-testid=mock-back-button]').forEach((el) => el.remove());
 });

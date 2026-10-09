@@ -91,6 +91,17 @@ for (const lang of langs) {
   }
 }
 
+// Every error code the API can return (apps/api/src/errors.ts) needs a user-facing message,
+// plus NETWORK, which the web client produces itself.
+const errorsTs = readFileSync(path.resolve(dir, '../../../../api/src/errors.ts'), 'utf8');
+const union = /export type ErrorCode =([^;]+);/.exec(errorsTs)?.[1] ?? '';
+const apiCodes = [...union.matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]);
+if (apiCodes.length === 0) problems.push('could not read ErrorCode from apps/api/src/errors.ts');
+for (const code of [...apiCodes, 'NETWORK']) {
+  if (!ref.plain.has(`errors.${code}`))
+    problems.push(`en: no message for API error code "errors.${code}"`);
+}
+
 for (const lang of ['uk', 'sv']) {
   if (data[lang]._meta?.status !== 'needs-native-review')
     problems.push(`${lang}: _meta.status "needs-native-review" marker is missing`);

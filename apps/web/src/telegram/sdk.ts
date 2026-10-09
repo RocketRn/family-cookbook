@@ -47,6 +47,15 @@ async function doInit(): Promise<TelegramRuntime | null> {
   webApp.ready();
   webApp.expand();
   webApp.disableVerticalSwipes?.();
+  // Match Telegram's header and background to the app's page colour (Bot API 6.1+; A-19).
+  if (webApp.isVersionAtLeast('6.1')) {
+    try {
+      webApp.setHeaderColor?.('secondary_bg_color');
+      webApp.setBackgroundColor?.('secondary_bg_color');
+    } catch {
+      /* an older client rejecting the keyword is cosmetic only */
+    }
+  }
   syncChrome(webApp);
   const resync = () => syncChrome(webApp!);
   for (const ev of ['themeChanged', 'safeAreaChanged', 'contentSafeAreaChanged'] as const) {

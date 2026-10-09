@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { getMe, type Me } from './api/endpoints';
 import { Button } from './design/Button';
-import { EmptyState } from './design/Feedback';
+import { EmptyState, ErrorState, Loading } from './design/Feedback';
 import { errorMessage } from './errors';
 import { readManualLanguage, resolveLanguage, setLanguage } from './i18n';
 import { bookQuery } from './queries';
@@ -72,16 +72,10 @@ function useBoot(): { boot: Boot; retry: () => void } {
   return { boot, retry: () => setAttempt((n) => n + 1) };
 }
 
-function BookTab({ me: _me }: { me: Me }) {
+function BookTab() {
   const book = useQuery(bookQuery);
-  const { t } = useTranslation();
-  if (book.isLoading)
-    return (
-      <p className="hint" role="status">
-        {t('common.loading')}
-      </p>
-    );
-  if (book.isError) return <Button onClick={() => book.refetch()}>{t('common.retry')}</Button>;
+  if (book.isLoading) return <Loading />;
+  if (book.isError) return <ErrorState error={book.error} onRetry={() => void book.refetch()} />;
   if (!book.data) return <Onboarding />;
   return <BookScreen bookTitle={book.data.title} />;
 }
@@ -92,7 +86,7 @@ function Ready({ me }: { me: Me }) {
     <>
       <Routes>
         <Route element={<TabShell />}>
-          <Route path="/" element={<BookTab me={me} />} />
+          <Route path="/" element={<BookTab />} />
           <Route path="/saved" element={<SavedScreen />} />
           <Route path="/profile" element={<ProfileScreen me={me} />} />
         </Route>

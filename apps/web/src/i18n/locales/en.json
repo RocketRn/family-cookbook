@@ -131,6 +131,7 @@
     "dev_mode": "Development mode: Telegram is simulated"
   },
   "errors": {
+    "BAD_REQUEST": "The request could not be processed.",
     "NETWORK": "No connection. Check your network.",
     "UNAUTHORIZED": "Your session is invalid. Reopen the app from Telegram.",
     "FORBIDDEN": "You are not allowed to do this.",

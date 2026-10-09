@@ -5,7 +5,7 @@ import { leaveBook, removeMember, rotateInvite, type Member, type Me } from '../
 import { BottomSheet } from '../design/BottomSheet';
 import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
-import { Avatar } from '../design/Feedback';
+import { Avatar, ErrorState, Loading } from '../design/Feedback';
 import { errorMessage } from '../errors';
 import { LANGUAGES, LANGUAGE_NAMES, saveManualLanguage, setLanguage, type Language } from '../i18n';
 import { bookQuery } from '../queries';
@@ -109,7 +109,9 @@ export function ProfileScreen({ me }: { me: Me }) {
 
       <section className="section stack stack--tight" aria-labelledby="book-h">
         <h2 id="book-h">{t('profile.book')}</h2>
-        {!b && <p className="hint">{t('profile.no_book')}</p>}
+        {book.isLoading && <Loading />}
+        {book.isError && <ErrorState error={book.error} onRetry={() => void book.refetch()} />}
+        {book.isSuccess && !b && <p className="hint">{t('profile.no_book')}</p>}
         {b && (
           <>
             <div className="row row--between">

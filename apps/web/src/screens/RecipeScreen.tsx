@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { recipeApi } from '../api/recipeApi';
 import { Button } from '../design/Button';
 import { Tag } from '../design/Chip';
-import { EmptyState } from '../design/Feedback';
+import { EmptyState, ErrorState, Loading } from '../design/Feedback';
 import { haptic } from '../telegram/sdk';
 
 /** Placeholder card: the real recipe card (FE-03) and recalculation/cooking arrive in later sprints. */
@@ -22,12 +22,10 @@ export function RecipeScreen() {
     },
   });
 
-  if (recipe.isLoading)
-    return (
-      <p className="hint" role="status">
-        {t('common.loading')}
-      </p>
-    );
+  if (recipe.isLoading) return <Loading />;
+  // A failed request is not "not found": show why and offer a retry.
+  if (recipe.isError)
+    return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   const r = recipe.data;
   if (!r) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
 

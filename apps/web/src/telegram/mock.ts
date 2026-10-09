@@ -150,6 +150,8 @@ export async function installMockWebApp(): Promise<TelegramWebApp> {
     close: () => console.debug('[mock] close()'),
     isVersionAtLeast: () => true,
     disableVerticalSwipes: () => undefined,
+    setHeaderColor: (c) => console.debug('[mock] setHeaderColor', c),
+    setBackgroundColor: (c) => console.debug('[mock] setBackgroundColor', c),
     requestWriteAccess: (cb) => cb?.(true),
     shareMessage: (_id, cb) => cb?.(true),
     openTelegramLink: (url) => window.open(url, '_blank', 'noopener'),
