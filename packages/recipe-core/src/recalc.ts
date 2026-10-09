@@ -1,4 +1,5 @@
 import { EPS } from './fraction.js';
+import { isEgg } from './products.js';
 import { asWritten, roundAmount } from './round.js';
 import type { IngredientAmount, ScaledAmount } from './types.js';
 import { unitByCode } from './units.js';
@@ -73,6 +74,7 @@ export function scaleAmount(ing: IngredientAmount, k: number): ScaledAmount {
     unitCode: ing.unitCode,
     roundClass: ing.roundClass,
     minPiece: ing.minPiece ?? null,
+    whisk: ing.roundClass === 'whole_item' && isEgg(ing.name ?? ing.rawLine ?? ''),
   };
   const lo = ing.amountMin!;
   const hi = ing.qtyKind === 'range' ? ing.amountMax! : lo;

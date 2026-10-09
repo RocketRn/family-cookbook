@@ -30,21 +30,29 @@ const NON_SCALABLE: Record<'to_taste' | 'pinch', Record<Lang, string>> = {
   pinch: { ru: 'щепотка', uk: 'щіпка', en: 'a pinch', sv: 'en nypa' },
 };
 
-const HINTS: Record<Lang, Record<Hint['kind'], string>> = {
+/**
+ * Hints for whole items (PRD 5.3). Owner decision (D-037): eggs keep "whisk N and take ⅔"; other
+ * whole items say "take N and use ⅔".
+ */
+const HINTS: Record<Lang, Record<'whisk' | 'take' | 'whole_plus_fraction', string>> = {
   ru: {
-    take_fraction_of: 'или взбить {n}{unit} и взять {f}',
+    whisk: 'или взбить {n}{unit} и взять {f}',
+    take: 'или взять {n}{unit} и использовать {f}',
     whole_plus_fraction: 'или {n}{unit} и {f} ещё одного',
   },
   uk: {
-    take_fraction_of: 'або збити {n}{unit} і взяти {f}',
+    whisk: 'або збити {n}{unit} і взяти {f}',
+    take: 'або взяти {n}{unit} і використати {f}',
     whole_plus_fraction: 'або {n}{unit} і {f} ще одного',
   },
   en: {
-    take_fraction_of: 'or whisk {n}{unit} and take {f}',
+    whisk: 'or whisk {n}{unit} and take {f}',
+    take: 'or take {n}{unit} and use {f}',
     whole_plus_fraction: 'or {n}{unit} and {f} of one more',
   },
   sv: {
-    take_fraction_of: 'eller vispa {n}{unit} och ta {f}',
+    whisk: 'eller vispa {n}{unit} och ta {f}',
+    take: 'eller ta {n}{unit} och använd {f}',
     whole_plus_fraction: 'eller {n}{unit} och {f} av en till',
   },
 };
@@ -113,7 +121,13 @@ function withUnit(numbers: string, unit: string | null): string {
 function hintText(hint: Hint, q: Quantity, unitRaw: string | null, lang: Lang): string {
   const n = hint.kind === 'take_fraction_of' ? hint.pieces : hint.whole;
   const unit = unitLabel(q.unit, lang, n) ?? (unitRaw?.trim() || null);
-  return HINTS[lang][hint.kind]
+  const pattern =
+    hint.kind === 'whole_plus_fraction'
+      ? HINTS[lang].whole_plus_fraction
+      : hint.whisk
+        ? HINTS[lang].whisk
+        : HINTS[lang].take;
+  return pattern
     .replace('{n}', String(n))
     .replace('{unit}', unit ? ` ${unit}` : '')
     .replace('{f}', fractionGlyph(hint.fraction));

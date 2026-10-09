@@ -12,8 +12,11 @@ export type Rounding = 'continuous' | 'spoon_cup' | 'whole_item' | 'spice_item' 
 export type Fraction = { num: number; den: number };
 
 export type Hint =
-  /** "whisk `pieces`, take `fraction`" */
-  | { kind: 'take_fraction_of'; pieces: number; fraction: Fraction }
+  /**
+   * "whisk `pieces`, take `fraction`" for eggs (`whisk`), "take `pieces` and use `fraction`" for
+   * other whole items (owner decision, D-037).
+   */
+  | { kind: 'take_fraction_of'; pieces: number; fraction: Fraction; whisk: boolean }
   /** "`whole` and `fraction` of one more" */
   | { kind: 'whole_plus_fraction'; whole: number; fraction: Fraction };
 
@@ -47,6 +50,8 @@ export type IngredientAmount = {
   /** Divisibility step of a whole item (1 for an egg, 0.5 for an onion). */
   minPiece?: number | null;
   rawLine?: string;
+  /** The ingredient's name; tells eggs (whisked) from other whole items. Falls back to rawLine. */
+  name?: string;
 };
 
 export type ScaledAmount =
@@ -58,4 +63,6 @@ export type RoundSpec = {
   unitCode: string | null;
   roundClass: RoundClass;
   minPiece?: number | null;
+  /** An egg: its "take a fraction" hint says "whisk" (D-037). */
+  whisk?: boolean;
 };

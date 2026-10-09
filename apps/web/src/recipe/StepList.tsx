@@ -28,12 +28,15 @@ export function StepList({
   videos,
   langs,
   lang,
+  k = 1,
 }: {
   steps: Step[];
   ingredients: Ingredient[];
   videos: Video[];
   langs: Langs;
   lang: string | undefined;
+  /** Recalculation factor (FE-07): amounts follow it; times and numbers typed in the text do not. */
+  k?: number;
 }) {
   const { t } = useTranslation();
   const byId = new Map(ingredients.map((i) => [i.id, i]));
@@ -44,6 +47,11 @@ export function StepList({
   return (
     <section className="stack stack--tight" aria-labelledby="steps-h">
       <h2 id="steps-h">{t('recipe.steps')}</h2>
+      {Math.abs(k - 1) > 1e-9 && (
+        <p className="hint" role="note">
+          {t('recalc.time_note')}
+        </p>
+      )}
       <ol className="steps">
         {[...steps]
           .sort((a, b) => a.position - b.position)
@@ -78,7 +86,7 @@ export function StepList({
                     {s.ingredients.map((link) => {
                       const ing = byId.get(link.ingredient_id);
                       if (!ing) return null;
-                      const amount = amountText(ing, langs, link.portion_fraction);
+                      const amount = amountText(ing, langs, link.portion_fraction, k);
                       return (
                         <li key={link.ingredient_id} className="ing">
                           <span className="grow">
@@ -106,7 +114,7 @@ export function StepList({
                       const share = s.ingredients.find((l) => l.ingredient_id === ing.id);
                       return (
                         <strong key={i} title={ing.name}>
-                          {amountText(ing, langs, share?.portion_fraction ?? 1) ??
+                          {amountText(ing, langs, share?.portion_fraction ?? 1, k) ??
                             ing.raw_line ??
                             ing.name}
                         </strong>

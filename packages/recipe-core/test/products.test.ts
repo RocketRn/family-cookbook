@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyProduct } from '../src/index.js';
+import { classifyProduct, isEgg } from '../src/index.js';
 
 describe('classifyProduct: round_class and min_piece from the product dictionary (PRD 5.1.3)', () => {
   it.each<[string, string, number | null]>([
@@ -8,6 +8,8 @@ describe('classifyProduct: round_class and min_piece from the product dictionary
     ['яйця', 'whole_item', 1],
     ['eggs', 'whole_item', 1],
     ['ägg', 'whole_item', 1],
+    ['eggplant', 'continuous', null],
+    ['äggplanta', 'continuous', null],
     ['лук репчатый', 'whole_item', 0.5],
     ['цибуля', 'whole_item', 0.5],
     ['onion', 'whole_item', 0.5],
@@ -28,4 +30,15 @@ describe('classifyProduct: round_class and min_piece from the product dictionary
   ])('%s -> %s', (name, roundClass, minPiece) => {
     expect(classifyProduct(name)).toEqual({ roundClass, minPiece });
   });
+});
+
+describe('isEgg: which whole items are whisked (D-037)', () => {
+  it.each(['яйца', 'Яйцо куриное', '4 яиц', 'яйця', 'яєць', 'eggs', 'Egg yolk', 'ägg', 'Äggen'])(
+    '%s is an egg',
+    (name) => expect(isEgg(name)).toBe(true),
+  );
+  it.each(['чеснок', 'garlic', 'лук', 'яичный порошок', 'eggplant', 'baklažan', 'nutmeg'])(
+    '%s is not',
+    (name) => expect(isEgg(name)).toBe(false),
+  );
 });

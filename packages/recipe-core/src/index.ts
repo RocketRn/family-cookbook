@@ -19,7 +19,7 @@ export type { RecalcErrorCode } from './recalc.js';
 export { formatAmount, fractionGlyph, unitLabel } from './format.js';
 export type { FormatOptions } from './format.js';
 export { parseAmount, parseNumber } from './numbers.js';
-export { classifyProduct } from './products.js';
+export { classifyProduct, isEgg } from './products.js';
 export { parseYoutube } from './youtube.js';
 
 export const RECIPE_CORE_VERSION = '0.2.0';

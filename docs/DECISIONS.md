@@ -310,3 +310,20 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - a line the author changes is theirs: the highlight goes and the stored confidence is cleared.
 - The import creates a private draft. In the editor its visibility starts as "Everyone in your book" when the author is in a book, so "Publish" means publishing to the book (PRD 2.2 step 9). "Save draft" keeps it to the author either way.
 - Still to come in the full review (FE-05, Sprint 4): the original next to the result, accept or reject for each suggested timer and link, and moving lines between sections by dragging.
+
+### D-037 Recalculation panel (FE-07) and the whole-item hint wording
+
+- **Hint wording (owner decision 2).** Eggs keep "или взбить 2 шт. и взять ⅔". Other whole items say "или взять 2 зубчика и использовать ⅔", because garlic cannot be whisked. The same wording is used in all four interface languages; see PRD 5.3, which was updated, and the formatter tests in each language.
+  - recipe-core tells eggs apart by name (`isEgg`: яйцо, яйця, яєць, egg, ägg). The hint carries `whisk: true|false`, and the formatter picks the words. Older callers that send only `rawLine` still work.
+  - While building this, "eggplant" / "äggplanta" turned out to be classified as eggs (whole items). They are now ordinary products, with a test.
+- **The panel.** "Recalculate" on the card opens a sheet with two modes (PRD 5.2):
+  - by servings, with a stepper;
+  - from one product: the user picks an ingredient with an amount, types what they have and picks its unit. Only units that convert exactly are offered: g/kg, ml/l, otherwise the ingredient's own unit. Cups to grams would need densities (stage 2).
+- **Limits (PRD 5.2).** Below ¼ or above 4 times, a "big change" warning is shown. Below 1/20 or above 20 times, the change is refused and "Recalculate" stays disabled. "From one product" shows the resulting servings, e.g. "≈ 2.5".
+- **What follows k.**
+  - The ingredient list, rounded by recipe-core (PRD 5.3).
+  - The step ingredient lists and the `{ing:…}` amounts in step text (the step's share × k).
+  - The servings in the header ("Servings: ≈ 2.5").
+  - Timers and numbers typed in the step text do not change (PRD 5.2). When k ≠ 1, a note above the steps says so.
+- **Remembered per recipe.** The choice is stored under `recalc:<recipe_id>` (PRD 4.8): the mode, the servings or the product with amount and unit, and k to 6 decimals. On reopening, k is computed again from the recipe as it is now, so an edited recipe or a removed product never gives stale numbers. A banner on the card says what was recalculated, from what, and offers "Back to the original", which clears it.
+- **Known limit.** A unit written only as text ("кочан") is not declined after recalculation ("2 кочан"). Units from the list are declined.

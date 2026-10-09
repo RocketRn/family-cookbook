@@ -360,6 +360,7 @@ export function amountPreview(
         roundClass: 'continuous',
         minPiece: null,
         rawLine: i.rawLine ?? i.name,
+        name: i.name,
       },
       share,
     ),

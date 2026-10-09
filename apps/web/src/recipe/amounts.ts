@@ -23,20 +23,23 @@ export const toAmountInput = (i: Ingredient): IngredientAmount => ({
   roundClass: i.round_class,
   minPiece: i.min_piece,
   rawLine: i.raw_line ?? i.name,
+  name: i.name,
 });
 
 /**
  * The amount to show for an ingredient, through recipe-core (engine + formatter). `share` is the
- * part used in one step (PRD 3.2 step_ingredients.portion_fraction); 1 = the whole amount, shown
- * exactly as written. Unparsed lines have no separate amount: the line itself is shown.
+ * part used in one step (PRD 3.2 step_ingredients.portion_fraction) and `k` the recalculation
+ * factor (FE-07); both 1 = the amount exactly as written. Unparsed lines have no separate amount:
+ * the line itself is shown.
  */
 export function amountText(
   i: Ingredient,
   langs: { recipeLang: Lang; uiLang: Lang },
   share = 1,
+  k = 1,
 ): string | null {
   if (i.qty_kind === 'unparsed') return null;
-  return formatAmount(scaleAmount(toAmountInput(i), share), langs);
+  return formatAmount(scaleAmount(toAmountInput(i), share * k), langs);
 }
 
 /** Ingredients grouped by section ("Для теста" ...), in order; lines before the first heading have none. */

@@ -302,17 +302,34 @@ describe('locales: numbers in the recipe language, hints in the UI language', ()
     expect(show(exact(3, 'clove', 'whole_item'), 1)).toBe('3 зубчика');
   });
 
-  it('hints in all four UI languages', () => {
-    const s = scaleAmount(exact(1, 'pcs', 'whole_item'), 1.3);
-    expect(fmt(s, 'en')).toBe('1 pc (or whisk 2 pcs and take ⅔)');
-    expect(fmt(s, 'uk')).toBe('1 шт. (або збити 2 шт. і взяти ⅔)');
-    expect(fmt(s, 'sv')).toBe('1 st (eller vispa 2 st och ta ⅔)');
-    const s2 = scaleAmount(exact(4, 'pcs', 'whole_item'), 0.625);
+  // Owner decision (Sprint 3, D-037, PRD 5.3): eggs keep "whisk"; other whole items say "take N
+  // and use ¾". The same wording is checked in all four interface languages.
+  it('hints in all four UI languages: eggs are whisked', () => {
+    const egg = scaleAmount(exact(1, 'pcs', 'whole_item', { name: 'яйцо' }), 1.3);
+    expect(fmt(egg, 'ru')).toBe('1 шт. (или взбить 2 шт. и взять ⅔)');
+    expect(fmt(egg, 'en')).toBe('1 pc (or whisk 2 pcs and take ⅔)');
+    expect(fmt(egg, 'uk')).toBe('1 шт. (або збити 2 шт. і взяти ⅔)');
+    expect(fmt(egg, 'sv')).toBe('1 st (eller vispa 2 st och ta ⅔)');
+    const s2 = scaleAmount(exact(4, 'pcs', 'whole_item', { name: 'eggs' }), 0.625);
     expect(fmt(s2, 'en')).toBe('3 pcs (or 2 pcs and ½ of one more)');
   });
 
+  it('hints in all four UI languages: other whole items are taken, not whisked', () => {
+    const garlic = scaleAmount(exact(1, 'clove', 'whole_item', { name: 'чеснок' }), 1.3);
+    expect(fmt(garlic, 'ru')).toBe('1 зубчик (или взять 2 зубчика и использовать ⅔)');
+    expect(fmt(garlic, 'en')).toBe('1 clove (or take 2 cloves and use ⅔)');
+    expect(fmt(garlic, 'uk')).toBe('1 зубчик (або взяти 2 зубчики і використати ⅔)');
+    expect(fmt(garlic, 'sv')).toBe('1 klyfta (eller ta 2 klyftor och använd ⅔)');
+    // No name at all: nothing says it is an egg, so it is not whisked.
+    const piece = scaleAmount(exact(1, 'pcs', 'whole_item'), 1.3);
+    expect(fmt(piece, 'ru')).toBe('1 шт. (или взять 2 шт. и использовать ⅔)');
+    // The raw line is enough when there is no separate name (older callers).
+    const raw = scaleAmount(exact(1, 'pcs', 'whole_item', { rawLine: '1 яйцо' }), 1.3);
+    expect(fmt(raw, 'ru')).toBe('1 шт. (или взбить 2 шт. и взять ⅔)');
+  });
+
   it('a Swedish recipe viewed in a Russian UI: amount in Swedish, hint in Russian', () => {
-    const s = scaleAmount(exact(1, 'pcs', 'whole_item'), 1.3);
+    const s = scaleAmount(exact(1, 'pcs', 'whole_item', { name: 'ägg' }), 1.3);
     expect(fmt(s, 'sv', 'ru')).toBe('1 st (или взбить 2 шт. и взять ⅔)');
   });
 

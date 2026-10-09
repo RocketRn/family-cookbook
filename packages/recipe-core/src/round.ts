@@ -91,7 +91,8 @@ function roundWhole(x: number, spec: RoundSpec): Quantity {
   if (Math.abs(x - n) / x > 0.1 + EPS && m >= 1) {
     const c = Math.ceil(x - EPS);
     const f1 = snapHint(x / c);
-    if (f1 && c > 1) hint = { kind: 'take_fraction_of', pieces: c, fraction: f1 };
+    if (f1 && c > 1)
+      hint = { kind: 'take_fraction_of', pieces: c, fraction: f1, whisk: spec.whisk === true };
     else {
       const lo = Math.floor(x + EPS);
       const f2 = snapHint(x - lo);

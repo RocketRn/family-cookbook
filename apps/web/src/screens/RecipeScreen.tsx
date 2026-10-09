@@ -1,4 +1,4 @@
-import type { Lang } from '@cookbook/recipe-core';
+import { formatAmount, K_LIMITS, scaleAmount, type Lang } from '@cookbook/recipe-core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,9 @@ import { Tag } from '../design/Chip';
 import { EmptyState, ErrorState, Loading } from '../design/Feedback';
 import { errorMessage } from '../errors';
 import { isLanguage } from '../i18n';
-import { recipeLangOf } from '../recipe/amounts';
+import { recipeLangOf, toAmountInput } from '../recipe/amounts';
+import { readRecalc, writeRecalc, type RecalcState } from '../recipe/recalc';
+import { RecalcSheet, servingsText } from '../recipe/RecalcSheet';
 import { Gallery } from '../recipe/Gallery';
 import { IngredientList } from '../recipe/IngredientList';
 import { Reactions } from '../recipe/Reactions';
@@ -32,7 +34,7 @@ function galleryPhotos(r: Recipe): Photo[] {
 
 /** FE-03 recipe card (PRD 1.4): photos, ingredients, steps with photos, timers and video, notes. */
 export function RecipeScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { id = '' } = useParams();
   const recipe = useQuery({ queryKey: ['recipe', id], queryFn: () => recipeApi.get(id) });
 
@@ -42,14 +44,21 @@ export function RecipeScreen() {
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   const r = recipe.data;
   if (!r) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
+  return <RecipeView key={r.id} r={r} />;
+}
 
+function RecipeView({ r }: { r: Recipe }) {
+  const { t, i18n } = useTranslation();
+  // FE-07: the recalculation the user chose is kept per recipe (PRD 4.8 recalc:<id>).
+  const [recalc, setRecalc] = useState<RecalcState | null>(() => readRecalc(r));
+  const [recalcOpen, setRecalcOpen] = useState(false);
+  const k = recalc?.k ?? 1;
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
   const langs = { recipeLang: recipeLangOf(r, uiLang), uiLang };
   // Recipe texts keep their own language (PRD 1.5 #5); `lang` lets screen readers read them right.
   const lang = r.language ?? undefined;
   const stepVideoIds = new Set(r.steps.map((s) => s.video_id));
   const otherVideos = r.videos.filter((v) => !stepVideoIds.has(v.id));
-  const recalcLabel = `${t('recipe.recalculate')} · ${t('common.coming_soon')}`;
   const cookLabel = `${t('recipe.cook')} · ${t('common.coming_soon')}`;
   const totalMin =
     r.prep_min === null && r.cook_min === null ? null : (r.prep_min ?? 0) + (r.cook_min ?? 0);
@@ -86,20 +95,55 @@ export function RecipeScreen() {
       )}
 
       <div className="row">
-        <Button className="grow" variant="secondary" disabled>
-          {recalcLabel}
+        <Button className="grow" variant="secondary" onClick={() => setRecalcOpen(true)}>
+          {t('recipe.recalculate')}
         </Button>
         <Button className="grow" disabled>
           {cookLabel}
         </Button>
       </div>
 
+      {recalc && (
+        <RecalcBanner
+          r={r}
+          state={recalc}
+          langs={langs}
+          onReset={() => {
+            writeRecalc(r.id, null);
+            setRecalc(null);
+          }}
+        />
+      )}
+      {recalcOpen && (
+        <RecalcSheet
+          recipe={r}
+          current={recalc}
+          langs={langs}
+          onApply={(state) => {
+            writeRecalc(r.id, state);
+            setRecalc(state);
+            setRecalcOpen(false);
+          }}
+          onReset={() => {
+            writeRecalc(r.id, null);
+            setRecalc(null);
+            setRecalcOpen(false);
+          }}
+          onClose={() => setRecalcOpen(false)}
+        />
+      )}
+
       {r.ingredients.length > 0 && (
         <IngredientList
           ingredients={r.ingredients}
-          servings={r.servings}
+          servingsLabel={
+            recalc
+              ? t('recalc.servings_now', { value: servingsText(r.servings * k, uiLang) })
+              : t('recipe.servings', { count: r.servings })
+          }
           langs={langs}
           lang={lang}
+          k={k}
         />
       )}
       {r.steps.length > 0 && (
@@ -109,6 +153,7 @@ export function RecipeScreen() {
           videos={r.videos}
           langs={langs}
           lang={lang}
+          k={k}
         />
       )}
       {otherVideos.length > 0 && (
@@ -130,6 +175,60 @@ export function RecipeScreen() {
       <Reactions />
       <RecipeActions recipe={r} />
     </article>
+  );
+}
+
+/** Shown while the card is recalculated: for how many servings, from what, and the way back. */
+function RecalcBanner({
+  r,
+  state,
+  langs,
+  onReset,
+}: {
+  r: Recipe;
+  state: RecalcState;
+  langs: { recipeLang: Lang; uiLang: Lang };
+  onReset: () => void;
+}) {
+  const { t } = useTranslation();
+  const ing =
+    state.mode === 'product' ? r.ingredients.find((i) => i.id === state.ingredientId) : null;
+  const from =
+    ing && state.mode === 'product'
+      ? formatAmount(
+          scaleAmount(
+            {
+              ...toAmountInput(ing),
+              qtyKind: 'exact',
+              amountMin: state.amount,
+              amountMax: state.amount,
+              unitCode: state.unit,
+            },
+            1,
+          ),
+          langs,
+        )
+      : null;
+  const warning = state.k < K_LIMITS.warnLow || state.k > K_LIMITS.warnHigh;
+  return (
+    <section className="notice stack stack--tight" aria-label={t('recalc.title')}>
+      <p>
+        <strong>
+          {t('recalc.applied', { value: servingsText(r.servings * state.k, langs.uiLang) })}
+        </strong>
+      </p>
+      {ing && from && (
+        <p className="hint" lang={r.language ?? undefined}>
+          {t('recalc.applied_from', { name: ing.name, amount: from })}
+        </p>
+      )}
+      {warning && <p className="hint">{t('recalc.big_change')}</p>}
+      <div>
+        <Button variant="secondary" onClick={onReset}>
+          {t('recalc.reset')}
+        </Button>
+      </div>
+    </section>
   );
 }
 

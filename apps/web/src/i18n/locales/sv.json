@@ -345,5 +345,27 @@
     "kept": "Texten finns kvar på den här enheten tills receptet har skapats, även om du stänger appen.",
     "parse": "Tolka",
     "parsing": "Läser receptet…"
+  },
+  "recalc": {
+    "title": "Räkna om receptet",
+    "mode_servings": "Efter portioner",
+    "mode_product": "Utifrån en ingrediens",
+    "servings": "Portioner",
+    "servings_was": "I receptet: {{value}}",
+    "servings_now": "Portioner: {{value}}",
+    "product": "Vilken ingrediens har du?",
+    "in_recipe": "I receptet: {{amount}}",
+    "have": "Hur mycket du har",
+    "result": "Portioner efter omräkning: {{value}}",
+    "big_change": "En stor ändring: formen och tiderna kanske inte passar. Håll koll medan du lagar maten.",
+    "err_K_OUT_OF_RANGE": "Det är mer än 20 gånger mer eller mindre än i receptet; så långt går det inte att räkna om.",
+    "err_BAD_INPUT": "Ange ett tal större än 0, till exempel 500 eller 1,5.",
+    "err_UNIT_MISMATCH": "De här enheterna går inte att räkna om till varandra ännu.",
+    "err_NOT_SCALABLE": "Den här ingrediensen har ingen mängd att utgå från.",
+    "apply": "Räkna om",
+    "reset": "Tillbaka till originalet",
+    "applied": "Omräknat · portioner: {{value}}",
+    "applied_from": "Utifrån det du har: {{name}}, {{amount}}",
+    "time_note": "Timrar och tal som står i stegens text gäller originalmängden och räknas inte om. Kontrollera dem medan du lagar maten."
   }
 }

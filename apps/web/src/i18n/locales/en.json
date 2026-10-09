@@ -342,5 +342,27 @@
     "kept": "The text stays on this device until the recipe is created, even if you close the app.",
     "parse": "Parse",
     "parsing": "Reading the recipe…"
+  },
+  "recalc": {
+    "title": "Recalculate the recipe",
+    "mode_servings": "By servings",
+    "mode_product": "From one product",
+    "servings": "Servings",
+    "servings_was": "In the recipe: {{value}}",
+    "servings_now": "Servings: {{value}}",
+    "product": "Which product do you have?",
+    "in_recipe": "In the recipe: {{amount}}",
+    "have": "How much you have",
+    "result": "Servings after recalculation: {{value}}",
+    "big_change": "A big change: the baking dish and the times may not fit. Keep an eye on it as you cook.",
+    "err_K_OUT_OF_RANGE": "That is more than 20 times more or less than the recipe; it cannot be recalculated that far.",
+    "err_BAD_INPUT": "Enter a number above 0, like 500 or 1,5.",
+    "err_UNIT_MISMATCH": "These units cannot be converted into each other yet.",
+    "err_NOT_SCALABLE": "This ingredient has no amount to start from.",
+    "apply": "Recalculate",
+    "reset": "Back to the original",
+    "applied": "Recalculated · servings: {{value}}",
+    "applied_from": "From what you have: {{name}}, {{amount}}",
+    "time_note": "Timers and numbers typed in the step text are for the original amount and are not recalculated. Check them as you cook."
   }
 }

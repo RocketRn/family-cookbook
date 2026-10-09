@@ -5,9 +5,9 @@ import { amountText, groupIngredients } from './amounts';
 
 type Langs = { recipeLang: Lang; uiLang: Lang };
 
-function Line({ ing, langs }: { ing: Ingredient; langs: Langs }) {
+function Line({ ing, langs, k }: { ing: Ingredient; langs: Langs; k: number }) {
   const { t } = useTranslation();
-  const amount = amountText(ing, langs);
+  const amount = amountText(ing, langs, 1, k);
   return (
     <li className="ing">
       <span className="grow">
@@ -20,31 +20,36 @@ function Line({ ing, langs }: { ing: Ingredient; langs: Langs }) {
   );
 }
 
-/** Ingredients as written (k = 1), grouped by section (PRD 5.1), formatted by recipe-core. */
+/**
+ * Ingredients grouped by section (PRD 5.1), formatted by recipe-core: as written at k = 1, else
+ * recalculated and rounded (FE-07). `servingsLabel` is what the header shows.
+ */
 export function IngredientList({
   ingredients,
-  servings,
+  servingsLabel,
   langs,
   lang,
+  k = 1,
 }: {
   ingredients: Ingredient[];
-  servings: number;
+  servingsLabel: string;
   langs: Langs;
   lang: string | undefined;
+  k?: number;
 }) {
   const { t } = useTranslation();
   return (
     <section className="section stack stack--tight" aria-labelledby="ings-h">
       <div className="row row--between">
         <h2 id="ings-h">{t('recipe.ingredients')}</h2>
-        <span className="hint">{t('recipe.servings', { count: servings })}</span>
+        <span className="hint">{servingsLabel}</span>
       </div>
       {groupIngredients(ingredients).map((g, i) => (
         <div key={`${g.label ?? ''}-${i}`} className="stack stack--tight" lang={lang}>
           {g.label && <h3 className="ing-group">{g.label}</h3>}
           <ul className="ings">
             {g.items.map((ing) => (
-              <Line key={ing.id} ing={ing} langs={langs} />
+              <Line key={ing.id} ing={ing} langs={langs} k={k} />
             ))}
           </ul>
         </div>

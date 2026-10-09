@@ -11,6 +11,12 @@ const start = (stems: string[]) => new RegExp(`(^|[^\\p{L}])(${stems.join('|')})
 const word = (words: string[]) =>
   new RegExp(`(^|[^\\p{L}])(${words.join('|')})($|[^\\p{L}])`, 'iu');
 
+/** Eggs (and their parts): whole items that are whisked (D-037). Not "eggplant" / "äggplanta". */
+const EGG = /(^|[^\p{L}])(яйц|яиц|яєць|eggs?(?!\p{L})|ägg(?!plant))/iu;
+
+/** Whether a whole item is an egg: only eggs get the "whisk N and take ⅔" hint (D-037, PRD 5.3). */
+export const isEgg = (name: string): boolean => EGG.test(name.normalize('NFC'));
+
 const RULES: readonly Rule[] = [
   // Not whole onions: leek and green onion are used like herbs.
   {
@@ -31,7 +37,7 @@ const RULES: readonly Rule[] = [
     roundClass: 'continuous',
     minPiece: null,
   },
-  { re: start(['яйц', 'яиц', 'egg', 'ägg']), roundClass: 'whole_item', minPiece: 1 },
+  { re: EGG, roundClass: 'whole_item', minPiece: 1 },
   {
     re: start(['чеснок', 'чесноч', 'часник', 'garlic', 'vitlök']),
     roundClass: 'whole_item',

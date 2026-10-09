@@ -791,13 +791,22 @@ function roundWhole(x: number, m: number): { value: number; hint?: Hint } {
   if (Math.abs(x - n) / x <= 0.10 || m < 1) return { value: n };  // error <= 10%: no hint
   const FR = [1/4, 1/3, 1/2, 2/3, 3/4];
   const snap = (v: number) => FR.find(f => Math.abs(v - f) <= 0.04);
-  const c = Math.ceil(x), f1 = snap(x / c);                     // H1: whisk c pieces and take the fraction f
+  const c = Math.ceil(x), f1 = snap(x / c);                     // H1: take c pieces and use the fraction f (eggs: whisk c, take f)
   if (f1 && c > 1) return { value: n, hint: { kind: 'take_fraction_of', pieces: c, fraction: f1 } };
   const lo = Math.floor(x), f2 = snap(x - lo);                   // H2: lo pieces and another fraction f of one
   if (f2 && lo >= 1) return { value: n, hint: { kind: 'whole_plus_fraction', whole: lo, fraction: f2 } };
   return { value: n };
 }
 ```
+
+**Hint wording (owner decision, Sprint 3).** Only eggs can be whisked and then measured, so the H1 hint depends on the product:
+
+| Product | H1 hint, ru | uk | en | sv |
+| --- | --- | --- | --- | --- |
+| Eggs | или взбить 2 шт. и взять ⅔ | або збити 2 шт. і взяти ⅔ | or whisk 2 pcs and take ⅔ | eller vispa 2 st och ta ⅔ |
+| Other whole items (garlic, pieces) | или взять 2 зубчика и использовать ⅔ | або взяти 2 зубчики і використати ⅔ | or take 2 cloves and use ⅔ | eller ta 2 klyftor och använd ⅔ |
+
+The H2 hint is the same for every whole item ("или 2 шт. и ½ ещё одного"). An ingredient counts as an egg by its name (яйцо, яйця, egg, ägg; not "eggplant").
 
 **Class `spice_item` (bay leaf, clove, peppercorn).** A whole number, not less than 1: `n = max(1, floorHalfUp(x))`, no hints (spices tolerate error).
 
