@@ -18,6 +18,9 @@ import {
 
 type Langs = { recipeLang: Lang; uiLang: Lang };
 
+/** How many lines the preview shows before "and N more". */
+const PREVIEW_LINES = 4;
+
 /** Servings as a person reads them: 4, or ≈ 2.5 after a recalculation from a product. */
 export function servingsText(value: number, lang: Lang): string {
   const rounded = Math.round(value * 10) / 10;
@@ -74,6 +77,17 @@ export function RecalcSheet({
   const result = input ? computeRecalc(recipe, input) : null;
   const unitName = (code: string | null) =>
     code ? (unitLabel(code, lang, typed ?? 1) ?? code) : t('editor.no_unit');
+  // UX-05: what the other lines become, before applying (the product itself is what you typed).
+  const changed =
+    result?.ok && Math.abs(result.k - 1) > 1e-9
+      ? [...recipe.ingredients]
+          .sort((a, b) => a.position - b.position)
+          .filter(
+            (i) =>
+              (i.qty_kind === 'exact' || i.qty_kind === 'range') &&
+              !(mode === 'product' && i.id === ingId),
+          )
+      : [];
 
   return (
     <BottomSheet open title={t('recalc.title')} onClose={onClose}>
@@ -153,19 +167,24 @@ export function RecalcSheet({
                 <p className="hint">
                   {t('recalc.in_recipe', { amount: amountText(ing, langs) ?? '' })}
                 </p>
-                <TextField
-                  label={t('recalc.have')}
-                  value={amount}
-                  inputMode="decimal"
-                  maxLength={12}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-                <div className="row row--wrap" lang={lang}>
-                  {unitOptions(ing).map((u) => (
-                    <Chip key={u ?? '-'} selected={unit === u} onToggle={() => setUnit(u)}>
-                      {unitName(u)}
-                    </Chip>
-                  ))}
+                {/* UX-05: the amount and its unit on one line. */}
+                <div className="row row--wrap recalc__have">
+                  <div className="field-narrow">
+                    <TextField
+                      label={t('recalc.have')}
+                      value={amount}
+                      inputMode="decimal"
+                      maxLength={12}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="row row--wrap" lang={lang}>
+                    {unitOptions(ing).map((u) => (
+                      <Chip key={u ?? '-'} selected={unit === u} onToggle={() => setUnit(u)}>
+                        {unitName(u)}
+                      </Chip>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
@@ -180,6 +199,26 @@ export function RecalcSheet({
                   {t('recalc.result', { value: servingsText(result.servings, langs.uiLang) })}
                 </strong>
               </p>
+            )}
+            {changed.length > 0 && (
+              <div className="stack stack--tight">
+                <span className="label" id="recalc-preview">
+                  {t('recalc.preview')}
+                </span>
+                <ul className="ings" lang={lang} aria-labelledby="recalc-preview">
+                  {changed.slice(0, PREVIEW_LINES).map((i) => (
+                    <li key={i.id} className="ing">
+                      <span className="grow">{i.name}</span>
+                      <span className="ing__amount">{amountText(i, langs, 1, result.k)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {changed.length > PREVIEW_LINES && (
+                  <p className="hint">
+                    {t('recalc.preview_more', { count: changed.length - PREVIEW_LINES })}
+                  </p>
+                )}
+              </div>
             )}
             {result.warning && <p className="notice">{t('recalc.big_change')}</p>}
           </div>

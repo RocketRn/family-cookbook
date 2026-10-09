@@ -487,6 +487,24 @@ describe('UX-03 design screens (development build only)', () => {
     expect(await screen.findByRole('heading', { name: 'Cooking: Шарлотка' })).toBeTruthy();
   });
 
+  it('"I cooked it" design (UX-05): the form, sent, what the author sees, and your own recipe', async () => {
+    await setLanguage('en');
+    boot();
+    renderApp('/dev/cooked');
+    expect(await screen.findByRole('heading', { name: 'You cooked “Шарлотка”' })).toBeTruthy();
+    expect(screen.getByText('Add a photo of your dish')).toBeTruthy();
+    expect(screen.getByLabelText('A few words for the author')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(screen.getByRole('heading', { name: 'Sent!' })).toBeTruthy();
+    expect(
+      screen.getByText('Dev Keeper will get a message with your photo and your words.'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'What the author sees' }));
+    expect(screen.getByText('👨‍🍳 Dev Member cooked your “Шарлотка”!')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Your own recipe' }));
+    expect(screen.getByText(/nobody gets a message/)).toBeTruthy();
+  });
+
   it('cooking mode design (UX-04): preparation, step, timers, done and the problem states', async () => {
     await setLanguage('en');
     boot();

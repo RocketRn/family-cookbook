@@ -58,6 +58,8 @@ export default tseslint.config(
             '↓',
             '🔒',
             '🎉',
+            '👨‍🍳',
+            '📷',
           ],
           ignoreProps: true,
         },

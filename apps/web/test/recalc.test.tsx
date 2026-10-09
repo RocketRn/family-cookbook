@@ -167,6 +167,34 @@ describe('recalculation on the recipe card', () => {
     expect(calls.length).toBe(before);
   });
 
+  it('shows what you will need before you apply it (UX-05)', async () => {
+    api();
+    renderApp(`/recipe/${GOLUBTSY_ID}`);
+    fireEvent.click(await screen.findByRole('button', { name: 'Recalculate' }));
+    const sheet = screen.getByRole('dialog', { name: 'Recalculate the recipe' });
+    // Nothing to preview while nothing changes.
+    expect(within(sheet).queryByRole('list', { name: 'You will need' })).toBeNull();
+    for (let i = 0; i < 4; i++)
+      fireEvent.click(within(sheet).getByRole('button', { name: 'More servings' }));
+    const items = () =>
+      within(within(sheet).getByRole('list', { name: 'You will need' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent);
+    expect(items()).toEqual([
+      'Капуста2 кочан',
+      'Говяжий фарш1600 г',
+      'Рис1 стакан',
+      'Лавровый лист4 шт.',
+    ]);
+    // From one product: the product itself is not repeated.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'From one product' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Говяжий фарш' }));
+    fireEvent.change(within(sheet).getByLabelText('How much you have'), {
+      target: { value: '400' },
+    });
+    expect(items()).toEqual(['Капуста1 кочан', 'Рис¼ стакана', 'Лавровый лист1 шт.']);
+  });
+
   it('comes back after reopening, and "Back to the original" clears it', async () => {
     writeRecalc(GOLUBTSY_ID, { v: 1, mode: 'servings', servings: 2, k: 0.5 });
     api();

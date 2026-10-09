@@ -343,9 +343,10 @@
   },
   "dev": {
     "design_title": "Design previews",
-    "design_note": "Development only: designs of the import review (Sprint 4) and cooking mode (Sprints 4–5). Nothing here is saved.",
+    "design_note": "Development only: designs of the import review, cooking mode and the “I cooked it” screen (Sprint 5). Nothing here is saved.",
     "review_link": "Import review",
-    "cook_link": "Cooking mode"
+    "cook_link": "Cooking mode",
+    "cooked_link": "“I cooked it”"
   },
   "import": {
     "title": "Paste recipe text",
@@ -378,7 +379,9 @@
     "applied": "Recalculated · servings: {{value}}",
     "applied_from": "From what you have: {{name}}, {{amount}}",
     "time_note": "Timers and numbers typed in the step text are for the original amount and are not recalculated. Check them as you cook.",
-    "time_may_differ": "time may differ"
+    "time_may_differ": "time may differ",
+    "preview": "You will need",
+    "preview_more": "and {{count}} more lines"
   },
   "cook": {
     "screen_prep": "Preparation",
@@ -429,5 +432,22 @@
     "write_allow": "Allow messages",
     "write_later": "Not now",
     "timer_no_message": "The bot may not write to you, so no Telegram message will arrive. The timer runs on this screen."
+  },
+  "cooked": {
+    "screen_form": "Your dish",
+    "screen_sent": "Sent",
+    "screen_author": "What the author sees",
+    "screen_own": "Your own recipe",
+    "title": "You cooked “{{title}}”",
+    "intro": "A photo and a few words are optional. {{name}} gets them in a message from the bot.",
+    "comment_hint": "For example: how it turned out, what you changed",
+    "later": "Without a photo or words",
+    "sent_title": "Sent!",
+    "sent_text": "{{name}} will get a message with your photo and your words.",
+    "sent_reaction": "The recipe card will show “👨‍🍳 Cooked it”.",
+    "author_note": "This is how the message looks in the author’s chat with the bot:",
+    "author_msg": "👨‍🍳 {{name}} cooked your “{{title}}”!",
+    "author_open": "Open the recipe",
+    "own_text": "This is your own recipe: the mark is kept on the card, and nobody gets a message."
   }
 }

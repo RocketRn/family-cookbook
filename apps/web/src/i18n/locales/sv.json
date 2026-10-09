@@ -346,9 +346,10 @@
   },
   "dev": {
     "design_title": "Skissvyer",
-    "design_note": "Endast för utveckling: skisser av importgranskningen (sprint 4) och matlagningsläget (sprint 4–5). Inget sparas här.",
+    "design_note": "Endast för utveckling: design av importgranskningen, matlagningsläget och skärmen ”Jag lagade det” (Sprint 5). Inget sparas här.",
     "review_link": "Importgranskning",
-    "cook_link": "Matlagningsläge"
+    "cook_link": "Matlagningsläge",
+    "cooked_link": "”Jag lagade det”"
   },
   "import": {
     "title": "Klistra in recepttexten",
@@ -381,7 +382,9 @@
     "applied": "Omräknat · portioner: {{value}}",
     "applied_from": "Utifrån det du har: {{name}}, {{amount}}",
     "time_note": "Timrar och tal som står i stegens text gäller originalmängden och räknas inte om. Kontrollera dem medan du lagar maten.",
-    "time_may_differ": "tiden kan skilja sig"
+    "time_may_differ": "tiden kan skilja sig",
+    "preview": "Du behöver",
+    "preview_more": "och {{count}} rader till"
   },
   "cook": {
     "screen_prep": "Förberedelse",
@@ -432,5 +435,22 @@
     "write_allow": "Tillåt meddelanden",
     "write_later": "Inte nu",
     "timer_no_message": "Boten får inte skriva till dig, så inget Telegram-meddelande kommer. Timern går på den här skärmen."
+  },
+  "cooked": {
+    "screen_form": "Din rätt",
+    "screen_sent": "Skickat",
+    "screen_author": "Vad författaren ser",
+    "screen_own": "Ditt eget recept",
+    "title": "Du lagade ”{{title}}”",
+    "intro": "Ett foto och några ord är frivilliga. {{name}} får dem i ett meddelande från boten.",
+    "comment_hint": "Till exempel: hur det blev, vad du ändrade",
+    "later": "Utan foto eller ord",
+    "sent_title": "Skickat!",
+    "sent_text": "{{name}} får ett meddelande med ditt foto och dina ord.",
+    "sent_reaction": "Receptkortet visar ”👨‍🍳 Lagade det”.",
+    "author_note": "Så här ser meddelandet ut i författarens chatt med boten:",
+    "author_msg": "👨‍🍳 {{name}} lagade ditt ”{{title}}”!",
+    "author_open": "Öppna receptet",
+    "own_text": "Det här är ditt eget recept: markeringen sparas på kortet och ingen får något meddelande."
   }
 }

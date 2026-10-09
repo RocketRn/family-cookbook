@@ -480,3 +480,16 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - Reopening the draft's editor, or the paste screen ("Continue checking «…»"), continues where the author was.
   - The review is cleared once the recipe is saved. A saved review whose recipe has since changed on the server is not used.
   - New lines added after a restore get keys after the restored ones, so they cannot collide.
+
+### D-044 UX-05: recalculation polish and the "I cooked it" design
+
+- **Recalculation panel.**
+  - Before "Recalculate" is tapped, a "You will need" list shows the first four lines with an amount as they will become. In "from one product" mode the product itself is left out, since it is what you typed. Longer recipes add "and N more lines".
+  - Nothing is shown while nothing changes.
+  - The amount you have and its unit are on one line.
+- **"I cooked it" design** (Profile → Design previews, development only), for the reactions work in Sprint 5 (BE-10 / FE-10, PRD 2.4 steps 12-14).
+  - **Your dish:** an optional photo and up to 500 characters for the author, then "Send" or "Without a photo or words".
+  - **Sent:** what happens next. The author gets one message, and the card shows "👨‍🍳 Cooked it".
+  - **What the author sees:** the bot's message with the photo, the words and "Open the recipe".
+  - **Your own recipe:** the mark is kept, and nobody gets a message (PRD 2.4: cook = author).
+- **Still open for Sprint 5:** whether one cook can mark the same recipe more than once, and whether a later photo replaces the first.

@@ -665,3 +665,12 @@ h2 {
   color: inherit;
   border-radius: 4px;
 }
+
+/* UX-05: the amount you have and its unit side by side. */
+.recalc__have {
+  align-items: flex-end;
+}
+.recalc__have > .field-narrow {
+  width: 12rem;
+  max-width: 100%;
+}
