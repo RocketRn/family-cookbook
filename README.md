@@ -6,7 +6,7 @@ A shared family cookbook that runs inside Telegram. Product spec: [`docs/PRD.md`
 
 | Path                        | What                                                                         |
 | --------------------------- | ---------------------------------------------------------------------------- |
-| `apps/api`                  | Fastify REST API (Node 20, TypeScript, plain-SQL migrations, Postgres + RLS) |
+| `apps/api`                  | Fastify REST API (Node 24, TypeScript, plain-SQL migrations, Postgres + RLS) |
 | `apps/worker`               | Timer and outbox worker, a separate process (skeleton in Sprint 1)           |
 | `apps/web`                  | React 18 + Vite Mini App (i18next, TanStack Query, Zustand)                  |
 | `packages/recipe-core`      | Pure TypeScript parsing and recalculation library (empty until Sprint 2)     |
@@ -14,7 +14,7 @@ A shared family cookbook that runs inside Telegram. Product spec: [`docs/PRD.md`
 
 ## Requirements
 
-Node 20+, pnpm 10, and Postgres 15+ (via Docker Compose, or your own).
+Node 24 LTS (see `.nvmrc`), pnpm 10, and Postgres 15+ (via Docker Compose, or your own).
 
 ## Quick start
 
