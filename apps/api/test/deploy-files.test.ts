@@ -60,6 +60,13 @@ describe('deploy/gcp/compose.yml', () => {
     expect(service('s3check')).toMatch(/AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED/);
   });
 
+  it('only the worker may be armed to send real Telegram messages, and only from .env (S5-2)', () => {
+    expect(service('worker')).toMatch(/TELEGRAM_LIVE: \$\{TELEGRAM_LIVE:-no\}/);
+    for (const s of ['postgres', 'migrate', 'api', 'web', 's3check']) {
+      expect(service(s), s).not.toMatch(/TELEGRAM_LIVE/);
+    }
+  });
+
   it('every service has a memory limit (measured, D-045)', () => {
     for (const s of ['postgres', 'migrate', 'api', 'worker', 'web']) {
       expect(service(s), s).toMatch(/mem_limit: /);
@@ -94,6 +101,22 @@ describe('deploy/gcp/.env.example', () => {
     ]) {
       expect(example[key], key).toBe('CHANGE_ME');
     }
+  });
+
+  it('does not arm the worker: that is a step done by hand on the real server (S5-2)', () => {
+    expect(example.TELEGRAM_LIVE).toBe('no');
+    const realLooking = '987654321:AAG7kQ2mX9pL4vR8sT1wY6zB3nC5dF0hJ2k'; // made up
+    expect(() =>
+      loadWorkerConfig({
+        ...asApi,
+        DATABASE_URL: db('cookbook_api', '3f9c1e7a5b2d4c6e8f0a1b3c5d7e9f21'),
+        BOT_TOKEN: realLooking,
+        BOT_USERNAME: 'family_cookbook_bot',
+        S3_ACCESS_KEY: 'GOOG1EREALLOOKINGKEY',
+        S3_SECRET_KEY: 'real-looking-secret-0123456789',
+        TELEGRAM_LIVE: example.TELEGRAM_LIVE,
+      }),
+    ).toThrow(/TELEGRAM_LIVE/);
   });
 
   it('as it is, it can never start the API, the worker or the migrations', () => {

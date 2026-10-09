@@ -15,6 +15,7 @@ const prod = {
   ...base,
   DATABASE_URL: 'postgres://cookbook_api:3f9c1e7a5b2d4c6e8f0a1b3c5d7e9f21@postgres:5432/cookbook',
   NODE_ENV: 'production',
+  TELEGRAM_LIVE: 'yes',
   BOT_TOKEN: REAL_SHAPE,
   BOT_USERNAME: 'family_cookbook_bot',
   MINI_APP_SHORT_NAME: 'cook',

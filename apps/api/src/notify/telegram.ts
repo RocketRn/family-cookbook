@@ -1,3 +1,5 @@
+import { isRealLookingToken } from '../config.js';
+
 /**
  * The Bot API calls the worker makes (sendMessage), with Telegram's answers turned into what the
  * outbox needs to decide (D-039). The token is only ever part of the request path: it is never
@@ -33,17 +35,56 @@ export type ClientOptions = {
   allowLocal?: boolean;
 };
 
+/**
+ * A local stand-in for the Bot API (apps/fakebot): this computer, or a container on the same
+ * Docker network (a one-word host name such as "fakebot"). Nothing else gets the token outside
+ * production.
+ */
+export function isLocalStandIn(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  if (url.username || url.password) return false;
+  const host = url.hostname;
+  return (
+    host === '127.0.0.1' ||
+    host === 'localhost' ||
+    host === '[::1]' ||
+    /^[a-z][a-z0-9-]{0,62}$/.test(host)
+  );
+}
+
+type Env = Record<string, string | undefined>;
+
+/**
+ * Why the real Bot API must not be called, or null when it may (S5-2). Checked here as well as in
+ * the worker's settings, so that no other path (a script, a test, a later feature) reaches
+ * Telegram by mistake: only an armed production process (TELEGRAM_LIVE=yes) with a real-looking
+ * token may. The answer never contains the token.
+ */
+export function realApiRefusal(o: ClientOptions, env: Env = process.env): string | null {
+  if (!o.allowReal) return 'only the production worker may (TELEGRAM_API_BASE)';
+  if (env.VITEST || env.NODE_ENV === 'test') return 'never from a test run';
+  if (env.NODE_ENV !== 'production') return 'only in production (NODE_ENV)';
+  if (env.TELEGRAM_LIVE !== 'yes') return 'the worker is not armed (TELEGRAM_LIVE=yes)';
+  if (!isRealLookingToken(o.token))
+    return 'the bot token is a placeholder, a test value or malformed';
+  return null;
+}
+
 export function createTelegramClient(o: ClientOptions): TelegramClient {
   const url = new URL(o.baseUrl);
-  const real = url.hostname === 'api.telegram.org';
-  if (real && !o.allowReal) {
-    throw new Error(
-      'Refusing to call the real Telegram API: only the production worker may (TELEGRAM_API_BASE)',
-    );
-  }
-  if (real && url.protocol !== 'https:')
-    throw new Error('The Telegram API must be called over HTTPS');
-  if (!real && !o.allowLocal) {
+  // Any Telegram address counts as the real one, however it is written.
+  const real = /(^|\.)telegram\.org\.?$/.test(url.hostname);
+  if (real) {
+    const why = realApiRefusal(o);
+    if (why) throw new Error(`Refusing to call the real Telegram API: ${why}`);
+    if (url.protocol !== 'https:') throw new Error('The Telegram API must be called over HTTPS');
+  } else if (!o.allowLocal || !isLocalStandIn(o.baseUrl)) {
     throw new Error(
       `Refusing to send the bot token to ${url.host}: only a local stand-in is allowed outside production`,
     );

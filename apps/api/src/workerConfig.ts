@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { BOT_TOKEN_SHAPE, ConfigError, KNOWN_FAKE_TOKEN } from './config.js';
+import { ConfigError, isRealLookingToken } from './config.js';
 import { dbUrlProblem, isPlaceholder, PLACEHOLDER_BOT } from './prodGuard.js';
-import type { ClientOptions } from './notify/telegram.js';
+import { isLocalStandIn, type ClientOptions } from './notify/telegram.js';
 import type { Links } from './notify/templates.js';
 import {
   DEV_S3_KEYS,
@@ -13,28 +13,6 @@ import {
 /** The real Bot API, used only by the production worker (D-039). */
 const REAL_API = 'https://api.telegram.org';
 
-/**
- * Outside production the token may go only to a local stand-in (apps/fakebot): this computer, or
- * a container on the same Docker network (a one-word host name such as "fakebot").
- */
-function isLocalStandIn(raw: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return false;
-  }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-  if (url.username || url.password) return false;
-  const host = url.hostname;
-  return (
-    host === '127.0.0.1' ||
-    host === 'localhost' ||
-    host === '[::1]' ||
-    /^[a-z][a-z0-9-]{0,62}$/.test(host)
-  );
-}
-
 const sameApi = (raw: string) => raw.replace(/\/+$/, '') === REAL_API;
 
 const envSchema = z
@@ -45,6 +23,12 @@ const envSchema = z
     BOT_TOKEN: z.string().min(1).optional(),
     /** Where Bot API calls go. Production: the real API (the default). Elsewhere: a local stand-in. */
     TELEGRAM_API_BASE: z.string().min(1).optional(),
+    /**
+     * Production only: "yes" arms the worker to send real Telegram messages (S5-2). Written by hand
+     * in .env on the real server, so production mode alone (a test or a measurement run of the
+     * production files) never reaches Telegram.
+     */
+    TELEGRAM_LIVE: z.string().optional(),
     BOT_USERNAME: z
       .string()
       .regex(/^[A-Za-z0-9_]{5,32}$/, 'must be a bot username without @')
@@ -62,11 +46,13 @@ const envSchema = z
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
     if (env.NODE_ENV === 'production') {
-      if (
-        !env.BOT_TOKEN ||
-        KNOWN_FAKE_TOKEN.test(env.BOT_TOKEN) ||
-        !BOT_TOKEN_SHAPE.test(env.BOT_TOKEN)
-      ) {
+      if (env.TELEGRAM_LIVE !== 'yes') {
+        issue(
+          'TELEGRAM_LIVE',
+          'must be "yes" for the worker to send real Telegram messages; write it only in .env on the real server (docs/DEPLOY-GCP.ru.md, 9.5)',
+        );
+      }
+      if (!env.BOT_TOKEN || !isRealLookingToken(env.BOT_TOKEN)) {
         issue(
           'BOT_TOKEN',
           'must be the real token from @BotFather in production (missing, a placeholder or malformed)',

@@ -12,10 +12,21 @@ const boolFlag = z
   .default('false')
   .transform((v) => v === 'true');
 
-/** Values that ship in .env.example or tests and must never be accepted as the real token. */
-export const KNOWN_FAKE_TOKEN = /placeholder|fake|dev-only|test|example/i;
+/**
+ * Values that ship in .env.example or tests and must never be accepted as the real token: the
+ * words they use, and filler such as eight equal characters in a row after the colon (S5-2). A
+ * real token's random part matches by chance in roughly one token out of 15 000.
+ */
+export const KNOWN_FAKE_TOKEN =
+  /placeholder|fake|dev-only|test|example|not-?a?-?real|dummy|change.?me|:.*(.)\1{7}/i;
 /** Telegram bot token shape: `<bot id>:<secret>` (docs/ASSUMPTIONS.md A-18). */
 export const BOT_TOKEN_SHAPE = /^\d+:[A-Za-z0-9_-]{30,}$/;
+/**
+ * Shaped like a token from @BotFather and not one of the known fakes. A made-up token can still
+ * look real, which is why the worker also needs TELEGRAM_LIVE=yes (S5-2).
+ */
+export const isRealLookingToken = (token: string): boolean =>
+  BOT_TOKEN_SHAPE.test(token) && !KNOWN_FAKE_TOKEN.test(token);
 
 const envSchema = z
   .object({
@@ -51,10 +62,7 @@ const envSchema = z
   .merge(storageEnvSchema)
   .superRefine((env, ctx) => {
     // A placeholder token in production would let anyone who read .env.example forge initData.
-    if (
-      env.NODE_ENV === 'production' &&
-      (KNOWN_FAKE_TOKEN.test(env.BOT_TOKEN) || !BOT_TOKEN_SHAPE.test(env.BOT_TOKEN))
-    ) {
+    if (env.NODE_ENV === 'production' && !isRealLookingToken(env.BOT_TOKEN)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['BOT_TOKEN'],

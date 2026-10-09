@@ -341,9 +341,10 @@ describe('the Telegram client', () => {
     expect(() =>
       createTelegramClient({ baseUrl: 'https://api.telegram.org', token: TOKEN }),
     ).toThrow(/real Telegram/);
+    // Not even when told it may: this is a test run (S5-2; the full rules: prod-safety.test.ts).
     expect(() =>
       createTelegramClient({ baseUrl: 'https://api.telegram.org', token: TOKEN, allowReal: true }),
-    ).not.toThrow();
+    ).toThrow(/real Telegram/);
     expect(() => createTelegramClient({ baseUrl: bot.url, token: TOKEN })).toThrow(/local/);
   });
 });

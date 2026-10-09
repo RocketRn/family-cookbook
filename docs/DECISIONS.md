@@ -542,3 +542,14 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - `restore-test.sh` restores the newest backup into a temporary database, compares row counts and drops it. `restore.sh` restores for real after asking.
   - All three were run here against the production stack, with a stand-in `gcloud` that writes to a folder: the backup, the comparison, and a restore that brought deleted rows back.
 - **Budget, region and costs** are in the guide: alerts at 5 and 10 USD first; a US Free Tier region (about 4 USD a month) or Europe (about 11–12 USD a month), with a note to check Google's pricing pages.
+
+## Sprint 5
+
+### D-046 Production safety guard: the arming switch (owner's Sprint 5 addition)
+
+The Sprint 4 near miss: a measurement copy of the production files was restarted in production mode (a restore script ran `docker compose up -d` without the measurement override), with a made-up token shaped like a real one. Nothing was due, so nothing was sent. A fake-token check could not have caught it: the token looked real. So:
+
+- **Arming.** The production worker starts only with `TELEGRAM_LIVE=yes`, written by hand in `.env` on the real server (DEPLOY-GCP 9.5). The deploy `.env.example` says `no`, and compose passes `${TELEGRAM_LIVE:-no}` to the worker only. Production mode alone never reaches Telegram.
+- **The client checks again,** apart from the settings: the real API is called only from a production process with `TELEGRAM_LIVE=yes` in its own environment, never under the test runner, and only with a real-looking token. Any `*.telegram.org` address counts as the real one. A stand-in gets the token only on this computer or as a one-word Docker host, even when the caller allows stand-ins.
+- **Fake tokens.** One rule (`isRealLookingToken`) for the API and the worker: the words the repo's fakes use, plus filler (eight equal characters after the colon). A test scans every setup file (env files, scripts, compose files, workflows, the apps' code and test helpers) and checks that production refuses each token it finds. A real token is refused by chance in roughly one case out of 15 000; the guide says what to do then (make a new token).
+- **Test runs.** The API test setup stops before migrations and before any test when the environment has `NODE_ENV=production`, any `TELEGRAM_LIVE`, or a `TELEGRAM_API_BASE` that is not a local stand-in.

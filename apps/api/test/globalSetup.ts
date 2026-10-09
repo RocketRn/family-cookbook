@@ -5,6 +5,7 @@ import { createPool } from '../src/db/pool.js';
 import { migrateDown, migrateUp } from '../src/db/migrate.js';
 import { ensureRuntimeRole } from '../src/db/roles.js';
 import { syncUnits } from '../src/db/units.js';
+import { assertSafeTestEnv } from './helpers/safeEnv.js';
 
 export function testUrls(): { runtime: string; owner: string } {
   const runtime = process.env.DATABASE_URL;
@@ -31,6 +32,7 @@ export default async function setup(): Promise<void> {
   config({
     path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env.test'),
   });
+  assertSafeTestEnv(process.env);
   const { runtime, owner } = testUrls();
   const db = createPool(owner);
   try {

@@ -7,9 +7,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | #     | Task                                                               | State                                                              | Commit    |
 | ----- | ------------------------------------------------------------------ | ------------------------------------------------------------------ | --------- |
 | S5-0  | Plan and this progress file                                        | done                                                               | `50722d3` |
-| S5-1  | Storage compatibility with Google Cloud Storage, and what to check | done                                                               | (this)    |
-| S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | next                                                               |           |
-| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | to do                                                              |           |
+| S5-1  | Storage compatibility with Google Cloud Storage, and what to check | done                                                               | `a1186e5` |
+| S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | done                                                               | (this)    |
+| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | next                                                               |           |
 | S5-4  | BE-10 reactions and "I cooked it", the message to the author       | to do                                                              |           |
 | S5-5  | FE-10 reactions and "I cooked it" on screen                        | to do                                                              |           |
 | S5-6  | Notification settings, and the new-recipe message (off by default) | to do                                                              |           |
@@ -47,3 +47,12 @@ Additions:
 - Red first: `storage-config.test.ts` failed with the two settings taken out of `storage.ts` (`expected 'WHEN_SUPPORTED' to be 'WHEN_REQUIRED'`); the new `deploy-files.test.ts` check failed on the old `compose.yml`.
 - The S3 contract test stays green on SeaweedFS; the Google Cloud Storage stand-in test (it refuses checksum headers and multi-object delete) stays green.
 - `docs/DEPLOY-GCP.ru.md` 9.7 now says what to check on Google Cloud Storage: a command that shows the four settings, a log search after the first photo, and a table of symptoms, causes and fixes. Section 13 points to it.
+
+### S5-2 Production safety guard
+
+- The Sprint 4 near miss had a made-up token that looked real, so a fake-token check alone could not have stopped it. The production worker now also needs `TELEGRAM_LIVE=yes`, written by hand in `.env` on the real server; the deploy example says `no` (D-046).
+- The Telegram client checks again on its own: the real API only from an armed production process, never from a test run, never with a fake-looking token; any `*.telegram.org` address counts as real; a stand-in only on this computer or the Docker network.
+- One fake-token rule for the API and the worker, and a scan of every setup file: production refuses each token found there.
+- The API test setup stops before migrations and before any test when the terminal has `NODE_ENV=production`, `TELEGRAM_LIVE` or a non-local `TELEGRAM_API_BASE`. Checked by hand: `NODE_ENV=production` and `TELEGRAM_LIVE=yes` runs both stop with "Refusing to run the tests…".
+- Red first: on the old code the worker started in production without `TELEGRAM_LIVE` (8 cases), the client was created for the real API inside a test run and sent the token to non-local stand-ins (4 cases), and the deploy files had no switch. The worker entry point was also run in production mode with a made-up real-looking token and no switch: it exits with code 1 and names `TELEGRAM_LIVE`, without printing the token.
+- Guide: the switch in the `.env` step (9.5) with a check command, a one-time line for an existing `.env` in "Обновить приложение", and two rows in section 13.

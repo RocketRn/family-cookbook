@@ -115,6 +115,8 @@ services:
       NODE_OPTIONS: --max-old-space-size=96
       DATABASE_URL: postgres://cookbook_api:${API_DB_PASSWORD}@postgres:5432/cookbook
       # TELEGRAM_API_BASE is left unset: in production the worker sends only to api.telegram.org.
+      # And only when armed by hand in .env on the real server (S5-2): anything but "yes" stops it.
+      TELEGRAM_LIVE: ${TELEGRAM_LIVE:-no}
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_USERNAME: ${BOT_USERNAME}
       MINI_APP_SHORT_NAME: ${MINI_APP_SHORT_NAME}
