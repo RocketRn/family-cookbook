@@ -10,6 +10,15 @@ const HOSTS = new Set([
   'www.youtube-nocookie.com',
 ]);
 
+// recipe-core is built without DOM or Node types; URL is a global in every runtime it targets
+// (Node, browsers, Telegram WebViews), so only the members used here are typed.
+type UrlLike = {
+  hostname: string;
+  pathname: string;
+  searchParams: { get(name: string): string | null };
+};
+const Url = (globalThis as unknown as { URL: new (input: string) => UrlLike }).URL;
+
 /** "90", "90s", "1m30s", "1h2m3s" -> seconds. */
 function parseStart(v: string | null): number | null {
   if (!v) return null;
@@ -22,9 +31,9 @@ function parseStart(v: string | null): number | null {
 export function parseYoutube(input: string): { id: string; startSec: number | null } | null {
   const text = input.trim();
   if (ID.test(text)) return { id: text, startSec: null };
-  let url: URL;
+  let url: UrlLike;
   try {
-    url = new URL(text);
+    url = new Url(text);
   } catch {
     return null;
   }
