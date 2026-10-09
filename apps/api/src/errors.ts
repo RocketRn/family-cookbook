@@ -12,6 +12,7 @@ export type ErrorCode =
   | 'ALREADY_IN_BOOK'
   | 'NOT_IN_BOOK'
   | 'INVALID_INVITE_CODE'
+  | 'NOT_PUBLISHABLE'
   | 'INTERNAL';
 
 export class AppError extends Error {

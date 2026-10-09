@@ -35,6 +35,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@cookbook/recipe-core':
+        specifier: workspace:*
+        version: link:../../packages/recipe-core
       '@fastify/cors':
         specifier: ^10.0.1
         version: 10.1.0

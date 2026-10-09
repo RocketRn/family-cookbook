@@ -5,9 +5,29 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MIGRATIONS_DIR, migrateDown, migrateUp } from '../src/db/migrate.js';
 import type { Db } from '../src/db/pool.js';
 import { ensureRuntimeRole } from '../src/db/roles.js';
+import { syncUnits } from '../src/db/units.js';
 import { adminPool } from './helpers/db.js';
 
-const ALL = ['0001_users', '0002_books_recipes_rls', '0003_runtime_roles_users_rls'];
+const ALL = [
+  '0001_users',
+  '0002_books_recipes_rls',
+  '0003_runtime_roles_users_rls',
+  '0004_recipe_content',
+];
+const TABLES = [
+  'book_members',
+  'books',
+  'recipe_ingredients',
+  'recipe_steps',
+  'recipe_tags',
+  'recipe_videos',
+  'recipes',
+  'step_ingredients',
+  'step_timers',
+  'tags',
+  'units',
+  'users',
+];
 
 let admin: Db;
 beforeAll(() => {
@@ -16,6 +36,7 @@ beforeAll(() => {
 afterAll(async () => {
   // leave the schema and the API user in place for the other test files
   await migrateUp(admin);
+  await syncUnits(admin);
   await ensureRuntimeRole(admin, process.env.DATABASE_URL!);
   await admin.end();
 });
@@ -49,8 +70,8 @@ describe('migrations', () => {
     expect(await migrateUp(admin)).toEqual(ALL);
   });
 
-  it('creates only the Sprint 1 tables (no Stage 2-4 or later-sprint tables)', async () => {
-    expect(await tables()).toEqual(['book_members', 'books', 'recipes', 'users']);
+  it('creates only the tables of the sprints so far (no Stage 2-4 or later-sprint tables)', async () => {
+    expect(await tables()).toEqual(TABLES);
   });
 
   it('has row-level security enabled on every application table', async () => {
@@ -59,8 +80,8 @@ describe('migrations', () => {
         WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r' AND c.relname <> 'schema_migrations'
         ORDER BY 1`,
     );
-    expect(r.rows.every((x) => x.relrowsecurity)).toBe(true);
-    expect(r.rows.map((x) => x.relname)).toEqual(['book_members', 'books', 'recipes', 'users']);
+    expect(r.rows.filter((x) => !x.relrowsecurity)).toEqual([]);
+    expect(r.rows.map((x) => x.relname)).toEqual(TABLES);
   });
 
   it('stores a checksum and refuses to run if an applied migration file was edited', async () => {
@@ -85,9 +106,9 @@ describe('migrations', () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'migrations-'));
     try {
       await cp(MIGRATIONS_DIR, dir, { recursive: true });
-      await unlink(path.join(dir, '0003_runtime_roles_users_rls.down.sql'));
+      await unlink(path.join(dir, '0004_recipe_content.down.sql'));
       await expect(migrateUp(admin, { dir })).rejects.toThrow(
-        /0003_runtime_roles_users_rls has no \.down\.sql/,
+        /0004_recipe_content has no \.down\.sql/,
       );
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -96,6 +117,7 @@ describe('migrations', () => {
 
   it('enforces one book per user and one owner per book', async () => {
     await admin.query('TRUNCATE recipes, book_members, books, users CASCADE');
+    await syncUnits(admin);
     const u = (
       await admin.query<{ id: string }>(
         `INSERT INTO users (tg_user_id) VALUES (1), (2) RETURNING id`,

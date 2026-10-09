@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createPool } from '../src/db/pool.js';
 import { migrateDown, migrateUp } from '../src/db/migrate.js';
 import { ensureRuntimeRole } from '../src/db/roles.js';
+import { syncUnits } from '../src/db/units.js';
 
 export function testUrls(): { runtime: string; owner: string } {
   const runtime = process.env.DATABASE_URL;
@@ -35,6 +36,7 @@ export default async function setup(): Promise<void> {
   try {
     await migrateDown(db, Infinity);
     await migrateUp(db);
+    await syncUnits(db);
     await ensureRuntimeRole(db, runtime);
   } finally {
     await db.end();

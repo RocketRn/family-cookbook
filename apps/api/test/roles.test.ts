@@ -48,7 +48,8 @@ describe('API database user', () => {
       'SELECT 1 FROM schema_migrations',
       `INSERT INTO users (tg_user_id) VALUES (1)`,
     ]) {
-      await expect(db.query(sql)).rejects.toThrow(/permission denied/);
+      // "does not exist" when the server has revoked the default USAGE on schema public: also no access.
+      await expect(db.query(sql)).rejects.toThrow(/permission denied|does not exist/);
     }
   });
 
@@ -59,7 +60,7 @@ describe('API database user', () => {
         await tx.query('RESET ROLE');
         return tx.query('SELECT * FROM users');
       }),
-    ).rejects.toThrow(/permission denied/);
+    ).rejects.toThrow(/permission denied|does not exist/);
   });
 
   it('cannot escalate to the owner user', async () => {

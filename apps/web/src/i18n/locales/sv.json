@@ -145,6 +145,7 @@
     "INVALID_INVITE_CODE": "Inbjudningskoden är ogiltig.",
     "KEEPER_CANNOT_LEAVE": "Bokvårdaren kan inte lämna boken innan rollen har överlåtits.",
     "CONFLICT": "Det går inte just nu.",
-    "INTERNAL": "Något gick fel. Försök igen."
+    "INTERNAL": "Något gick fel. Försök igen.",
+    "NOT_PUBLISHABLE": "Lägg till namn, antal portioner, minst en ingrediens och ett steg innan du publicerar."
   }
 }

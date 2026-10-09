@@ -8,6 +8,7 @@ import type { Db } from './db/pool.js';
 import { registerErrorHandling } from './errors.js';
 import { registerHealth } from './routes/health.js';
 import { registerMe } from './routes/me.js';
+import { registerRecipes } from './recipes/routes.js';
 
 export type AppDeps = { config: Config; db: Db; now?: () => Date };
 
@@ -37,8 +38,9 @@ export async function buildApp({ config, db, now }: AppDeps): Promise<FastifyIns
   const authenticate = createAuthenticate({ config, db, now });
   await app.register(async (authed) => {
     authed.addHook('preHandler', authenticate);
-    registerMe(authed);
+    registerMe(authed, db);
     registerBooks(authed, db);
+    registerRecipes(authed, db);
   });
 
   return app;

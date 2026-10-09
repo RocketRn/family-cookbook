@@ -142,6 +142,7 @@
     "INVALID_INVITE_CODE": "This invitation code is not valid.",
     "KEEPER_CANNOT_LEAVE": "The keeper cannot leave the book until the role is transferred.",
     "CONFLICT": "That can't be done right now.",
-    "INTERNAL": "Something went wrong. Try again."
+    "INTERNAL": "Something went wrong. Try again.",
+    "NOT_PUBLISHABLE": "Add a title, servings, at least one ingredient and one step before publishing."
   }
 }

@@ -12,7 +12,7 @@ export function testConfig(overrides: Record<string, string> = {}): Config {
     NODE_ENV: 'test',
     DATABASE_URL: process.env.DATABASE_URL,
     BOT_TOKEN: TEST_BOT_TOKEN,
-    LOG_LEVEL: 'silent',
+    LOG_LEVEL: process.env.TEST_LOG_LEVEL ?? 'silent',
     ...overrides,
   });
 }
@@ -33,6 +33,7 @@ export async function testApp(db: Db): Promise<FastifyInstance> {
 
 export async function resetData(db: Db): Promise<void> {
   await db.query('TRUNCATE recipes, book_members, books, users CASCADE');
+  await db.query('DELETE FROM tags WHERE custom_name IS NOT NULL');
 }
 
 /** Authorization header for a Telegram user, valid at NOW. */
