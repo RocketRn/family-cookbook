@@ -113,7 +113,7 @@ const recipe = await call('POST', '/recipes', {
   steps: [
     {
       title: 'Тесто',
-      body: 'Взбейте яйца ({ing:eggs}) с {ing:sugar} сахара до пышной пены, затем вмешайте {ing:flour} муки.',
+      body: 'Взбейте яйца ({ing:eggs}) с сахаром ({ing:sugar}) до пышной пены, затем вмешайте муку ({ing:flour}).',
       photo_media_id: stepPhoto.id,
       ingredients: [{ ref: 'eggs' }, { ref: 'sugar' }, { ref: 'flour' }],
     },

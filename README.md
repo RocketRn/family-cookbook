@@ -7,9 +7,9 @@ A shared family cookbook that runs inside Telegram. Product spec: [`docs/PRD.md`
 | Path                        | What                                                                         |
 | --------------------------- | ---------------------------------------------------------------------------- |
 | `apps/api`                  | Fastify REST API (Node 24, TypeScript, plain-SQL migrations, Postgres + RLS) |
-| `apps/worker`               | Timer and outbox worker, a separate process (skeleton in Sprint 1)           |
+| `apps/worker`               | Background worker, a separate process (Sprint 2: removes unused photos)      |
 | `apps/web`                  | React 18 + Vite Mini App (i18next, TanStack Query, Zustand)                  |
-| `packages/recipe-core`      | Pure TypeScript parsing and recalculation library (empty until Sprint 2)     |
+| `packages/recipe-core`      | Pure TypeScript units, recalculation, smart rounding and number formatting   |
 | `db/migrations`, `db/seeds` | SQL migrations (`NNNN_name.up.sql` / `.down.sql`) and dev seed data          |
 
 ## Requirements
@@ -25,6 +25,7 @@ docker compose up -d          # Postgres 15 (dev + test databases) and S3-compat
 pnpm db:migrate               # apply migrations and create the API's restricted database user
 pnpm db:seed                  # dev users, a book and a few recipes
 pnpm dev                      # API :3000, web :5173, worker
+node scripts/demo-recipe.mjs  # optional: publish a demo recipe with photos (Sprint 2 demo)
 ```
 
 Open <http://localhost:5173>. Outside Telegram the web app uses a **mock Telegram provider** (development only): it signs a fresh `initData` with a fake dev token at every start, so sign-in works end to end without a bot. Useful URL parameters:
@@ -33,7 +34,13 @@ Open <http://localhost:5173>. Outside Telegram the web app uses a **mock Telegra
 - `?theme=dark|light`: force the theme
 - `?startapp=join_devinvitecode`: simulate a deep link
 
-Without Docker, use any Postgres 15+ you control: create a user `cookbook` (password `cookbook`, with the CREATEROLE right) that owns the databases `cookbook` and `cookbook_test`. If port 5432 is already taken, start Docker with `POSTGRES_PORT=55432 docker compose up -d` and change the port in `.env`.
+In development, Profile → **Design previews** opens the recipe editor and import review designs (UX-03). The Saved tab shows a marked sample there. Neither exists in production builds.
+
+### Photos (S3-compatible storage)
+
+Photos go through the S3 API only (`S3_*` in `.env.example`). Locally this is SeaweedFS from Docker Compose (S3 on port 8333, fake local keys). The API creates the bucket in development, stores each upload as a 2048 px and a 512 px JPEG without metadata, and returns links signed for one hour. The worker removes photos that no recipe uses after 24 hours. See D-026.
+
+Without Docker, use any Postgres 15+ and any S3-compatible store you control: create a user `cookbook` (password `cookbook`, with the CREATEROLE right) that owns the databases `cookbook` and `cookbook_test`. If port 5432 is already taken, start Docker with `POSTGRES_PORT=55432 docker compose up -d` and change the port in `.env`.
 
 ### Two database users (why there are two URLs)
 
@@ -43,6 +50,7 @@ Without Docker, use any Postgres 15+ you control: create a user `cookbook` (pass
 ## Commands
 
 ```bash
+pnpm verify        # everything CI runs, in order: typecheck, lint, i18n, build, bundle check, tests
 pnpm typecheck     # all packages
 pnpm lint          # ESLint + Prettier check
 pnpm i18n:check    # key completeness of the 4 UI locales
@@ -55,6 +63,8 @@ pnpm db:migrate | pnpm --filter @cookbook/api db:rollback | db:reset | pnpm db:s
 ### Tests and the database
 
 API tests connect the app under test through `DATABASE_URL` (the restricted API user) and set up the schema and fixtures through `MIGRATION_DATABASE_URL` (the owner). `.env.test` points both at `cookbook_test` on `localhost:5432`; CI overrides them and runs the suite on Postgres 15 and 16. The suite **drops and recreates the schema**, so it refuses to run unless the database name contains `test`.
+
+The S3 contract test (`apps/api/test/s3.test.ts`) uses the SeaweedFS from Docker Compose (`S3_TEST_ENDPOINT` in `.env.test`). CI starts its own SeaweedFS and fails if the test cannot run. All other photo tests use in-memory storage.
 
 ## Configuration
 
