@@ -1,0 +1,146 @@
+{
+  "app_name": "Family Cookbook",
+  "common": {
+    "loading": "Loading…",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "done": "Done",
+    "copy": "Copy",
+    "copied": "Copied",
+    "share": "Share",
+    "or": "or",
+    "coming_soon": "Coming soon"
+  },
+  "tabs": {
+    "book": "Book",
+    "saved": "Saved",
+    "profile": "Profile"
+  },
+  "boot": {
+    "signing_in": "Signing in…",
+    "failed_title": "Couldn't sign in",
+    "failed_text": "Check your connection and try again.",
+    "outside_title": "Open in Telegram",
+    "outside_text": "This cookbook works inside Telegram. Open it from the bot to continue."
+  },
+  "onboarding": {
+    "title": "Welcome to the family cookbook",
+    "text": "Create a book for your family or join one with an invitation.",
+    "create_title": "Create a book",
+    "book_title_label": "Book name",
+    "book_title_placeholder": "Family",
+    "create_button": "Create book",
+    "join_title": "Join with a code",
+    "join_code_label": "Invitation code",
+    "join_button": "Join"
+  },
+  "join": {
+    "title": "Join this book?",
+    "text": "You will see the recipes members share with the book, and they will see yours.",
+    "button": "Join the book",
+    "success": "You joined the book"
+  },
+  "book": {
+    "search_placeholder": "Search by title or ingredient",
+    "scope_book": "Whole book",
+    "scope_mine": "Mine",
+    "filters": "Filters",
+    "filters_reset": "Reset",
+    "filters_apply": "Show recipes",
+    "recipes_count_one": "{{count}} recipe",
+    "recipes_count_other": "{{count}} recipes",
+    "empty_title": "No recipes yet",
+    "empty_text": "Recipes you and your family add will appear here.",
+    "no_results_title": "Nothing found",
+    "no_results_text": "Try a different word or reset the filters."
+  },
+  "filters": {
+    "difficulty": "Difficulty",
+    "time": "Total time",
+    "tags": "Tags",
+    "any": "Any",
+    "up_to_minutes": "Up to {{count}} min"
+  },
+  "difficulty": {
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard"
+  },
+  "tags": {
+    "soup": "Soup",
+    "baking": "Baking",
+    "vegan": "Vegan",
+    "dessert": "Dessert",
+    "main": "Main course",
+    "breakfast": "Breakfast",
+    "salad": "Salad"
+  },
+  "recipe": {
+    "back_hint": "Recipe",
+    "by_author": "by {{name}}",
+    "minutes": "{{count}} min",
+    "servings_one": "{{count}} serving",
+    "servings_other": "{{count}} servings",
+    "ingredients": "Ingredients",
+    "save": "Save",
+    "unsave": "Remove from Saved",
+    "saved_badge": "Saved",
+    "placeholder_note": "The full recipe card arrives in the next release.",
+    "cook": "Cook",
+    "recalculate": "Recalculate",
+    "not_found": "Recipe not found",
+    "visibility": {
+      "private": "Only me",
+      "book": "Book",
+      "link": "By link"
+    }
+  },
+  "saved": {
+    "title": "Saved",
+    "empty_title": "Nothing saved yet",
+    "empty_text": "Save other people's recipes to find them here."
+  },
+  "link_recipe": {
+    "title": "Recipe by link",
+    "text": "Opening recipes from shared links is coming soon."
+  },
+  "profile": {
+    "title": "Profile",
+    "language": "Language",
+    "language_hint": "Recipes are never translated: they stay in the language they were written in.",
+    "book": "Book",
+    "members_one": "{{count}} member",
+    "members_other": "{{count}} members",
+    "role_owner": "Keeper",
+    "role_member": "Member",
+    "you": "you",
+    "invite": "Invitation",
+    "invite_share": "Send invitation",
+    "invite_share_text": "Join our family cookbook!",
+    "invite_rotate": "Issue a new code",
+    "invite_rotate_text": "The old code stops working immediately.",
+    "invite_rotated": "New code issued",
+    "leave": "Leave the book",
+    "leave_text": "Your recipes will leave the book and become private.",
+    "keeper_cannot_leave": "The keeper cannot leave the book until the role is transferred.",
+    "remove_member": "Remove",
+    "remove_text": "{{name}}'s recipes will leave the book and become private.",
+    "no_book": "You are not in a book yet.",
+    "dev_mode": "Development mode: Telegram is simulated"
+  },
+  "errors": {
+    "NETWORK": "No connection. Check your network.",
+    "UNAUTHORIZED": "Your session is invalid. Reopen the app from Telegram.",
+    "FORBIDDEN": "You are not allowed to do this.",
+    "NOT_FOUND": "Not found.",
+    "VALIDATION_ERROR": "Please check what you entered.",
+    "ALREADY_IN_BOOK": "You are already in a book.",
+    "NOT_IN_BOOK": "You are not in a book yet.",
+    "INVALID_INVITE_CODE": "This invitation code is not valid.",
+    "KEEPER_CANNOT_LEAVE": "The keeper cannot leave the book until the role is transferred.",
+    "CONFLICT": "That can't be done right now.",
+    "INTERNAL": "Something went wrong. Try again."
+  }
+}

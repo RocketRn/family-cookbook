@@ -1,0 +1,149 @@
+{
+  "_meta": {
+    "status": "needs-native-review"
+  },
+  "app_name": "Familjens kokbok",
+  "common": {
+    "loading": "Laddar…",
+    "retry": "Försök igen",
+    "cancel": "Avbryt",
+    "confirm": "Bekräfta",
+    "close": "Stäng",
+    "done": "Klar",
+    "copy": "Kopiera",
+    "copied": "Kopierat",
+    "share": "Dela",
+    "or": "eller",
+    "coming_soon": "Kommer snart"
+  },
+  "tabs": {
+    "book": "Bok",
+    "saved": "Sparade",
+    "profile": "Profil"
+  },
+  "boot": {
+    "signing_in": "Loggar in…",
+    "failed_title": "Det gick inte att logga in",
+    "failed_text": "Kontrollera anslutningen och försök igen.",
+    "outside_title": "Öppna i Telegram",
+    "outside_text": "Kokboken fungerar i Telegram. Öppna den från boten."
+  },
+  "onboarding": {
+    "title": "Välkommen till familjens kokbok",
+    "text": "Skapa en bok för din familj eller gå med via en inbjudan.",
+    "create_title": "Skapa en bok",
+    "book_title_label": "Bokens namn",
+    "book_title_placeholder": "Familjen",
+    "create_button": "Skapa bok",
+    "join_title": "Gå med med kod",
+    "join_code_label": "Inbjudningskod",
+    "join_button": "Gå med"
+  },
+  "join": {
+    "title": "Gå med i boken?",
+    "text": "Du ser recepten som medlemmarna delar, och de ser dina.",
+    "button": "Gå med i boken",
+    "success": "Du är med i boken"
+  },
+  "book": {
+    "search_placeholder": "Sök på namn eller ingrediens",
+    "scope_book": "Hela boken",
+    "scope_mine": "Mina",
+    "filters": "Filter",
+    "filters_reset": "Återställ",
+    "filters_apply": "Visa recept",
+    "recipes_count_one": "{{count}} recept",
+    "recipes_count_other": "{{count}} recept",
+    "empty_title": "Inga recept ännu",
+    "empty_text": "Recept som du och din familj lägger till visas här.",
+    "no_results_title": "Inget hittades",
+    "no_results_text": "Prova ett annat ord eller återställ filtren."
+  },
+  "filters": {
+    "difficulty": "Svårighet",
+    "time": "Total tid",
+    "tags": "Taggar",
+    "any": "Alla",
+    "up_to_minutes": "Upp till {{count}} min"
+  },
+  "difficulty": {
+    "easy": "Lätt",
+    "medium": "Medel",
+    "hard": "Svårt"
+  },
+  "tags": {
+    "soup": "Soppa",
+    "baking": "Bakning",
+    "vegan": "Vegansk",
+    "dessert": "Efterrätt",
+    "main": "Huvudrätt",
+    "breakfast": "Frukost",
+    "salad": "Sallad"
+  },
+  "recipe": {
+    "back_hint": "Recept",
+    "by_author": "av {{name}}",
+    "minutes": "{{count}} min",
+    "servings_one": "{{count}} portion",
+    "servings_other": "{{count}} portioner",
+    "ingredients": "Ingredienser",
+    "save": "Spara",
+    "unsave": "Ta bort från sparade",
+    "saved_badge": "Sparad",
+    "placeholder_note": "Det fullständiga receptkortet kommer i nästa version.",
+    "cook": "Laga",
+    "recalculate": "Räkna om",
+    "not_found": "Receptet hittades inte",
+    "visibility": {
+      "private": "Bara jag",
+      "book": "Boken",
+      "link": "Via länk"
+    }
+  },
+  "saved": {
+    "title": "Sparade",
+    "empty_title": "Inget sparat ännu",
+    "empty_text": "Spara andras recept för att hitta dem här."
+  },
+  "link_recipe": {
+    "title": "Recept via länk",
+    "text": "Att öppna recept via delade länkar kommer snart."
+  },
+  "profile": {
+    "title": "Profil",
+    "language": "Språk",
+    "language_hint": "Recept översätts aldrig: de förblir på det språk de skrevs på.",
+    "book": "Bok",
+    "members_one": "{{count}} medlem",
+    "members_other": "{{count}} medlemmar",
+    "role_owner": "Bokvårdare",
+    "role_member": "Medlem",
+    "you": "du",
+    "invite": "Inbjudan",
+    "invite_share": "Skicka inbjudan",
+    "invite_share_text": "Häng med i vår familjekokbok!",
+    "invite_rotate": "Skapa ny kod",
+    "invite_rotate_text": "Den gamla koden slutar fungera direkt.",
+    "invite_rotated": "Ny kod skapad",
+    "leave": "Lämna boken",
+    "leave_text": "Dina recept lämnar boken och blir privata.",
+    "keeper_cannot_leave": "Bokvårdaren kan inte lämna boken innan rollen har överlåtits.",
+    "remove_member": "Ta bort",
+    "remove_text": "{{name}}s recept lämnar boken och blir privata.",
+    "no_book": "Du är inte med i någon bok ännu.",
+    "dev_mode": "Utvecklingsläge: Telegram simuleras"
+  },
+  "errors": {
+    "NETWORK": "Ingen anslutning. Kontrollera nätverket.",
+    "UNAUTHORIZED": "Sessionen är ogiltig. Öppna appen från Telegram igen.",
+    "FORBIDDEN": "Du har inte behörighet att göra detta.",
+    "NOT_FOUND": "Hittades inte.",
+    "VALIDATION_ERROR": "Kontrollera det du skrivit.",
+    "ALREADY_IN_BOOK": "Du är redan med i en bok.",
+    "NOT_IN_BOOK": "Du är inte med i någon bok ännu.",
+    "INVALID_INVITE_CODE": "Inbjudningskoden är ogiltig.",
+    "KEEPER_CANNOT_LEAVE": "Bokvårdaren kan inte lämna boken innan rollen har överlåtits.",
+    "CONFLICT": "Det går inte just nu.",
+    "INTERNAL": "Något gick fel. Försök igen."
+  }
+}
