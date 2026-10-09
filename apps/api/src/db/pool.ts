@@ -1,0 +1,10 @@
+import pg from 'pg';
+
+// bigint (int8) as string: Telegram ids fit in JS numbers today, but never risk precision.
+pg.types.setTypeParser(20, (v) => v);
+
+export type Db = pg.Pool;
+
+export function createPool(databaseUrl: string): Db {
+  return new pg.Pool({ connectionString: databaseUrl, max: 10 });
+}

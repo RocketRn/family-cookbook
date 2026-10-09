@@ -1,0 +1,7 @@
+{
+  "botToken": "123456:TEST-FAKE-TOKEN-FOR-UNIT-TESTS",
+  "authDate": 1760000000,
+  "dataCheckString": "auth_date=1760000000\nquery_id=AAHdF6IQAAAAAN0XohDhrOrc\nstart_param=join_abc123\nuser={\"id\":279058397,\"first_name\":\"Vladislav + Vlad\",\"username\":\"vlad\",\"language_code\":\"ru\",\"allows_write_to_pm\":true}",
+  "hash": "935bf52ee501b07e402d8cd0daa29f553477317f36690802b636a817dce02272",
+  "initData": "query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=%7B%22id%22%3A279058397%2C%22first_name%22%3A%22Vladislav%20%2B%20Vlad%22%2C%22username%22%3A%22vlad%22%2C%22language_code%22%3A%22ru%22%2C%22allows_write_to_pm%22%3Atrue%7D&auth_date=1760000000&start_param=join_abc123&hash=935bf52ee501b07e402d8cd0daa29f553477317f36690802b636a817dce02272"
+}
