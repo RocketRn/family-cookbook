@@ -459,5 +459,15 @@
     "own_intro": "This is your own recipe: the mark stays on the card, and nobody gets a message.",
     "comment_own": "A few words (only you see them)",
     "photo_alt": "Your dish"
+  },
+  "notify": {
+    "title": "Notifications",
+    "mute_social": "Quiet mode",
+    "mute_social_hint": "No messages about what others do in the book.",
+    "cooked": "Someone cooked my recipe",
+    "cooked_hint": "A message with their photo and words.",
+    "new_recipe": "A new recipe in the book",
+    "new_recipe_hint": "A message a few minutes after someone adds one.",
+    "timers_hint": "Timer messages always arrive: they are yours."
   }
 }

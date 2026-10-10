@@ -60,6 +60,52 @@ type Claimed = {
 
 const BACKOFF = [1, 5, 30, 300];
 
+/** PRD 4.4: more than this many "new recipe" messages for one person become one message. */
+const COLLAPSE_OVER = 3;
+
+/**
+ * PRD 4.4 new_recipe: when more than three are due for one person together (they wait five
+ * minutes after publishing, so a burst of recipes arrives together), the first claimed one says
+ * "New recipes in the book: N" and the others are marked done without a message of their own.
+ * Messages another worker holds right now are left to it.
+ */
+async function collapseNewRecipes(
+  db: Db,
+  claimed: Claimed[],
+): Promise<{ skip: Set<string>; count: Map<string, number> }> {
+  const skip = new Set<string>();
+  const count = new Map<string, number>();
+  const byRecipient = new Map<string, Claimed[]>();
+  for (const m of claimed) {
+    if (m.type !== 'new_recipe') continue;
+    byRecipient.set(m.recipient_user_id, [...(byRecipient.get(m.recipient_user_id) ?? []), m]);
+  }
+  for (const [recipient, [first, ...rest]] of byRecipient) {
+    await withWorker(db, async (tx) => {
+      const others = await tx.query<{ id: string }>(
+        `SELECT id FROM notification_outbox
+          WHERE type = 'new_recipe' AND recipient_user_id = $1 AND id <> $2
+            AND (id = ANY($3::uuid[])
+                 OR (status = 'pending' AND created_at > now() - interval '10 minutes'))
+          FOR UPDATE SKIP LOCKED`,
+        [recipient, first!.id, rest.map((r) => r.id)],
+      );
+      const n = others.rows.length + 1;
+      if (n <= COLLAPSE_OVER) return;
+      await tx.query(
+        `UPDATE notification_outbox
+            SET status = 'sent', sent_at = now(), locked_until = NULL,
+                last_error = 'collapsed into one message'
+          WHERE id = ANY($1::uuid[])`,
+        [others.rows.map((r) => r.id)],
+      );
+      count.set(first!.id, n);
+      for (const r of others.rows) skip.add(r.id);
+    });
+  }
+  return { skip, count };
+}
+
 /**
  * A message with a photo ("I cooked it") goes as the photo with the text as its caption. If the
  * photo cannot be used (no link, or Telegram refuses it), the text still goes, alone.
@@ -171,8 +217,10 @@ export async function sendDueMessages(
     );
   });
 
+  const collapsed = await collapseNewRecipes(db, claimed);
   const blockedUsers = new Set<string>();
   for (const m of claimed) {
+    if (collapsed.skip.has(m.id)) continue; // part of a "New recipes in the book: N" message
     if (blockedUsers.has(m.recipient_user_id)) continue; // already marked "blocked" below
     const done = (sql: string, params: unknown[], extra?: (tx: Tx) => Promise<unknown>) =>
       withWorker(db, async (tx) => {
@@ -188,7 +236,9 @@ export async function sendDueMessages(
         (tx) => failTimer(tx, m.payload.timer_id),
       );
 
-    const rendered = m.deleted_at ? null : renderMessage(m.type, m.payload, m.ui_lang, opts.links);
+    const n = collapsed.count.get(m.id);
+    const payload = n ? { ...m.payload, collapsed: n } : m.payload;
+    const rendered = m.deleted_at ? null : renderMessage(m.type, payload, m.ui_lang, opts.links);
     if (!rendered) {
       await fail(m.deleted_at ? 'recipient deleted' : `no template for ${m.type}`);
       stats.failed++;

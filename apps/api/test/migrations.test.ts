@@ -18,6 +18,7 @@ const ALL = [
   '0007_timers_outbox',
   '0008_bot_updates',
   '0009_reactions',
+  '0010_notify_prefs',
 ];
 const TABLES = [
   'book_members',

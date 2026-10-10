@@ -11,9 +11,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | done                                                               | `3eb1329` |
 | S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | done                                                               | `d628269` |
 | S5-4  | BE-10 reactions and "I cooked it", the message to the author       | done                                                               | `850b4e0` |
-| S5-5  | FE-10 reactions and "I cooked it" on screen                        | done                                                               | (this)    |
-| S5-6  | Notification settings, and the new-recipe message (off by default) | next                                                               |           |
-| S5-7  | FE-09 timers, full version                                         | to do                                                              |           |
+| S5-5  | FE-10 reactions and "I cooked it" on screen                        | done                                                               | `f2e2a04` |
+| S5-6  | Notification settings, and the new-recipe message (off by default) | done                                                               | (this)    |
+| S5-7  | FE-09 timers, full version                                         | next                                                               |           |
 | S5-8  | Saved recipes                                                      | to do                                                              |           |
 | S5-9  | QA-01 automated browser tests in CI                                | to do                                                              |           |
 | —     | Fixes from the first Telegram test                                 | placeholder: the owner sends the findings later as a separate task |           |
@@ -89,3 +89,10 @@ Additions:
 - Red first: 10 of 10 new web tests failed. Two older tests described the old behaviour and were updated: the Sprint 2 "markup only" reactions block, and the greyed-out "I cooked it" on the Done screen. The design preview's "sent" text was also updated.
 - Checked in a browser on the demo: user 2 reacted and marked "I cooked it" with a photo and words; the author's bot message with the photo reached the stand-in 1.0 s later (PRD: within 10 s), and its photo link opened (291 KB). The author's card showed "Who cooked it" with the photo and words.
 - Guides: RUN-LOCALLY 5.3, 5.11, 5.12 and a new 5.14 with two screenshots; DEPLOY-GCP section 10 checklist "Reactions and I cooked it", with what to send if the photo does not arrive.
+
+### S5-6 Notification settings, and the new-recipe message
+
+- Profile → "Notifications": quiet mode, "someone cooked my recipe" (on by default), "a new recipe in the book" (off by default). Each switch saves at once; timer messages always arrive (D-049).
+- A recipe that reaches the book sends "📖 {Name} added «{title}»" to the members who turned it on, about 5 minutes later. More than three at once become one message ("New recipes in the book: N"); a recipe taken back before then sends nothing.
+- Red first: 12 of 19 API tests and 4 of 4 web tests failed. Two of the 7 that passed on the old code passed only because the test's recipes could not be published (no ingredient); the helper now checks that the recipe was created, and they test what they say.
+- Guides: RUN-LOCALLY 5.15 (new), DEPLOY-GCP checklist "Notifications".

@@ -20,6 +20,7 @@ import { bookQuery } from '../queries';
 import { BOT_USERNAME, MINI_APP_SHORT_NAME } from '../telegram/bot';
 import { getRuntime, haptic } from '../telegram/sdk';
 import { useToastStore } from '../state/store';
+import { NotifySettings } from './NotifySettings';
 
 type Confirm = { kind: 'leave' } | { kind: 'rotate' } | { kind: 'remove'; member: Member } | null;
 
@@ -124,6 +125,8 @@ export function ProfileScreen({ me }: { me: Me }) {
         </div>
         <p className="hint">{t('profile.language_hint')}</p>
       </section>
+
+      <NotifySettings me={me} />
 
       <section className="section stack stack--tight" aria-labelledby="book-h">
         <h2 id="book-h">{t('profile.book')}</h2>

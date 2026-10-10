@@ -462,5 +462,15 @@
     "own_intro": "Det här är ditt eget recept: markeringen sparas på kortet och ingen får något meddelande.",
     "comment_own": "Några ord (bara du ser dem)",
     "photo_alt": "Din rätt"
+  },
+  "notify": {
+    "title": "Aviseringar",
+    "mute_social": "Tyst läge",
+    "mute_social_hint": "Inga meddelanden om vad andra gör i boken.",
+    "cooked": "Någon lagade mitt recept",
+    "cooked_hint": "Ett meddelande med deras foto och ord.",
+    "new_recipe": "Ett nytt recept i boken",
+    "new_recipe_hint": "Ett meddelande några minuter efter att någon lagt till det.",
+    "timers_hint": "Timermeddelanden kommer alltid: det är dina timrar."
   }
 }

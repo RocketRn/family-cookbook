@@ -11,7 +11,22 @@ export type Me = {
   photo_url: string | null;
   ui_lang: UiLang;
   bot_started: boolean;
-  notify_prefs: Record<string, boolean>;
+  notify_prefs: Partial<NotifyPrefs>;
+};
+
+/** PRD 3.2 notify_prefs (D-049): quiet mode turns off "cooked" and "new recipe"; timers stay. */
+export type NotifyPrefs = {
+  timers: boolean;
+  cooked: boolean;
+  new_recipe: boolean;
+  mute_social: boolean;
+};
+/** The server's defaults (owner's Sprint 5 answers), for a profile that has none of a key. */
+export const DEFAULT_PREFS: NotifyPrefs = {
+  timers: true,
+  cooked: true,
+  new_recipe: false,
+  mute_social: false,
 };
 
 export type Member = {
@@ -41,8 +56,9 @@ export function api(): ApiClient {
 }
 
 export const getMe = () => api().request<Me>('GET', '/me');
-/** PRD 4.9 PATCH /me: keeps the interface language in the profile (used by the bot, too). */
-export const updateMe = (patch: { ui_lang: UiLang }) => api().request<Me>('PATCH', '/me', patch);
+/** PRD 4.9 PATCH /me: the interface language (used by the bot, too) and notification settings. */
+export const updateMe = (patch: { ui_lang?: UiLang; notify_prefs?: Partial<NotifyPrefs> }) =>
+  api().request<Me>('PATCH', '/me', patch);
 export const getCurrentBook = () => api().request<Book>('GET', '/books/current');
 export const createBook = (title: string) =>
   api().request<{ id: string }>('POST', '/books', { title });

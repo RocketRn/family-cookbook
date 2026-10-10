@@ -690,3 +690,21 @@ h2 {
   border-top: 1px solid var(--separator, rgba(0, 0, 0, 0.1));
   padding-top: 8px;
 }
+
+/* Notification switches (D-049): a checkbox with its label and hint. */
+.toggle {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 6px 0;
+}
+.toggle input {
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--accent, var(--tg-theme-button-color, #2481cc));
+  flex: none;
+}
+.toggle input:disabled + span {
+  opacity: 0.5;
+}

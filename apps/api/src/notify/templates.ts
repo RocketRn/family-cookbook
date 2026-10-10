@@ -147,6 +147,62 @@ export function renderRecipeCooked(p: RecipeCookedPayload, lang: Lang, links: Li
   };
 }
 
+/** PRD 4.4 new_recipe: a snapshot made when the recipe reached the book. */
+export type NewRecipePayload = {
+  recipe_id: string;
+  recipe_title: string;
+  author_name: string | null;
+  /** Set by the worker when more than 3 messages became one (PRD 4.4). */
+  collapsed?: number;
+};
+
+/** "{Name} added «{title}»"; several at once: "New recipes in the book: N" (no plural forms needed). */
+const NEW_TEXTS: Record<Lang, { added: string; many: string }> = {
+  ru: {
+    added: '📖 <b>{name}</b> добавил(а) рецепт {title}',
+    many: '📖 Новых рецептов в книге: {n}',
+  },
+  uk: {
+    added: '📖 <b>{name}</b> додав(ла) рецепт {title}',
+    many: '📖 Нових рецептів у книзі: {n}',
+  },
+  en: { added: '📖 <b>{name}</b> added {title}', many: '📖 New recipes in the book: {n}' },
+  sv: { added: '📖 <b>{name}</b> lade till {title}', many: '📖 Nya recept i boken: {n}' },
+};
+
+export function renderNewRecipe(p: NewRecipePayload, lang: Lang, links: Links): Rendered {
+  const t = NEW_TEXTS[lang] ?? NEW_TEXTS.en;
+  if (p.collapsed && p.collapsed > 1) {
+    return {
+      text: fill(t.many, { n: String(p.collapsed) }),
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: (START_TEXTS[lang] ?? START_TEXTS.en).open, url: appLink(links, null) }],
+        ],
+      },
+    };
+  }
+  const name = p.author_name
+    ? safe(p.author_name, NAME_MAX)
+    : (COOKED_TEXTS[lang] ?? COOKED_TEXTS.en).someone;
+  const title = fill((TEXTS[lang] ?? TEXTS.en).title, {
+    title: safe(p.recipe_title || '…', TITLE_MAX),
+  });
+  return {
+    text: fill(t.added, { name, title }),
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: (COOKED_TEXTS[lang] ?? COOKED_TEXTS.en).open,
+            url: recipeLink(links, p.recipe_id),
+          },
+        ],
+      ],
+    },
+  };
+}
+
 /** BE-07: the answer to /start, and to /start from an invitation link (join_<code>). */
 const START_TEXTS: Record<Lang, { hello: string; invited: string; open: string; join: string }> = {
   ru: {
@@ -197,7 +253,7 @@ export function renderBotStart(p: { start?: unknown }, lang: Lang, links: Links)
   };
 }
 
-/** Messages the sender knows how to write. new_recipe arrives with the notification settings (S5-6). */
+/** Messages the sender knows how to write (PRD 4.4, BE-07). */
 export function renderMessage(
   type: string,
   payload: unknown,
@@ -209,5 +265,6 @@ export function renderMessage(
     return renderBotStart((payload ?? {}) as { start?: unknown }, lang, links);
   if (type === 'recipe_cooked')
     return renderRecipeCooked(payload as RecipeCookedPayload, lang, links);
+  if (type === 'new_recipe') return renderNewRecipe(payload as NewRecipePayload, lang, links);
   return null;
 }
