@@ -10,9 +10,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S6-1  | Fixes from the first Telegram test                                         | placeholder: the owner sends the findings later as a separate small task |           |
 | S6-2  | Forward a recipe to the bot → a private draft; webhook secret proven       | done                                                                     | `2452a46` |
 | S6-3  | The screen for someone who opens a recipe link (guest)                     | done                                                                     | `d223223` |
-| S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | done                                                                     | (this)    |
-| S6-4  | Observability: the timer delay figure, health, an uptime alert             | next                                                                     |           |
-| S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | to do                                                                    |           |
+| S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | done                                                                     | `57e889b` |
+| S6-4  | Observability: the timer delay figure, health, an uptime alert             | done                                                                     | (this)    |
+| S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | next                                                                     |           |
 | S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | to do                                                                    |           |
 | S6-7  | Small Sprint 5 findings: Saved filters, timer's recipe name, hint language | to do                                                                    |           |
 | S6-8  | Usage counts                                                               | **not built** (owner's answer 3)                                         |           |
@@ -72,3 +72,10 @@ Additions:
 - Not verified: how Telegram shows the prepared message on each phone (A-29, PRD 4.7 asks to check with a test bot): in the first-test checklist.
 - Red first: 6 of 6 API tests, 6 of 6 stand-in tests, 5 of 7 web tests (the 2 that passed check that a draft and a private recipe have no button, which the old card also satisfied), and the deploy-file check.
 - Guides: RUN-LOCALLY 5.16 (new: Share and the guest), DEPLOY-GCP 9.5 (what the switch also does) and checklist "Поделиться рецептом". Test plan P16.
+
+### S6-4 How late timer messages are, and an alert when the app stops
+
+- Each timer message now carries its timer's end, and the worker logs how late it went (`timer message sent`, `delayMs`).
+- `GET /health/full` (on the server `https://<DOMAIN>/api/health/full`): the database, whether the worker keeps up (messages due for more than 2 minutes and not tried), and the last hour's timer messages: sent, late (over 5 s, PRD 7.1), failed, and p50 / p95 / max delay. 503 when something is wrong. Only counts and times. `GET /health` stays Docker's plain check (D-057).
+- The guide's new step 9.10 sets up Google's uptime check on that page, e-mailing the owner, with a way to test it; two new rows in section 13 say what to do when the e-mail comes or messages are late.
+- Red first: 8 of 8 new API tests failed. One Sprint 4 test compared the timer message's contents exactly and now includes its end.

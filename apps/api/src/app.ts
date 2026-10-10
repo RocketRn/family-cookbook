@@ -106,7 +106,6 @@ export async function buildApp({
   await app.register(multipart, {
     limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 0, parts: 1 },
   });
-  registerHealth(app, db);
 
   const L = config.rateLimits;
   const counter = (max: number, key: (r: FastifyRequest) => string) =>
@@ -123,6 +122,7 @@ export async function buildApp({
     },
   });
   const perIp = limitHook(counter(L.perIp, (r) => `ip:${r.ip}`));
+  registerHealth(app, db, perIp);
   // CSP reports come from browsers without sign-in (D-032): their own, separate limit per IP.
   registerCspReport(app, limitHook(counter(L.cspReportsPerIp, (r) => `csp:${r.ip}`)));
   // BE-07: Telegram's updates for the bot. No sign-in (the secret token instead); wrong secrets

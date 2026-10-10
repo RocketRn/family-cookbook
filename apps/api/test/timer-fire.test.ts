@@ -73,6 +73,8 @@ describe('firing due timers', () => {
           recipe_id: null,
           recipe_title: 'Голубцы',
           step_number: 2,
+          // S6-4: the timer's end, to measure how late the message is (D-057).
+          ends_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
         },
       },
     ]);

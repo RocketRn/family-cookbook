@@ -21,6 +21,7 @@ const ALL = [
   '0010_notify_prefs',
   '0011_saved_recipes',
   '0012_bot_forward',
+  '0013_delivery_health',
 ];
 const TABLES = [
   'book_members',

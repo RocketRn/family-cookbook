@@ -118,4 +118,5 @@ A sprint is closed only with no open P0 or P1.
 | 4.6 | A timer fires exactly once (restart, two workers, ended while down); at most 10, 1 s to 24 h  | `api/test/timer-fire.test.ts`, `timers.test.ts`                                                            |
 | 4.6 | Countdown by the server's clock; offline start syncs with the same id                         | `web/test/cook-timers.test.tsx`                                                                            |
 | 4.4 | Bot text escaped; Telegram limits; 429 / 403 handled; nothing lost on restart                 | `api/test/notify-text.test.ts`, `outbox.test.ts`                                                           |
+| 7.1 | A timer message within 5 s: measured (end → sent), shown and alerted on                       | `api/test/observability.test.ts` (`GET /health/full`, the worker's `timer message sent` log)               |
 | 3.3 | Nobody else (not even in the same book) reads, cancels or extends a timer                     | `api/test/timers.test.ts` (API and directly in the database)                                               |

@@ -639,3 +639,10 @@ PRD 4.1 names grammY for the bot. The owner decided to keep the current code. Re
 - **Fallbacks.** No prepared message (an older Telegram, the bot not set up, Telegram refused): Telegram's share screen `t.me/share/url` with the link and the title. The clipboard may be blocked in some WebViews; then "Send to a chat" remains.
 - **Safety.** The API calls Telegram only through the guarded client (D-046): armed by `TELEGRAM_LIVE=yes` in production (now passed to the API too), a local stand-in elsewhere, never from a test. Unlike the worker, the API still starts without the switch: "Share" then gives the link. The stand-in takes `savePreparedInlineMessage` and shows prepared messages on its page with a button that opens the recipe as dev user 3 (outside the book).
 - **Open:** the exact parameters and the preview on each client are to be confirmed at the first Telegram test (A-29), as PRD 4.7 asks.
+
+### D-057 How late timer messages are, and an alert when the app stops (BE-14)
+
+- **The figure.** A timer message's delay is from the timer's end (`ends_at`, now part of the message when the timer fires) to Telegram's answer. The worker logs each one (`timer message sent`, `delayMs`), with no names or texts. PRD 7.1's target is 5 s; "late" means over it.
+- **`GET /health/full`** (`/api/health/full` through Caddy): the database, whether the worker keeps up (`overdue_messages`: due for more than 2 minutes and not even tried; a message waiting for Telegram's "retry after" is not overdue), and the last hour's timer messages (sent, late, failed, p50 / p95 / max in milliseconds). 503 when the database is down or anything is overdue. Only counts and times, read through one SECURITY DEFINER function the sign-in role may call (migration 0013); limited per address. `GET /health` stays the plain liveness check Docker uses, so a stopped worker does not make Docker restart the API.
+- **The alert** is Google Cloud Monitoring's uptime check on `/api/health/full` every 5 minutes, e-mailing the owner (DEPLOY-GCP 9.10). No extra service runs on the server.
+- **Not done:** dashboards or metrics storage; the logs and this page are enough for one family's server.

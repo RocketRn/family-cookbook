@@ -277,6 +277,13 @@ export async function sendDueMessages(
             : Promise.resolve(),
       );
       stats.sent++;
+      // S6-4 (D-057): how late a timer message is, from the timer's end to Telegram's answer.
+      const endsAt = Date.parse(String(m.payload.ends_at ?? ''));
+      if (m.type === 'timer_fired' && Number.isFinite(endsAt))
+        log('info', 'timer message sent', {
+          timerId: m.payload.timer_id,
+          delayMs: Math.max(0, Date.now() - endsAt),
+        });
     } else if (result.kind === 'rate_limited') {
       await done(
         `UPDATE notification_outbox SET status = 'pending', locked_until = NULL,

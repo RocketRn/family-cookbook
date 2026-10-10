@@ -31,7 +31,9 @@ export async function fireDueTimers(
          INSERT INTO notification_outbox (type, recipient_user_id, payload, dedupe_key, priority)
          SELECT 'timer_fired', f.user_id,
                 jsonb_build_object('timer_id', f.id, 'label', f.label, 'recipe_id', f.recipe_id,
-                                   'recipe_title', f.recipe_title, 'step_number', f.step_number),
+                                   'recipe_title', f.recipe_title, 'step_number', f.step_number,
+                                   -- S6-4: how late the message is, measured from here (D-057).
+                                   'ends_at', f.ends_at),
                 'timer:' || f.id, 0
            FROM fired f JOIN users u ON u.id = f.user_id
           -- Muted in the profile (notify_prefs.timers = false): fired, but no message.
