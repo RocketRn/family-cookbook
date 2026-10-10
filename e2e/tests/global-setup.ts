@@ -1,4 +1,4 @@
-import { api, BOT, botAction, KEEPER, MARK, MEMBER, WEB, type DevUser } from './stack';
+import { api, BOT, botAction, GUEST, KEEPER, MARK, MEMBER, WEB, type DevUser } from './stack';
 
 const DEFAULT_PREFS = { timers: true, cooked: true, new_recipe: false, mute_social: false };
 
@@ -39,7 +39,7 @@ export default async function globalSetup() {
     );
   // Each run starts from the seeded state of the two people: their language, default
   // notifications, and the bot started (not blocked) in their chats.
-  for (const user of [KEEPER, MEMBER]) {
+  for (const user of [KEEPER, MEMBER, GUEST]) {
     await api(user, 'PATCH', '/me', { ui_lang: user.lang, notify_prefs: DEFAULT_PREFS });
     await botAction('unblock', user.chat);
     await botAction('start', user.chat);

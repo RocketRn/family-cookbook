@@ -5,11 +5,16 @@ import type { Db } from '../db/pool.js';
 import { withUser } from '../db/tx.js';
 import { AppError, notFound } from '../errors.js';
 
+/** A recipe's share token (PRD 3.3); unknown tokens simply read nothing. */
+export const shareToken = z.string().max(64).optional();
+
 const startBody = z
   .object({
     recipe_id: z.string().uuid(),
     recipe_version: z.number().int().min(1),
     scale_factor: z.number().positive().max(20).optional(),
+    /** A guest cooking a recipe shared by link (S6-3, D-055): reads it with the link's token. */
+    share_token: shareToken,
   })
   .strict();
 const idParams = z.object({ id: z.string().uuid() });
@@ -17,6 +22,7 @@ const patchBody = z
   .object({
     max_step_index: z.number().int().min(0).max(59).optional(),
     state: z.enum(['finished', 'abandoned']).optional(),
+    share_token: shareToken,
   })
   .strict()
   .refine((b) => b.max_step_index !== undefined || b.state !== undefined, {
@@ -59,7 +65,8 @@ export function registerCookSessions(app: FastifyInstance, db: Db): void {
   app.post('/cook-sessions', async (req, reply) => {
     const user = currentUser(req);
     const b = startBody.parse(req.body);
-    const session = await withUser(db, { userId: user.id }, async (tx) => {
+    const ctx = { userId: user.id, shareToken: b.share_token };
+    const session = await withUser(db, ctx, async (tx) => {
       const r = await tx.query('SELECT 1 FROM recipes WHERE id = $1', [b.recipe_id]);
       if (!r.rowCount) throw notFound('Recipe not found');
       const s = await tx.query<SessionRow>(
@@ -78,7 +85,7 @@ export function registerCookSessions(app: FastifyInstance, db: Db): void {
     const user = currentUser(req);
     const { id } = idParams.parse(req.params);
     const b = patchBody.parse(req.body);
-    return withUser(db, { userId: user.id }, async (tx) => {
+    return withUser(db, { userId: user.id, shareToken: b.share_token }, async (tx) => {
       const r = await tx.query<SessionRow>(
         `UPDATE cook_sessions
             SET max_step_index = greatest(max_step_index, coalesce($2, max_step_index)),

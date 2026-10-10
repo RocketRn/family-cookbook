@@ -157,6 +157,7 @@ export function useCookTimers({
       ...(s.session_id ? { cook_session_id: s.session_id } : {}),
       duration_sec: x.duration_sec,
       label: x.label,
+      ...(s.share_token ? { share_token: s.share_token } : {}),
     };
   };
 

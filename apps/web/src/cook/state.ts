@@ -40,6 +40,8 @@ export type CookState = {
   session_id: string | null;
   /** The recipe as cooking started: finished on it even if the author edits it (PRD 2.4). */
   recipe: Recipe;
+  /** A guest cooking a recipe shared by link (S6-3, D-055): the link's token, for the server. */
+  share_token?: string;
   updated_at: string;
 };
 
@@ -50,7 +52,11 @@ export function scaleFromRecalc(r: RecalcState | null): CookScale | null {
     : { mode: 'ingredient', ingredient_id: r.ingredientId, amount: r.amount, unit: r.unit, k: r.k };
 }
 
-export function newCookState(recipe: Recipe, recalc: RecalcState | null): CookState {
+export function newCookState(
+  recipe: Recipe,
+  recalc: RecalcState | null,
+  shareToken?: string,
+): CookState {
   return {
     v: 1,
     recipe_id: recipe.id,
@@ -62,6 +68,7 @@ export function newCookState(recipe: Recipe, recalc: RecalcState | null): CookSt
     started: false,
     session_id: null,
     recipe,
+    ...(shareToken ? { share_token: shareToken } : {}),
     updated_at: new Date().toISOString(),
   };
 }
@@ -120,6 +127,7 @@ export function readCook(recipeId: string, now = Date.now()): CookState | null {
     s.timers.every(validTimer) &&
     typeof s.started === 'boolean' &&
     (isStr(s.session_id) || s.session_id === null) &&
+    (s.share_token === undefined || isStr(s.share_token)) &&
     validScale(s.scale) &&
     isObj(recipe) &&
     recipe.id === recipeId &&

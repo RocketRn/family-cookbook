@@ -141,8 +141,9 @@
     "saved": "🔖 Sparat"
   },
   "link_recipe": {
-    "title": "Recept via länk",
-    "text": "Att öppna recept via delade länkar kommer snart."
+    "guest_note": "Receptet har delats med dig via länk: du kan räkna om det och laga det.",
+    "gone_title": "Länken fungerar inte längre",
+    "gone_text": "Författaren kan ha slutat dela receptet, eller så har länken ändrats. Be om en ny."
   },
   "profile": {
     "title": "Profil",

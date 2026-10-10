@@ -107,7 +107,7 @@ function Ready({ me }: { me: Me }) {
           <Route path="/recipe/:id/cooked" element={<CookedScreen />} />
           <Route path="/cook/:id" element={<CookScreen me={me} />} />
           <Route path="/join/:code" element={<JoinScreen />} />
-          <Route path="/r/:token" element={<LinkRecipeScreen />} />
+          <Route path="/r/:token" element={<LinkRecipeScreen me={me} />} />
           {DesignScreens && (
             <Route
               path="/dev/*"

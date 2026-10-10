@@ -122,22 +122,16 @@ describe('emotions and "I’ll cook it again" (one each, tapping again removes)'
     expect((await react(MEMBER, { kind: 'heart' }, randomUUID())).statusCode).toBe(404);
   });
 
-  it('someone with the recipe’s link may react too (PRD 3.3)', async () => {
+  it('someone with the recipe’s link sees the counts but may not react (owner’s Sprint 6 answer 2)', async () => {
+    await react(MEMBER, { kind: 'fire' });
     const r = (
       await call('PATCH', `/recipes/${fam.bookRecipeId}`, KEEPER, { visibility: 'link' })
     ).json();
     const q = `?share_token=${r.share_token}`;
-    expect((await react(OUTSIDER, { kind: 'fire' }, fam.bookRecipeId, q)).statusCode).toBe(201);
+    expect((await react(OUTSIDER, { kind: 'fire' }, fam.bookRecipeId, q)).statusCode).toBe(404);
     expect((await summary(OUTSIDER, fam.bookRecipeId, q)).json().counts.fire).toBe(1);
     expect(
-      (
-        await react(
-          OUTSIDER,
-          { kind: 'fire' },
-          fam.bookRecipeId,
-          '?share_token=wrongwrongwrongwrong',
-        )
-      ).statusCode,
+      (await summary(OUTSIDER, fam.bookRecipeId, '?share_token=wrongwrongwrongwrong')).statusCode,
     ).toBe(404);
   });
 

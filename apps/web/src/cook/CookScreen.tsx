@@ -58,7 +58,13 @@ export function CookScreen({ me }: { me: Me }) {
   // From a timer message (cook_<id>_<n>, PRD 4.7): straight to that step, numbered from 1.
   const deepStep = Number.isInteger(asked) && asked >= 1 ? asked : null;
   const [saved] = useState(() => readCook(id));
-  const fresh = useQuery({ queryKey: ['recipe', id], queryFn: () => recipeApi.get(id) });
+  // A guest cooks a recipe shared by link (S6-3, D-055): it is read with the link's token, which
+  // the progress keeps, so cooking opened again later (e.g. from a timer's message) still reads it.
+  const token = search.get('t') ?? saved?.share_token ?? null;
+  const fresh = useQuery({
+    queryKey: token ? ['recipe-link', token] : ['recipe', id],
+    queryFn: () => (token ? recipeApi.getByLink(token) : recipeApi.get(id)),
+  });
 
   // With progress on this device, cooking does not wait for the network.
   if (!saved) {
@@ -74,6 +80,7 @@ export function CookScreen({ me }: { me: Me }) {
       fresh={fresh.data ?? undefined}
       deepStep={deepStep}
       botStarted={me.bot_started}
+      shareToken={token ?? undefined}
     />
   );
 }
@@ -82,6 +89,7 @@ function initial(
   saved: CookState | null,
   fresh: Recipe | undefined,
   deepStep: number | null,
+  shareToken: string | undefined,
 ): { st: CookState; phase: Phase } {
   if (saved?.started) {
     if (deepStep === null) return { st: saved, phase: 'resume' };
@@ -90,7 +98,7 @@ function initial(
       phase: 'step',
     };
   }
-  const base = saved ?? newCookState(fresh!, readRecalc(fresh!));
+  const base = saved ?? newCookState(fresh!, readRecalc(fresh!), shareToken);
   if (deepStep === null) return { st: base, phase: 'prep' };
   return {
     st: { ...base, started: true, step_index: Math.min(deepStep - 1, lastIndex(base.recipe)) },
@@ -103,16 +111,21 @@ function Cooking({
   fresh,
   deepStep,
   botStarted,
+  shareToken,
 }: {
   saved: CookState | null;
   fresh: Recipe | undefined;
   deepStep: number | null;
   botStarted: boolean;
+  shareToken: string | undefined;
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const toast = useToastStore((s) => s.show);
-  const [start] = useState(() => initial(saved, fresh, deepStep));
+  const [start] = useState(() => initial(saved, fresh, deepStep, shareToken));
+  /** The guest's link token: sent with the session and timers; no "I cooked it" (owner). */
+  const guest = start.st.share_token;
+  const withToken = guest ? { share_token: guest } : {};
   const [st, setSt] = useState(start.st);
   const [phase, setPhase] = useState<Phase>(start.phase);
   const stRef = useRef(st);
@@ -132,6 +145,7 @@ function Cooking({
       recipe_id: s.recipe_id,
       recipe_version: s.recipe_version,
       scale_factor: s.scale?.k ?? 1,
+      ...withToken,
     })
       .then((session) => {
         if (stRef.current.started) save({ ...stRef.current, session_id: session.id });
@@ -159,7 +173,7 @@ function Cooking({
     } else if (!cur.started) {
       const ids = new Set(fresh.ingredients.map((i) => i.id));
       save({
-        ...newCookState(fresh, readRecalc(fresh)),
+        ...newCookState(fresh, readRecalc(fresh), guest),
         checked_ingredients: cur.checked_ingredients.filter((i) => ids.has(i)),
       });
     }
@@ -175,7 +189,7 @@ function Cooking({
       if (!sessionId) return;
       const n = Math.min(reached.current, 59);
       sent.current = n;
-      patchCookSession(sessionId, { max_step_index: n }).catch(() => undefined);
+      patchCookSession(sessionId, { max_step_index: n, ...withToken }).catch(() => undefined);
     }, PROGRESS_DELAY_MS);
     return () => clearTimeout(timer);
   }, [phase, st.step_index]);
@@ -193,7 +207,7 @@ function Cooking({
     finished.current = false;
     reached.current = 0;
     sent.current = 0;
-    save(newCookState(r, readRecalc(r)));
+    save(newCookState(r, readRecalc(r), guest));
     setPhase('prep');
   };
 
@@ -210,12 +224,14 @@ function Cooking({
     // PRD 4.8: the progress and the recalculation are cleared once cooking is finished.
     clearCook(s.recipe_id);
     writeRecalc(s.recipe_id, null);
-    if (s.session_id) patchCookSession(s.session_id, { state: 'finished' }).catch(() => undefined);
+    if (s.session_id)
+      patchCookSession(s.session_id, { state: 'finished', ...withToken }).catch(() => undefined);
     haptic('success');
     setPhase('done');
   };
 
-  const toRecipe = () => navigate(`/recipe/${recipe.id}`, { replace: true });
+  const toRecipe = () =>
+    navigate(guest ? `/r/${encodeURIComponent(guest)}` : `/recipe/${recipe.id}`, { replace: true });
 
   if (total === 0) return <EmptyState icon={'🍽️'} title={t('cook.no_steps')} />;
 
@@ -235,7 +251,9 @@ function Cooking({
               onClick={() => {
                 const old = stRef.current;
                 if (old.session_id) {
-                  patchCookSession(old.session_id, { state: 'abandoned' }).catch(() => undefined);
+                  patchCookSession(old.session_id, { state: 'abandoned', ...withToken }).catch(
+                    () => undefined,
+                  );
                 }
                 restart(fresh ?? old.recipe);
               }}
@@ -294,14 +312,17 @@ function Cooking({
         <Button block variant="secondary" onClick={() => restart(fresh ?? recipe)}>
           {t('cook.again')}
         </Button>
-        {/* FE-10: "I cooked it", tied to this cooking session. "My version" stays hidden. */}
-        <Button
-          block
-          variant="ghost"
-          onClick={() => navigate(`/recipe/${recipe.id}/cooked${session}`)}
-        >
-          {t('cook.cooked')}
-        </Button>
+        {/* FE-10: "I cooked it", tied to this cooking session. "My version" stays hidden.
+            A guest with only the link may not react (owner's Sprint 6 answer 2). */}
+        {!guest && (
+          <Button
+            block
+            variant="ghost"
+            onClick={() => navigate(`/recipe/${recipe.id}/cooked${session}`)}
+          >
+            {t('cook.cooked')}
+          </Button>
+        )}
       </div>
     );
   }

@@ -7,11 +7,15 @@ export const startCookSession = (body: {
   recipe_id: string;
   recipe_version: number;
   scale_factor: number;
+  /** A guest cooking a recipe shared by link (S6-3, D-055). */
+  share_token?: string;
 }) => api().request<CookSession>('POST', '/cook-sessions', body);
 
 export const patchCookSession = (
   id: string,
-  body: { max_step_index: number } | { state: 'finished' | 'abandoned' },
+  body: ({ max_step_index: number } | { state: 'finished' | 'abandoned' }) & {
+    share_token?: string;
+  },
 ) => api().request<CookSession>('PATCH', `/cook-sessions/${id}`, body);
 
 /** A server timer (BE-09, D-040). Times are ISO strings by the server's clock. */
@@ -42,6 +46,8 @@ export const startTimer = (body: {
   label: string;
   /** Only for a timer started offline: when it really started (PRD 4.6 #6). */
   started_at?: string;
+  /** A guest cooking a recipe shared by link (S6-3, D-055). */
+  share_token?: string;
 }) => api().request<TimerAnswer>('POST', '/timers', body);
 
 export const listActiveTimers = () =>

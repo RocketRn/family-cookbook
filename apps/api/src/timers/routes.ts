@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { currentUser } from '../auth/plugin.js';
 import type { Db } from '../db/pool.js';
+import { shareToken } from '../cook/routes.js';
 import { withUser, type Tx } from '../db/tx.js';
 import { AppError, notFound } from '../errors.js';
 
@@ -21,6 +22,8 @@ const startBody = z
     cook_session_id: z.string().uuid().optional(),
     /** When the timer really started on the device (it may have been offline). */
     started_at: z.string().datetime({ offset: true }).optional(),
+    /** A guest cooking a recipe shared by link (S6-3, D-055): reads it with the link's token. */
+    share_token: shareToken,
   })
   .strict()
   .refine((b) => !b.step_id || b.recipe_id, {
@@ -94,7 +97,8 @@ export function registerTimers(app: FastifyInstance, db: Db): void {
   app.post('/timers', async (req, reply) => {
     const user = currentUser(req);
     const b = startBody.parse(req.body);
-    const { timer, created, now } = await withUser(db, { userId: user.id }, async (tx) => {
+    const ctx = { userId: user.id, shareToken: b.share_token };
+    const { timer, created, now } = await withUser(db, ctx, async (tx) => {
       // One person's starts run one at a time, so ten at once cannot make an eleventh timer.
       await tx.query(`SELECT pg_advisory_xact_lock(hashtextextended('timers:' || $1, 0))`, [
         user.id,

@@ -25,6 +25,8 @@ export interface RecipeApi {
   /** null when the recipe does not exist or the user may not see it. */
   get(id: string): Promise<Recipe | null>;
   /** POST /recipes and PATCH /recipes/:id with the whole recipe (D-022). */
+  /** GET /r/:token: a recipe shared by link (PRD UC-08); null when the link opens nothing. */
+  getByLink(token: string): Promise<Recipe | null>;
   create(body: object): Promise<Recipe>;
   update(id: string, body: object): Promise<Recipe>;
   /** The author or the book keeper hides a recipe from the book (PRD 3.3). */

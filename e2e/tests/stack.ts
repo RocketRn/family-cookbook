@@ -17,10 +17,12 @@ function savedPort(key: string): string | undefined {
 export const WEB = process.env.E2E_WEB_URL ?? `http://localhost:${savedPort('WEB_PORT') ?? 5173}`;
 export const BOT = process.env.E2E_BOT_URL ?? `http://127.0.0.1:${savedPort('BOT_PORT') ?? 8081}`;
 
-/** The seeded dev users (db/seeds/dev.sql): 1 is the book's keeper (Russian), 2 a member (English). */
+/** The dev users: 1 is the book's keeper (Russian), 2 a member (English) (db/seeds/dev.sql). */
 export const KEEPER = { key: '1', chat: '100000001', lang: 'ru' } as const;
 export const MEMBER = { key: '2', chat: '100000002', lang: 'en' } as const;
-export type DevUser = typeof KEEPER | typeof MEMBER;
+/** Dev user 3 (Swedish) is not in the book in a fresh demo: a guest for recipes shared by link. */
+export const GUEST = { key: '3', chat: '100000003', lang: 'sv' } as const;
+export type DevUser = typeof KEEPER | typeof MEMBER | typeof GUEST;
 
 /** Every recipe a test creates starts with this, so a run can tidy up after itself. */
 export const MARK = 'E2E ·';

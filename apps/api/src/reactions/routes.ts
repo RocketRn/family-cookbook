@@ -11,8 +11,10 @@ import type { ObjectStorage } from '../storage/storage.js';
 /**
  * BE-10 (PRD 2.4 steps 12-14, 3.2 reactions, 3.3; D-048): reactions and "I cooked it".
  *
- * - Anyone who may read a recipe (also by its link, ?share_token=) may react. Emotions and
- *   "I'll cook it again" are one each (tapping again answers the same one; DELETE removes it).
+ * - Anyone who may read a recipe as the author or a member of its book may react; someone who
+ *   holds only its link sees the counts (?share_token=) but may not react (owner, Sprint 6).
+ *   Emotions and "I'll cook it again" are one each (tapping again answers the same one; DELETE
+ *   removes it).
  *   "I cooked it" can be marked any number of times, with an optional photo and up to 500
  *   characters for the author. "My version" stays hidden until stage 2.
  * - Counts are for everyone who may read the recipe. The photo and words of "I cooked it" are for
@@ -187,12 +189,14 @@ export function registerReactions(app: FastifyInstance, db: Db, files: ObjectSto
     });
   });
 
+  // Owner's Sprint 6 answer 2: someone holding only the link may not react (yet); the link's token
+  // is not used here, so such a recipe is "not found" for them.
   app.post('/recipes/:id/reactions', async (req, reply) => {
     const user = currentUser(req);
     const { id } = idParams.parse(req.params);
-    const { share_token } = query.parse(req.query);
+    query.parse(req.query);
     const b = body.parse(req.body);
-    const out = await withUser(db, { userId: user.id, shareToken: share_token }, async (tx) => {
+    const out = await withUser(db, { userId: user.id }, async (tx) => {
       await visible(tx, id);
       if (b.photo_media_id) {
         const m = await tx.query('SELECT 1 FROM media WHERE id = $1 AND owner_id = app_user_id()', [

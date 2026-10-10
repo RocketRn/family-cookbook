@@ -15,6 +15,15 @@ export const recipeApi: RecipeApi = {
     if (cursor) q.set('cursor', cursor);
     return api().request<RecipePage>('GET', `/recipes?${q.toString()}`);
   },
+  async getByLink(token) {
+    try {
+      return await api().request<Recipe>('GET', `/r/${encodeURIComponent(token)}`);
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 'NOT_FOUND' || err.code === 'VALIDATION_ERROR'))
+        return null;
+      throw err;
+    }
+  },
   async get(id) {
     try {
       return await api().request<Recipe>('GET', `/recipes/${encodeURIComponent(id)}`);

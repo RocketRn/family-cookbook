@@ -138,8 +138,9 @@
     "saved": "🔖 Saved"
   },
   "link_recipe": {
-    "title": "Recipe by link",
-    "text": "Opening recipes from shared links is coming soon."
+    "guest_note": "Shared with you by link: you can recalculate it and cook it.",
+    "gone_title": "This link no longer works",
+    "gone_text": "The author may have stopped sharing it, or the link has changed. Ask them for a new one."
   },
   "profile": {
     "title": "Profile",

@@ -50,14 +50,26 @@ export function RecipeScreen({ me }: { me?: Me }) {
   return <RecipeView key={r.id} r={r} botStarted={me?.bot_started ?? false} />;
 }
 
-function RecipeView({ r, botStarted }: { r: Recipe; botStarted: boolean }) {
+/**
+ * The card. `guest` is the link's token when someone outside the book opened a recipe shared by
+ * link (S6-3, D-055): they read, recalculate and cook (timers too), but do not save or react.
+ */
+export function RecipeView({
+  r,
+  botStarted,
+  guest,
+}: {
+  r: Recipe;
+  botStarted: boolean;
+  guest?: string;
+}) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // FE-07: the recalculation the user chose is kept per recipe (PRD 4.8 recalc:<id>).
   const [recalc, setRecalc] = useState<RecalcState | null>(() => readRecalc(r));
   const [recalcOpen, setRecalcOpen] = useState(false);
   // FE-09: a step's timer starts from the card too (D-050).
-  const timers = useCardTimers(r, botStarted);
+  const timers = useCardTimers(r, botStarted, guest);
   const k = recalc?.k ?? 1;
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
   const langs = { recipeLang: recipeLangOf(r, uiLang), uiLang };
@@ -76,8 +88,9 @@ function RecipeView({ r, botStarted }: { r: Recipe; botStarted: boolean }) {
         <p className="hint">
           {t('recipe.by_author', { name: r.author.name ?? t('recipe.former_member') })}
         </p>
+        {guest && <p className="hint">{t('link_recipe.guest_note')}</p>}
         {/* UC-10, D-051: someone else's recipe can go on your "Saved" shelf. */}
-        {!r.is_mine && (
+        {!r.is_mine && !guest && (
           <div>
             <SaveToggle recipe={r} />
           </div>
@@ -113,7 +126,9 @@ function RecipeView({ r, botStarted }: { r: Recipe; botStarted: boolean }) {
         <Button
           className="grow"
           disabled={r.steps.length === 0}
-          onClick={() => navigate(`/cook/${r.id}`)}
+          onClick={() =>
+            navigate(guest ? `/cook/${r.id}?t=${encodeURIComponent(guest)}` : `/cook/${r.id}`)
+          }
         >
           {t('recipe.cook')}
         </Button>
@@ -189,8 +204,8 @@ function RecipeView({ r, botStarted }: { r: Recipe; botStarted: boolean }) {
           </p>
         </section>
       )}
-      <Reactions recipe={r} />
-      <RecipeActions recipe={r} />
+      {!guest && <Reactions recipe={r} />}
+      {!guest && <RecipeActions recipe={r} />}
       <CardTimersPanel timers={timers} />
       <TimerAlarm timers={timers} />
       <WriteAccessSheet timers={timers} />

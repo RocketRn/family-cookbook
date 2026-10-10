@@ -10,8 +10,9 @@ import { useCookTimers, type CookTimers } from '../cook/useCookTimers';
  * question about messages, the alarm), kept for this card only: a timer started here without a
  * connection syncs while the card is open, and is forgotten when it closes (cooking mode keeps it).
  */
-export function useCardTimers(r: Recipe, botStarted: boolean): CookTimers {
-  const stRef = useRef<CookState>(newCookState(r, null));
+export function useCardTimers(r: Recipe, botStarted: boolean, guest?: string): CookTimers {
+  // A guest's timers carry the link's token (S6-3, D-055).
+  const stRef = useRef<CookState>(newCookState(r, null, guest));
   const [, redraw] = useState(0);
   const save = (next: CookState) => {
     stRef.current = next;

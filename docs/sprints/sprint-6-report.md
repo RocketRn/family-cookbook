@@ -8,8 +8,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | ----- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------ | --------- |
 | S6-0  | Plan, this progress file, the bot library decision                         | done                                                                     | `119365a` |
 | S6-1  | Fixes from the first Telegram test                                         | placeholder: the owner sends the findings later as a separate small task |           |
-| S6-2  | Forward a recipe to the bot → a private draft; webhook secret proven       | done                                                                     | (this)    |
-| S6-3  | Sharing a recipe, and the screen for someone who opens a recipe link       | next                                                                     |           |
+| S6-2  | Forward a recipe to the bot → a private draft; webhook secret proven       | done                                                                     | `2452a46` |
+| S6-3  | The screen for someone who opens a recipe link (guest)                     | done                                                                     | (this)    |
+| S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | next                                                                     |           |
 | S6-4  | Observability: the timer delay figure, health, an uptime alert             | to do                                                                    |           |
 | S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | to do                                                                    |           |
 | S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | to do                                                                    |           |
@@ -54,3 +55,11 @@ Additions:
 - The stand-in has a "forward to the bot" form, and a new browser test goes from that form to the published recipe.
 - Red first: 22 of 30 new API tests failed (the 8 that passed check that nothing happens: strangers, groups, other bots, refusals, the log), 3 web tests and 2 stand-in tests failed.
 - Guides: RUN-LOCALLY 5.13 (item 4) and 7.1; DEPLOY-GCP checklist "Переслать рецепт боту", a note in "Обновить приложение", a row in section 13. Test plan P15.
+
+### S6-3 A recipe opened by its link, by someone outside the book
+
+- The `r_<token>` link now opens the recipe (it said "coming soon"): someone outside the book reads it, recalculates it and cooks it with timers; the bot's timer message works as for anyone. No saving, no reactions, no "I cooked it" (owner's answer 2). The author and members of the book get the usual card. A link that opens nothing says "This link no longer works" (D-055).
+- The server enforces it: timers and cooking sessions take the link's token (the same row-level security as reading); reactions no longer accept it, so a guest cannot react through the API either. The Sprint 5 test "someone with the link may react" now checks the opposite, by the owner's answer.
+- Cooking keeps the token on the device, so cooking opened again from the timer's message still works.
+- Red first: 6 of 6 new API tests (and the updated reaction test) and 6 of 6 web tests failed. A new browser test opens a link as demo user 3 (outside the book, Swedish) and gets the timer's message.
+- The guide sections come with the "Share" button (S6-3b), which is how the author gets the link.
