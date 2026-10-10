@@ -212,6 +212,28 @@ describe('the stand-in as the sender of updates (webhook)', () => {
     expect(b!.update_id).toBe((a!.update_id as number) + 1);
   });
 
+  it('a restarted stand-in numbers its updates above the earlier ones (found by the browser tests)', async () => {
+    // Telegram's update ids only grow, and the API ignores one it has seen. A stand-in that
+    // started again from 1 had its /start and block presses ignored after every demo restart.
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    await bot.pressStart(100000001);
+    const before = received[0]!.body!.update_id as number;
+    const again = await startFakeTelegram({ token: '123:fake' });
+    try {
+      await fetch(`${again.url}/bot123:fake/setWebhook`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: hookUrl, secret_token: 'local-secret-0123456789' }),
+      });
+      await again.pressStart(100000001);
+    } finally {
+      await again.close();
+    }
+    const after = received[1]!.body!.update_id as number;
+    expect(after).toBeGreaterThan(before);
+    expect(Number.isSafeInteger(after)).toBe(true);
+  });
+
   it('blocking the bot sends my_chat_member and refuses messages (403); unblocking undoes both', async () => {
     await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
     await bot.blockBot(100000003);

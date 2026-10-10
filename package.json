@@ -13,6 +13,7 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "pnpm -r --workspace-concurrency=1 test",
+    "e2e": "pnpm --filter @cookbook/e2e e2e",
     "db:migrate": "pnpm --filter @cookbook/api db:migrate",
     "db:seed": "pnpm --filter @cookbook/api db:seed",
     "i18n:check": "node scripts/check-i18n.mjs",

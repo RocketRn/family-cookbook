@@ -58,7 +58,7 @@ function api() {
         client_timer_id: body.client_timer_id,
         ends_at: iso(Date.now() + startedRunsMs),
       });
-      list = [t];
+      list = [...list, t];
       return json(201, { timer: t, server_now: iso(Date.now()) });
     },
     [`DELETE /api/timers/${TIMER}`]: () => {
@@ -144,6 +144,25 @@ describe('timers on the recipe card (outside cooking mode)', () => {
     await waitFor(() => expect(listCalls).toBeGreaterThan(0));
     expect(screen.queryByRole('region', { name: 'Timers' })).toBeNull();
   });
+
+  it('a timer that had already ended before the card opened is not kept on it; one that ends on the card stays as "ready!"', async () => {
+    // Found by the browser tests (S5-9): a timer stays in the server's list for 15 minutes after
+    // it ends, and the panel kept at the bottom of every card covered the card's buttons.
+    const before = iso(Date.now() - 60_000);
+    list = [serverTimer({ label: 'Духовка', status: 'fired', ends_at: before, fired_at: before })];
+    api();
+    startedRunsMs = 1500;
+    renderApp(`/recipe/${GOLUBTSY_ID}`);
+    await waitFor(() => expect(listCalls).toBeGreaterThan(0));
+    await expect(
+      screen.findByRole('region', { name: 'Timers' }, { timeout: 500 }),
+    ).rejects.toThrow();
+    fireEvent.click(await screen.findByRole('button', { name: '⏱ Start timer: Тушить, 1:30:00' }));
+    await screen.findByRole('alert', {}, { timeout: 6000 });
+    const region = screen.getByRole('region', { name: 'Timers' });
+    expect(within(region).getByRole('button', { name: '✅ Тушить · ready!' })).toBeTruthy();
+    expect(within(region).queryByRole('button', { name: /Духовка/ })).toBeNull();
+  }, 15_000);
 
   it('a timer started in cooking mode shows on the card too, with +1 min and Cancel', async () => {
     list = [serverTimer()];

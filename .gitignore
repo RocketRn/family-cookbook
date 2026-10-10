@@ -11,3 +11,6 @@ coverage
 # Production settings and backups on the server (deploy/gcp)
 deploy/gcp/.env
 deploy/gcp/*.dump
+# Playwright output (pnpm e2e)
+e2e/results/
+e2e/report/

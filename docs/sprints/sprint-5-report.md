@@ -14,10 +14,10 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S5-5  | FE-10 reactions and "I cooked it" on screen                        | done                                                               | `f2e2a04` |
 | S5-6  | Notification settings, and the new-recipe message (off by default) | done                                                               | `5b82582` |
 | S5-7  | FE-09 timers, full version                                         | done                                                               | `e2ae9c7` |
-| S5-8  | Saved recipes                                                      | done                                                               | (this)    |
-| S5-9  | QA-01 automated browser tests in CI                                | next                                                               |           |
+| S5-8  | Saved recipes                                                      | done                                                               | `2e31248` |
+| S5-9  | QA-01 automated browser tests in CI                                | done                                                               | (this)    |
 | —     | Fixes from the first Telegram test                                 | placeholder: the owner sends the findings later as a separate task |           |
-| S5-10 | Wrap-up: clean clone, CI, guides, report, Sprint 6 plan            | to do                                                              |           |
+| S5-10 | Wrap-up: clean clone, CI, guides, report, Sprint 6 plan            | next                                                               |           |
 
 ## The owner's answers (Sprint 5 approval)
 
@@ -113,3 +113,15 @@ Additions:
 - Red first: 6 of 6 API tests and 5 of 6 web tests failed (the one that passed checks that your own recipe has no "Save", which the old card also satisfied). Two older tests described the sample shelf and were replaced; one navigation test now uses the real shelf.
 - Not here: the book's filter sheet on the "Saved" tab (the API takes the filters already).
 - Guides: RUN-LOCALLY 5.10, DEPLOY-GCP checklist "Saved".
+
+### S5-9 QA-01 Browser tests in CI
+
+- 15 Playwright tests (`e2e/`) drive Chromium at phone width through the main paths of the test plan, against the real stack: API, database, photo storage, worker and the Telegram stand-in. One is PRD QA-01's chain by two people: the keeper pastes a recipe text, checks it and publishes it; a member doubles it, cooks it with a timer (the bot's message arrives, its button opens the step), marks "I cooked it" with a few words; the author gets the bot's message and sees it on the card. The others: book and search, languages and dark theme, writing a recipe with a 4000 px photo, editing, leaving unsaved changes, deleting, recalculation from one product and the egg/garlic hints, timers from the card, offline and with the bot blocked, reactions, "Saved", notification settings, and the bot's answer to /start (D-052; `docs/QA.md` section 4 maps paths to files).
+- CI job "Browser tests" starts the stack with the owner's command `pnpm demo` (so the demo script is checked too) and runs `pnpm e2e`; on failure it keeps the report, screenshots and step recordings for 7 days. Locally: RUN-LOCALLY 7.1.
+- A test fails on any browser console error or an API answer of 500 or more. No retries. The tests' recipes carry "E2E ·" and are deleted at the end.
+- All 15 passed three runs in a row on the demo here (about 55 s each).
+- What the browser tests found, each fixed with a test that failed first:
+  - **The bot stand-in after a demo restart.** It numbered Telegram updates from 1 again, and the API (correctly) ignores a number it has seen, so after `pnpm demo:stop` and `pnpm demo` the "/start" and "block the bot" buttons did nothing. It now numbers them from the clock. Red first: the new stand-in test got 1 after 3.
+  - **The card's timer panel.** A timer stays in the server's list for 15 minutes after it ends, and the panel kept at the bottom of every card kept showing it ("✅ … ready!"), also on other recipes, covering the card's buttons. The panel now shows running timers, "not delivered" ones and ones that ended while the card was open (D-050 clarified); cooking mode is unchanged. Red first: the new web test saw the old timer on the card.
+- Request limits: the robot clicks far faster than a person, so the test stack raises the per-person and per-address limits; the PRD limits themselves are unchanged and tested in the API tests. Without the raised limits, a run fails with a 429 message that says what to do.
+- Noticed, not changed (for Sprint 6): the card's timer panel shows a timer by its name only, so a running timer of another recipe can look like this recipe's; the recalculation hints for whole items ("or whisk 2 pcs and take ⅔") are written in the interface language, with English unit names next to a Russian recipe's "шт.".

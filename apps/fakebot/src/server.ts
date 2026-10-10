@@ -105,7 +105,9 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
   let calls = 0;
   let nextId = 1;
   let webhook: Webhook | null = null;
-  let nextUpdateId = 1;
+  // Telegram's update ids only grow, and the API ignores one it has already seen, so a restarted
+  // stand-in must not start again from 1: it starts from the clock (a safe integer, ~1.8e15).
+  let nextUpdateId = Date.now() * 1000;
   let lastDelivery: { date: number; status: number | null; error: string | null } | null = null;
 
   async function sendUpdate(update: Record<string, unknown>): Promise<number | null> {

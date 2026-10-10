@@ -1,0 +1,16 @@
+{
+  "name": "@cookbook/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser tests of the main paths (QA-01), run against the local demo stack (pnpm demo).",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "^24.19.1",
+    "typescript": "^5.7.2"
+  }
+}

@@ -6,3 +6,5 @@ claude-code-kickoff-prompt.md
 docs/PRD.md
 docs/BRIEF.md
 .demo
+e2e/results
+e2e/report
