@@ -22,6 +22,8 @@ import { registerCspReport } from './routes/cspReport.js';
 import { registerHealth } from './routes/health.js';
 import { WorkerParserPool, type ImportParser } from './import/parserPool.js';
 import { registerImport } from './import/routes.js';
+import type { TelegramTarget } from './notify/target.js';
+import { registerShare } from './recipes/share.js';
 import { registerMe } from './routes/me.js';
 import { S3Storage, type ObjectStorage } from './storage/storage.js';
 import { registerTimers } from './timers/routes.js';
@@ -35,6 +37,8 @@ export type AppDeps = {
   importParser?: ImportParser;
   /** Where logs go (tests capture them); stdout by default. */
   logStream?: { write(line: string): void };
+  /** S6-3b: the Bot API for preparing shared messages; none: "Share" falls back to the link. */
+  telegram?: TelegramTarget | null;
 };
 
 /** Honour a caller's x-request-id only if it is short and plain; otherwise generate one. */
@@ -73,6 +77,7 @@ export async function buildApp({
   storage,
   importParser,
   logStream,
+  telegram,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -152,6 +157,13 @@ export async function buildApp({
     registerTimers(authed, db);
     registerCookSessions(authed, db);
     registerReactions(authed, db, files);
+    registerShare(
+      authed,
+      db,
+      files,
+      { botUsername: config.botUsername, appShortName: config.miniAppShortName },
+      telegram ?? null,
+    );
   });
 
   return app;

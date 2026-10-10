@@ -53,3 +53,17 @@ export function telegramTarget(
     ? { baseUrl: env.TELEGRAM_API_BASE, token: env.BOT_TOKEN, allowReal: false, allowLocal: true }
     : null;
 }
+
+/**
+ * S6-3b (D-056): the API prepares shared messages (savePreparedInlineMessage). Same rules as the
+ * worker, but not required: a production server without TELEGRAM_LIVE=yes, or with a problem in
+ * these settings, simply has none, and "Share" falls back to the link.
+ */
+export function apiTelegramTarget(env: Env): TelegramTarget | null {
+  if (env.NODE_ENV === 'production' && env.TELEGRAM_LIVE !== 'yes') return null;
+  let ok = true;
+  const target = telegramTarget(env, () => {
+    ok = false;
+  });
+  return ok ? target : null;
+}

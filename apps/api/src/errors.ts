@@ -24,6 +24,7 @@ export type ErrorCode =
   | 'TIMER_NOT_RUNNING'
   | 'TIMER_TOO_LONG'
   | 'TIMER_EXPIRED'
+  | 'NOT_SHAREABLE'
   | 'INTERNAL';
 
 export class AppError extends Error {

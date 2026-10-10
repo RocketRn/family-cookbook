@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { ConfigError, loadConfig } from './config.js';
 import { createPool } from './db/pool.js';
 import { verifyRuntimeRole } from './db/roles.js';
+import { apiTelegramTarget } from './notify/target.js';
 import { S3Storage } from './storage/storage.js';
 
 async function main(): Promise<void> {
@@ -31,7 +32,9 @@ async function main(): Promise<void> {
       .ensureBucket()
       .catch((err) => console.warn('S3 bucket check failed:', err.message));
   }
-  const app = await buildApp({ config, db, storage });
+  // S6-3b: the Bot API for "Share" (D-056); none without the arming switch in production.
+  const telegram = apiTelegramTarget(process.env);
+  const app = await buildApp({ config, db, storage, telegram });
   if (config.initDataTokens.length > 1) {
     app.log.warn('ALLOW_DEV_INIT_DATA is on: initData signed with the fake dev token is accepted');
   }

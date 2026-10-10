@@ -194,7 +194,8 @@
     "TOO_MANY_TIMERS": "Högst 10 timers kan gå samtidigt. Stoppa en av dem först.",
     "TIMER_NOT_RUNNING": "Den här timern har redan gått ut eller stoppats.",
     "TIMER_TOO_LONG": "En timer kan gå i högst 24 timmar.",
-    "TIMER_EXPIRED": "Tiden för den här timern har redan gått ut."
+    "TIMER_EXPIRED": "Tiden för den här timern har redan gått ut.",
+    "NOT_SHAREABLE": "Bara ett publicerat recept i boken eller ett som delas via länk kan delas."
   },
   "time": {
     "h": "{{count}} tim",
@@ -476,5 +477,13 @@
     "new_recipe": "Ett nytt recept i boken",
     "new_recipe_hint": "Ett meddelande några minuter efter att någon lagt till det.",
     "timers_hint": "Timermeddelanden kommer alltid: det är dina timrar."
+  },
+  "share": {
+    "title": "Dela receptet",
+    "send": "Skicka till en chatt",
+    "copy": "Kopiera länk",
+    "sent": "Skickat",
+    "for_book": "Bara medlemmar i din bok kan öppna det. För att dela med vem som helst, välj ”Via länk” under ”Vem kan se det” när du redigerar.",
+    "for_anyone": "Alla med länken kan öppna, räkna om och laga receptet. Bara du kan ändra det."
   }
 }

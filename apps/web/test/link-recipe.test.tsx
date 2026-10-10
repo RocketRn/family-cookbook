@@ -84,6 +84,7 @@ describe('a recipe opened by its link, by someone outside the book', () => {
     expect(screen.queryByRole('region', { name: 'Reactions' })).toBeNull();
     expect(screen.queryByRole('button', { name: /I cooked it/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   });
 
   it('a step’s timer from the card carries the link’s token', async () => {

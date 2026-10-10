@@ -20,6 +20,7 @@ import type { Me } from '../api/endpoints';
 import { TimerAlarm, WriteAccessSheet } from '../cook/TimerParts';
 import { CardTimersPanel, useCardTimers } from '../recipe/CardTimers';
 import { Reactions } from '../recipe/Reactions';
+import { canShare, ShareButton } from '../recipe/ShareSheet';
 import { StepList } from '../recipe/StepList';
 import { VideoPlayer } from '../recipe/VideoPlayer';
 import { useToastStore } from '../state/store';
@@ -89,10 +90,12 @@ export function RecipeView({
           {t('recipe.by_author', { name: r.author.name ?? t('recipe.former_member') })}
         </p>
         {guest && <p className="hint">{t('link_recipe.guest_note')}</p>}
-        {/* UC-10, D-051: someone else's recipe can go on your "Saved" shelf. */}
-        {!r.is_mine && !guest && (
-          <div>
-            <SaveToggle recipe={r} />
+        {!guest && (!r.is_mine || canShare(r)) && (
+          <div className="row row--wrap">
+            {/* UC-10, D-051: someone else's recipe can go on your "Saved" shelf. */}
+            {!r.is_mine && <SaveToggle recipe={r} />}
+            {/* S6-3b, D-056: into a Telegram chat, with the recipe's own card. */}
+            {canShare(r) && <ShareButton recipe={r} />}
           </div>
         )}
       </div>

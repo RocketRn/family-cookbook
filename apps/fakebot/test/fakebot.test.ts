@@ -366,3 +366,65 @@ describe('sendPhoto', () => {
     expect(bot.messages[0]).toMatchObject({ photo: null });
   });
 });
+
+/** S6-3b (PRD 4.7): sharing a recipe prepares a message the person sends with shareMessage. */
+describe('savePreparedInlineMessage', () => {
+  let bot: FakeTelegram;
+  beforeAll(async () => {
+    bot = await startFakeTelegram({ token: '123:fake' });
+  });
+  afterAll(() => bot.close());
+  beforeEach(() => bot.clear());
+  const prepare = (body: object) =>
+    fetch(`${bot.url}/bot123:fake/savePreparedInlineMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const article = {
+    type: 'article',
+    id: 'share-1',
+    title: 'Голубцы',
+    input_message_content: { message_text: '📖 <b>Голубцы</b>', parse_mode: 'HTML' },
+    reply_markup: { inline_keyboard: [[{ text: 'Open', url: 'https://t.me/b/app?startapp=x' }]] },
+  };
+
+  it('keeps the prepared message and answers with its id', async () => {
+    const r = await prepare({ user_id: 100000002, result: article, allow_user_chats: true });
+    const body = (await r.json()) as {
+      ok: boolean;
+      result: { id: string; expiration_date: number };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.id).toMatch(/^prepared-\d+$/);
+    expect(body.result.expiration_date).toBeGreaterThan(Date.now() / 1000);
+    expect(bot.prepared).toEqual([
+      expect.objectContaining({ id: body.result.id, user_id: 100000002, result: article }),
+    ]);
+    const page = await (await fetch(`${bot.url}/`)).text();
+    expect(page).toContain('Голубцы');
+  });
+
+  it.each([
+    [{ result: article }],
+    [{ user_id: 7, result: { ...article, type: 'sticker' } }],
+    [
+      {
+        user_id: 7,
+        result: { ...article, input_message_content: { message_text: '<b>x', parse_mode: 'HTML' } },
+      },
+    ],
+    [{ user_id: 7, result: article, allow_user_chats: false }],
+  ])('refuses what Telegram would (%j)', async (body) => {
+    const r = await prepare(body);
+    expect(r.status).toBe(400);
+    expect(bot.prepared).toEqual([]);
+  });
+
+  it('can be made to fail, like any call', async () => {
+    bot.failNext(1, { status: 400, description: 'Bad Request: test' });
+    expect((await prepare({ user_id: 7, result: article, allow_user_chats: true })).status).toBe(
+      400,
+    );
+  });
+});

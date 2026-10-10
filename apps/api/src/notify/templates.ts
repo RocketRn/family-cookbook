@@ -253,6 +253,32 @@ export function renderBotStart(p: { start?: unknown }, lang: Lang, links: Links)
   };
 }
 
+/** S6-3b (D-056): the message a person shares into a chat: the title, the author, a button. */
+const SHARE_TEXTS: Record<Lang, { by: string }> = {
+  ru: { by: 'Автор: {name}' },
+  uk: { by: 'Автор: {name}' },
+  en: { by: 'By {name}' },
+  sv: { by: 'Av {name}' },
+};
+
+export function renderShared(
+  p: { title: string; author_name: string | null },
+  lang: Lang,
+  link: string,
+): Rendered {
+  const lines = [`📖 <b>${safe(p.title || '…', TITLE_MAX)}</b>`];
+  if (p.author_name)
+    lines.push(
+      fill((SHARE_TEXTS[lang] ?? SHARE_TEXTS.en).by, { name: safe(p.author_name, NAME_MAX) }),
+    );
+  return {
+    text: lines.join('\n'),
+    reply_markup: {
+      inline_keyboard: [[{ text: (COOKED_TEXTS[lang] ?? COOKED_TEXTS.en).open, url: link }]],
+    },
+  };
+}
+
 /** S6-2 (D-054): the bot's answers to a recipe forwarded to it. */
 export type BotReplyPayload = { kind?: unknown; recipe_id?: unknown; title?: unknown };
 

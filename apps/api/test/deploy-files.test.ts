@@ -60,9 +60,10 @@ describe('deploy/gcp/compose.yml', () => {
     expect(service('s3check')).toMatch(/AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED/);
   });
 
-  it('only the worker may be armed to send real Telegram messages, and only from .env (S5-2)', () => {
-    expect(service('worker')).toMatch(/TELEGRAM_LIVE: \$\{TELEGRAM_LIVE:-no\}/);
-    for (const s of ['postgres', 'migrate', 'api', 'web', 's3check']) {
+  it('only the worker and the API ("Share") may be armed for real Telegram, only from .env (S5-2, S6-3b)', () => {
+    for (const s of ['worker', 'api'])
+      expect(service(s), s).toMatch(/TELEGRAM_LIVE: \$\{TELEGRAM_LIVE:-no\}/);
+    for (const s of ['postgres', 'migrate', 'web', 's3check']) {
       expect(service(s), s).not.toMatch(/TELEGRAM_LIVE/);
     }
   });

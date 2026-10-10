@@ -191,7 +191,8 @@
     "TOO_MANY_TIMERS": "At most 10 timers can run at once. Stop one of them first.",
     "TIMER_NOT_RUNNING": "This timer has already ended or been stopped.",
     "TIMER_TOO_LONG": "A timer can run for at most 24 hours.",
-    "TIMER_EXPIRED": "This timer has already run out."
+    "TIMER_EXPIRED": "This timer has already run out.",
+    "NOT_SHAREABLE": "Only a published recipe in the book or shared by link can be shared."
   },
   "time": {
     "h": "{{count}} h",
@@ -473,5 +474,13 @@
     "new_recipe": "A new recipe in the book",
     "new_recipe_hint": "A message a few minutes after someone adds one.",
     "timers_hint": "Timer messages always arrive: they are yours."
+  },
+  "share": {
+    "title": "Share the recipe",
+    "send": "Send to a chat",
+    "copy": "Copy link",
+    "sent": "Sent",
+    "for_book": "Only members of your book can open it. To share it with anyone, choose “By link” under “Who can see it” when editing.",
+    "for_anyone": "Anyone with the link can open it, recalculate it and cook it. Only you can change it."
   }
 }

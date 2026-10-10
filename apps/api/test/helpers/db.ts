@@ -1,3 +1,4 @@
+import type { TelegramTarget } from '../../src/notify/target.js';
 import type { ImportParser } from '../../src/import/parserPool.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
@@ -47,6 +48,7 @@ export async function testApp(
     env?: Record<string, string>;
     logStream?: { write(line: string): void };
     importParser?: ImportParser;
+    telegram?: TelegramTarget | null;
   } = {},
 ): Promise<FastifyInstance> {
   return buildApp({
@@ -56,6 +58,7 @@ export async function testApp(
     storage: opts.storage ?? new MemoryStorage(),
     logStream: opts.logStream,
     importParser: opts.importParser,
+    telegram: opts.telegram,
   });
 }
 

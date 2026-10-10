@@ -76,6 +76,9 @@ services:
       BOT_USERNAME: ${BOT_USERNAME:?Fill in BOT_USERNAME in .env}
       MINI_APP_SHORT_NAME: ${MINI_APP_SHORT_NAME:?Fill in MINI_APP_SHORT_NAME in .env}
       ALLOW_DEV_INIT_DATA: 'false'
+      # S6-3b: "Share" prepares the recipe's message with the Bot API, only when armed by hand in
+      # .env on the real server (S5-2). Without it the API still runs, and "Share" gives the link.
+      TELEGRAM_LIVE: ${TELEGRAM_LIVE:-no}
       # BE-07: Telegram sends this with every update for the bot (made by the guide's command, 9.5).
       BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET:?Fill in BOT_WEBHOOK_SECRET in .env}
       CORS_ORIGIN: https://${DOMAIN:?Fill in DOMAIN in .env}

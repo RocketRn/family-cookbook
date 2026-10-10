@@ -9,9 +9,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S6-0  | Plan, this progress file, the bot library decision                         | done                                                                     | `119365a` |
 | S6-1  | Fixes from the first Telegram test                                         | placeholder: the owner sends the findings later as a separate small task |           |
 | S6-2  | Forward a recipe to the bot → a private draft; webhook secret proven       | done                                                                     | `2452a46` |
-| S6-3  | The screen for someone who opens a recipe link (guest)                     | done                                                                     | (this)    |
-| S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | next                                                                     |           |
-| S6-4  | Observability: the timer delay figure, health, an uptime alert             | to do                                                                    |           |
+| S6-3  | The screen for someone who opens a recipe link (guest)                     | done                                                                     | `d223223` |
+| S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | done                                                                     | (this)    |
+| S6-4  | Observability: the timer delay figure, health, an uptime alert             | next                                                                     |           |
 | S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | to do                                                                    |           |
 | S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | to do                                                                    |           |
 | S6-7  | Small Sprint 5 findings: Saved filters, timer's recipe name, hint language | to do                                                                    |           |
@@ -63,3 +63,12 @@ Additions:
 - Cooking keeps the token on the device, so cooking opened again from the timer's message still works.
 - Red first: 6 of 6 new API tests (and the updated reaction test) and 6 of 6 web tests failed. A new browser test opens a link as demo user 3 (outside the book, Swedish) and gets the timer's message.
 - The guide sections come with the "Share" button (S6-3b), which is how the author gets the link.
+
+### S6-3b Sharing a recipe into a Telegram chat
+
+- **"Share"** on a published recipe (in the book or shared by link): a sheet says who the link opens it for, with **Send to a chat** and **Copy link**. The server prepares a message with `savePreparedInlineMessage` (the cover photo or the title, the author, an "Open the recipe" button, in the sharer's language) and the app sends it with Telegram's `shareMessage`, so the chat shows the recipe, not the app's generic card. Without it (an older Telegram, the bot not set up, Telegram refused) Telegram's share screen gets the link (D-056).
+- The API calls Telegram only through the guarded client, armed by the same `TELEGRAM_LIVE=yes` as the worker, now passed to the API in `compose.yml`; without it the API still starts and "Share" gives the link. A test proves that even an armed setting never reaches Telegram from a test run.
+- The stand-in prepares messages too and shows them on its page ("Поделились рецептом"), with a button that opens the recipe as dev user 3 (outside the book): the demo can show the whole path, and a browser test follows it.
+- Not verified: how Telegram shows the prepared message on each phone (A-29, PRD 4.7 asks to check with a test bot): in the first-test checklist.
+- Red first: 6 of 6 API tests, 6 of 6 stand-in tests, 5 of 7 web tests (the 2 that passed check that a draft and a private recipe have no button, which the old card also satisfied), and the deploy-file check.
+- Guides: RUN-LOCALLY 5.16 (new: Share and the guest), DEPLOY-GCP 9.5 (what the switch also does) and checklist "Поделиться рецептом". Test plan P16.

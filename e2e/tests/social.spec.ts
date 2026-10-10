@@ -98,11 +98,11 @@ test('the bot answers /start in the person’s language, with a button into the 
   const form = page.locator('form[action="/__start"]');
   await form.locator('select').selectOption(MEMBER.chat);
   await form.getByRole('button', { name: 'Нажать /start' }).click();
-  // The answer goes out through the outbox, like every bot message; the page shows it on top.
+  // The answer goes out through the outbox, like every bot message; the page shows it.
   const msg = await botMessage(MEMBER.chat, after, '👋 Hello! This is your family cookbook');
   expect(msg.reply_markup?.inline_keyboard[0]?.[0]?.text).toBe('Open the cookbook');
   await page.reload();
-  const newest = page.getByRole('listitem').first();
-  await expect(newest).toContainText(`#${msg.message_id} · chat ${MEMBER.chat}`);
-  await expect(newest).toContainText('Open the cookbook');
+  const answer = page.getByRole('listitem').filter({ hasText: `#${msg.message_id} · chat` });
+  await expect(answer).toContainText(`chat ${MEMBER.chat}`);
+  await expect(answer).toContainText('Open the cookbook');
 });

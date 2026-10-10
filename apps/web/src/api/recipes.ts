@@ -1,6 +1,7 @@
 import type {
   Difficulty,
   ImportNotes,
+  ShareAnswer,
   ImportResult,
   Photo,
   RecipeListItem,
@@ -27,6 +28,8 @@ export interface RecipeApi {
   /** POST /recipes and PATCH /recipes/:id with the whole recipe (D-022). */
   /** GET /r/:token: a recipe shared by link (PRD UC-08); null when the link opens nothing. */
   getByLink(token: string): Promise<Recipe | null>;
+  /** POST /recipes/:id/share: the link, and a message prepared for Telegram's shareMessage. */
+  share(id: string): Promise<ShareAnswer>;
   create(body: object): Promise<Recipe>;
   update(id: string, body: object): Promise<Recipe>;
   /** The author or the book keeper hides a recipe from the book (PRD 3.3). */

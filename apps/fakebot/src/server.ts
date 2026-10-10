@@ -8,6 +8,16 @@ import { parseTelegramHtml } from './html.js';
  * page that shows every message "sent". For development, the demo and tests only: it never talks
  * to Telegram, and it is never deployed.
  */
+/** S6-3b: a message prepared for the person to share (savePreparedInlineMessage). */
+export type PreparedMessage = {
+  id: string;
+  user_id: number;
+  result: Record<string, unknown>;
+  /** The text the chat will show (tags removed). */
+  plain: string;
+  date: number;
+};
+
 export type SentMessage = {
   message_id: number;
   chat_id: string;
@@ -46,6 +56,8 @@ export type FakeTelegram = {
   failNext(count: number, failure: Failure): void;
   /** Every message to this chat gets 403, like a user who blocked the bot. */
   blockChat(chatId: string | number): void;
+  /** Messages prepared for sharing (S6-3b), oldest first. */
+  prepared: PreparedMessage[];
   /** Forgets messages, failures, blocks and the webhook. */
   clear(): void;
   close(): Promise<void>;
@@ -102,6 +114,7 @@ const DESCRIPTIONS: Record<Failure['status'], string> = {
 
 export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegram> {
   const messages: SentMessage[] = [];
+  const prepared: PreparedMessage[] = [];
   const queue: Failure[] = [];
   const blocked = new Set<string>();
   let calls = 0;
@@ -212,6 +225,48 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
   }
 
+  /** Bot API 8.0: an inline result the person can send with WebApp.shareMessage (PRD 4.7). */
+  async function prepare(req: IncomingMessage, res: ServerResponse) {
+    calls++;
+    const body = await readJson(req);
+    const queued = queue.shift();
+    if (queued) return fail(res, queued);
+    const userId = Number(body.user_id);
+    const result = body.result as Record<string, unknown> | undefined;
+    const chats = [
+      'allow_user_chats',
+      'allow_bot_chats',
+      'allow_group_chats',
+      'allow_channel_chats',
+    ];
+    if (!Number.isSafeInteger(userId) || userId <= 0)
+      return fail(res, { status: 400, description: 'Bad Request: user_id is required' });
+    if (
+      typeof result !== 'object' ||
+      result === null ||
+      !['article', 'photo'].includes(String(result.type)) ||
+      typeof result.id !== 'string'
+    )
+      return fail(res, { status: 400, description: 'Bad Request: RESULT_INVALID' });
+    if (!chats.some((k) => body[k] === true))
+      return fail(res, { status: 400, description: 'Bad Request: no chat types allowed' });
+    const content = (result.input_message_content ?? {}) as Record<string, unknown>;
+    const text = String((result.type === 'photo' ? result.caption : content.message_text) ?? '');
+    const mode = result.type === 'photo' ? result.parse_mode : content.parse_mode;
+    if (result.type === 'photo' && !/^https?:\/\/\S+$/.test(String(result.photo_url ?? '')))
+      return fail(res, { status: 400, description: 'Bad Request: photo_url' });
+    let plain = text;
+    if (mode === 'HTML') {
+      const parsed = parseTelegramHtml(text);
+      if (!parsed.ok) return fail(res, { status: 400, description: parsed.description });
+      plain = parsed.plain;
+    }
+    const id = `prepared-${prepared.length + 1}`;
+    const date = Math.floor(Date.now() / 1000);
+    prepared.push({ id, user_id: userId, result, plain, date });
+    reply(res, 200, { ok: true, result: { id, expiration_date: date + 86_400 } });
+  }
+
   async function botMethod(
     req: IncomingMessage,
     res: ServerResponse,
@@ -268,6 +323,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       webhook = null;
       return reply(res, 200, { ok: true, result: true, description: 'Webhook was deleted' });
     }
+    if (method === 'savePreparedInlineMessage') return prepare(req, res);
     if (method !== 'sendMessage' && method !== 'sendPhoto')
       return reply(res, 404, {
         ok: false,
@@ -376,7 +432,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     if (action && req.method === 'POST') return void pageAction(req, res, action).catch(done);
     if (url.pathname === '/' && req.method === 'GET') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      return void res.end(page(messages, opts.appUrl, webhook, lastDelivery, blocked));
+      return void res.end(page(messages, opts.appUrl, webhook, lastDelivery, blocked, prepared));
     }
     reply(res, 404, { ok: false, error_code: 404, description: 'Not Found' });
   });
@@ -405,8 +461,10 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     blockChat(chatId) {
       blocked.add(String(chatId));
     },
+    prepared,
     clear() {
       messages.length = 0;
+      prepared.length = 0;
       queue.length = 0;
       blocked.clear();
       calls = 0;
@@ -492,7 +550,17 @@ function page(
   webhook: Webhook | null,
   last: { date: number; status: number | null; error: string | null } | null,
   blocked: Set<string>,
+  prepared: PreparedMessage[] = [],
 ): string {
+  // Who opens a shared recipe: shown as dev user 3, who is not in the demo book (a guest).
+  const shared = [...prepared]
+    .reverse()
+    .slice(0, 5)
+    .map((p) => {
+      const r = p.result as { photo_url?: string; reply_markup?: unknown };
+      return `<li><div class="meta">${esc(p.id)} · от ${esc(String(p.user_id))}</div>${r.photo_url ? `<img class="photo" src="${esc(r.photo_url)}" alt="">` : ''}<div class="text">${esc(p.plain)}</div>${buttons(r.reply_markup, '100000003', appUrl)}</li>`;
+    })
+    .join('');
   const items = [...messages]
     .reverse()
     .map(
@@ -512,6 +580,7 @@ form{margin:0 0 8px;display:flex;flex-wrap:wrap;gap:6px}input,select,button,text
 .photo{max-width:100%;border-radius:8px;margin-bottom:6px}.meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8;text-decoration:none}</style>
 </head><body><h1>Сообщения бота</h1><p>Локальная имитация Telegram: эти сообщения никуда не отправлены. Страница обновляется сама.</p>
 ${chatPanel(webhook, last, blocked)}
+${shared ? `<section><h2>Поделились рецептом</h2><p class="note">Так сообщение выглядит в чате у того, кому его переслали. Кнопка открывает рецепт как пользователь 3 (он не в книге).</p><ul>${shared}</ul></section>` : ''}
 ${items ? `<ul>${items}</ul>` : '<p><b>Пока сообщений нет.</b> Запустите таймер в режиме готовки или нажмите /start выше.</p>'}
 <script>setInterval(function(){var a=document.activeElement;if(!a||a===document.body)location.reload()},3000)</script></body></html>`;
 }

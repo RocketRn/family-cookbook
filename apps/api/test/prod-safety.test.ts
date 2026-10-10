@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ConfigError, isRealLookingToken, loadConfig } from '../src/config.js';
-import { createTelegramClient, realApiRefusal } from '../src/notify/telegram.js';
+import { apiTelegramTarget } from '../src/notify/target.js';
+import { botApiCall, createTelegramClient, realApiRefusal } from '../src/notify/telegram.js';
 import { loadWorkerConfig } from '../src/workerConfig.js';
 
 /**
@@ -56,6 +57,53 @@ describe('the production worker sends to Telegram only when armed with TELEGRAM_
       expect(String(err)).not.toContain(MADE_UP);
       expect(String(err)).not.toContain(MADE_UP.split(':')[1]);
     }
+  });
+});
+
+describe('the API ("Share", S6-3b) follows the same switch, but never refuses to start for it', () => {
+  it('armed production: the real API', () => {
+    expect(apiTelegramTarget({ ...live, BOT_TOKEN: REAL_SHAPE })).toMatchObject({
+      baseUrl: 'https://api.telegram.org',
+      allowReal: true,
+      allowLocal: false,
+    });
+  });
+
+  it.each([[undefined], ['no'], ['true'], ['YES']])(
+    'production with TELEGRAM_LIVE=%j: none ("Share" falls back to the link)',
+    (TELEGRAM_LIVE) => {
+      expect(
+        apiTelegramTarget({ NODE_ENV: 'production', TELEGRAM_LIVE, BOT_TOKEN: MADE_UP }),
+      ).toBeNull();
+    },
+  );
+
+  it('a fake token in production, or a non-local address elsewhere: none', () => {
+    expect(
+      apiTelegramTarget({ ...live, BOT_TOKEN: '000000:placeholder-not-a-real-token' }),
+    ).toBeNull();
+    expect(
+      apiTelegramTarget({
+        NODE_ENV: 'development',
+        BOT_TOKEN: '123:fake',
+        TELEGRAM_API_BASE: 'https://example.com',
+      }),
+    ).toBeNull();
+  });
+
+  it('development with the local stand-in: the stand-in', () => {
+    expect(
+      apiTelegramTarget({
+        NODE_ENV: 'development',
+        BOT_TOKEN: '123:fake',
+        TELEGRAM_API_BASE: 'http://127.0.0.1:8081',
+      }),
+    ).toMatchObject({ baseUrl: 'http://127.0.0.1:8081', allowLocal: true, allowReal: false });
+  });
+
+  it('even an armed target never reaches Telegram from a test run', async () => {
+    const target = apiTelegramTarget({ ...live, BOT_TOKEN: REAL_SHAPE })!;
+    await expect(botApiCall(target, 'savePreparedInlineMessage', {})).rejects.toThrow();
   });
 });
 

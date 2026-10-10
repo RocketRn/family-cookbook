@@ -97,6 +97,14 @@ export type Recipe = {
 /** POST /recipes/import (BE-06, D-033): the new private draft and what the review needs. */
 export type ImportReason = 'p4' | 'no_unit' | 'bracket' | 'unparsed';
 export type ImportWarning = 'no_headings' | 'no_ingredients' | 'no_steps' | 'truncated';
+/** POST /recipes/:id/share (S6-3b, D-056). */
+export type ShareAnswer = {
+  link: string;
+  prepared_message_id: string | null;
+  /** Who the link opens it for. */
+  for: 'book' | 'anyone';
+};
+
 /** GET /recipes/:id/import: what "Check the recipe" needs for a draft made by an import (D-054). */
 export type ImportNotes = {
   original: string;
