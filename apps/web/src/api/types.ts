@@ -97,6 +97,12 @@ export type Recipe = {
 /** POST /recipes/import (BE-06, D-033): the new private draft and what the review needs. */
 export type ImportReason = 'p4' | 'no_unit' | 'bracket' | 'unparsed';
 export type ImportWarning = 'no_headings' | 'no_ingredients' | 'no_steps' | 'truncated';
+/** GET /recipes/:id/import: what "Check the recipe" needs for a draft made by an import (D-054). */
+export type ImportNotes = {
+  original: string;
+  warnings: ImportWarning[];
+  reasons: Record<string, ImportReason[]>;
+};
 export type ImportResult = {
   recipe: Recipe;
   import: {

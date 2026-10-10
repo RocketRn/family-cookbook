@@ -1,7 +1,7 @@
 import { ApiError } from './client';
 import { api } from './endpoints';
 import { PAGE_SIZE, SEARCH_MAX_CHARS, type RecipeApi } from './recipes';
-import type { ImportResult, Photo, Recipe, RecipePage } from './types';
+import type { ImportNotes, ImportResult, Photo, Recipe, RecipePage } from './types';
 
 /** The recipe API (BE-04). Screens use it only through this object, so tests can replace it. */
 export const recipeApi: RecipeApi = {
@@ -31,6 +31,8 @@ export const recipeApi: RecipeApi = {
   remove: (id) => api().request<void>('DELETE', `/recipes/${encodeURIComponent(id)}`),
   importText: (text, uiLang) =>
     api().request<ImportResult>('POST', '/recipes/import', { text, ui_lang: uiLang }),
+  importNotes: (id) =>
+    api().request<ImportNotes>('GET', `/recipes/${encodeURIComponent(id)}/import`),
   save: async (id) => {
     await api().request<{ saved: true }>('POST', `/recipes/${encodeURIComponent(id)}/save`);
   },

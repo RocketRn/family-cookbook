@@ -229,3 +229,36 @@ describe('full import review', () => {
     expect(calls.some((c) => c.method === 'PATCH')).toBe(true);
   });
 });
+
+describe('a recipe forwarded to the bot (S6-2, D-054)', () => {
+  const HEX = DRAFT_ID.replace(/-/g, '');
+  const NOTES = {
+    original: TEXT,
+    warnings: ['no_headings'],
+    reasons: { [uid(1)]: ['no_unit'] },
+  };
+  afterEach(() => window.history.replaceState({}, '', '/'));
+
+  it('the bot’s "Check the recipe" opens the review of that draft, with the original text', async () => {
+    window.history.replaceState({}, '', `/?startapp=draft_${HEX}`);
+    const calls = api({ [`GET /api/recipes/${DRAFT_ID}/import`]: () => json(200, NOTES) });
+    renderApp();
+    expect(await screen.findByRole('heading', { name: 'Check the recipe' })).toBeTruthy();
+    expect(calls.some((c) => c.url === `/api/recipes/${DRAFT_ID}/import`)).toBe(true);
+    expect(screen.getByText(/There were no headings/)).toBeTruthy();
+    expect(screen.getByText('Original text')).toBeTruthy();
+    // Kept on this device like a pasted recipe, so it can be continued later.
+    expect(saved().review).toMatchObject({ recipe_id: DRAFT_ID, original: TEXT });
+  });
+
+  it('a draft already saved since (no review notes): the editor opens as usual', async () => {
+    window.history.replaceState({}, '', `/?startapp=draft_${HEX}`);
+    api({
+      [`GET /api/recipes/${DRAFT_ID}/import`]: () =>
+        json(404, { error: { code: 'NOT_FOUND', message: 'n', request_id: 'r' } }),
+    });
+    renderApp();
+    expect(await screen.findByRole('heading', { name: 'Edit recipe' })).toBeTruthy();
+    expect(screen.queryByText('Original text')).toBeNull();
+  });
+});

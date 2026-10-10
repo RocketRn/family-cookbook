@@ -3,13 +3,16 @@ import type { FastifyInstance, preHandlerAsyncHookHandler } from 'fastify';
 import { z } from 'zod';
 import { currentUser } from '../auth/plugin.js';
 import type { Db } from '../db/pool.js';
-import { withUser } from '../db/tx.js';
+import { withUser, type Tx } from '../db/tx.js';
+import { notFound } from '../errors.js';
 import { noExistingIds, planContent } from '../recipes/content.js';
 import { findRecipe, insertRecipe, writeContent } from '../recipes/repo.js';
 import { view } from '../recipes/routes.js';
 import { createRecipeBody, LIMITS } from '../recipes/schema.js';
 import type { ObjectStorage } from '../storage/storage.js';
 import type { ImportParser } from './parserPool.js';
+
+const idParam = z.object({ id: z.string().uuid() });
 
 /** PRD 7.1: import text <= 20,000 characters. */
 export const IMPORT_MAX_CHARS = 20_000;
@@ -85,10 +88,57 @@ export function draftFrom(p: ParsedRecipe, uiLang: Lang) {
   });
 }
 
+/** What the review screen needs besides the recipe (kept in source_ref, D-054). */
+export type ImportNotes = { warnings: string[]; reasons: string[][] };
+
+/**
+ * The parse becomes a private draft of `authorId` (PRD 2.2 step 5), with the original text in
+ * raw_text and the review notes in source_ref, so "Check the recipe" works on any device and for a
+ * recipe forwarded to the bot. Runs as the author (row-level security). Returns the draft's id.
+ */
+export async function createImportedDraft(
+  tx: Tx,
+  args: {
+    authorId: string;
+    text: string;
+    parsed: ParsedRecipe;
+    uiLang: Lang;
+    sourceType: 'paste' | 'bot_forward';
+    sourceRef?: Record<string, unknown>;
+  },
+): Promise<{ id: string; title: string }> {
+  const draft = draftFrom(args.parsed, args.uiLang);
+  const notes: ImportNotes = {
+    warnings: args.parsed.warnings,
+    reasons: args.parsed.ingredients.map((i) => i.reasons),
+  };
+  const id = await insertRecipe(tx, {
+    authorId: args.authorId,
+    bookId: null,
+    title: draft.title,
+    status: 'draft',
+    visibility: 'private',
+    servings: draft.servings,
+    difficulty: null,
+    prepMin: draft.prep_min,
+    cookMin: draft.cook_min,
+    language: draft.language,
+    authorNotes: draft.author_notes,
+    coverMediaId: null,
+    sourceType: args.sourceType,
+    rawText: args.text,
+    sourceRef: { ...args.sourceRef, import: notes },
+  });
+  await writeContent(tx, id, planContent(draft, noExistingIds()));
+  return { id, title: draft.title };
+}
+
 /**
  * PRD 2.2 / 4.9 POST /recipes/import: parse pasted text into a private draft (source "paste", the
  * original text kept). The response adds what the review needs: confidence and reasons per line,
  * and the parser's warnings. Timers and links found in the text are already in the draft.
+ * GET /recipes/:id/import gives the same notes later, to the author, while the draft is as the
+ * import made it (never saved since): for "Check the recipe" from the bot (D-054) or from another device.
  */
 export function registerImport(
   app: FastifyInstance,
@@ -101,26 +151,14 @@ export function registerImport(
     const user = currentUser(req);
     const body = importBody.parse(req.body);
     const parsed = await parser.parse(body.text, body.ui_lang);
-    const draft = draftFrom(parsed, body.ui_lang);
-    const plan = planContent(draft, noExistingIds());
     const recipe = await withUser(db, { userId: user.id }, async (tx) => {
-      const id = await insertRecipe(tx, {
+      const { id } = await createImportedDraft(tx, {
         authorId: user.id,
-        bookId: null,
-        title: draft.title,
-        status: 'draft',
-        visibility: 'private',
-        servings: draft.servings,
-        difficulty: null,
-        prepMin: draft.prep_min,
-        cookMin: draft.cook_min,
-        language: draft.language,
-        authorNotes: draft.author_notes,
-        coverMediaId: null,
+        text: body.text,
+        parsed,
+        uiLang: body.ui_lang,
         sourceType: 'paste',
-        rawText: body.text,
       });
-      await writeContent(tx, id, plan);
       return view(tx, storage, (await findRecipe(tx, id))!, user.id);
     });
     return reply.status(201).send({
@@ -134,5 +172,31 @@ export function registerImport(
         warnings: parsed.warnings,
       },
     });
+  });
+
+  app.get('/recipes/:id/import', async (req) => {
+    const user = currentUser(req);
+    const { id } = idParam.parse(req.params);
+    const notes = await withUser(db, { userId: user.id }, async (tx) => {
+      const r = await tx.query<{ raw_text: string; notes: ImportNotes | null }>(
+        `SELECT raw_text, source_ref -> 'import' AS notes FROM recipes
+          WHERE id = $1 AND author_id = app_user_id() AND deleted_at IS NULL AND updated_at = created_at
+            AND source_type IN ('paste', 'bot_forward') AND raw_text IS NOT NULL`,
+        [id],
+      );
+      const row = r.rows[0];
+      if (!row?.notes) return null;
+      const ids = await tx.query<{ id: string }>(
+        'SELECT id FROM recipe_ingredients WHERE recipe_id = $1 ORDER BY position',
+        [id],
+      );
+      return {
+        original: row.raw_text,
+        warnings: row.notes.warnings ?? [],
+        reasons: Object.fromEntries(ids.rows.map((x, n) => [x.id, row.notes!.reasons?.[n] ?? []])),
+      };
+    });
+    if (!notes) throw notFound('No import to check for this recipe');
+    return notes;
   });
 }

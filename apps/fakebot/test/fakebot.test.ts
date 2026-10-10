@@ -276,6 +276,35 @@ describe('the stand-in as the sender of updates (webhook)', () => {
     expect(res.status).toBe(303);
     expect(received[0]!.body).toMatchObject({ message: { text: '/start join_Ab3dE5' } });
   });
+
+  it('forwards a recipe text to the bot, as Telegram does (S6-2)', async () => {
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    expect(await bot.forwardText(100000002, 'Сырники\nТворог — 500 г')).toBe(200);
+    expect(received[0]!.secret).toBe('local-secret-0123456789');
+    expect(received[0]!.body).toMatchObject({
+      message: {
+        chat: { id: 100000002, type: 'private' },
+        from: { id: 100000002, is_bot: false, first_name: 'Dev Member' },
+        text: 'Сырники\nТворог — 500 г',
+        forward_origin: { type: 'hidden_user' },
+      },
+    });
+  });
+
+  it('the page has a form to forward a recipe text, also a long one in Cyrillic', async () => {
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    const page = await (await fetch(`${bot.url}/`)).text();
+    expect(page).toContain('action="/__forward"');
+    const long = `Шарлотка\n${'Яблоки — 4 шт.\n'.repeat(200)}`;
+    const res = await fetch(`${bot.url}/__forward`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ chat: '100000001', text: long }).toString(),
+      redirect: 'manual',
+    });
+    expect(res.status).toBe(303);
+    expect((received[0]!.body as { message: { text: string } }).message.text).toBe(long);
+  });
 });
 
 /** BE-10 (Sprint 5): the "I cooked it" message to the author is a photo with a caption. */

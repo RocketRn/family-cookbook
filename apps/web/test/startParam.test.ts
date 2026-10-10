@@ -42,7 +42,8 @@ describe('parseStartParam', () => {
     expect(routeForTarget({ kind: 'join', inviteCode: 'a b' })).toBe('/join/a%20b');
     expect(routeForTarget({ kind: 'book_recipe', recipeId: UUID })).toBe(`/recipe/${UUID}`);
     expect(routeForTarget({ kind: 'recipe_by_link', shareToken: 'tok' })).toBe('/r/tok');
-    expect(routeForTarget({ kind: 'draft', draftId: UUID })).toBeNull();
+    // S6-2: the bot's "Check the recipe" for a forwarded recipe.
+    expect(routeForTarget({ kind: 'draft', draftId: UUID })).toBe(`/recipe/${UUID}/review`);
     expect(routeForTarget({ kind: 'cook', recipeId: UUID, step: 3 })).toBe(`/cook/${UUID}?step=3`);
   });
 });

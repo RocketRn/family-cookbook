@@ -123,10 +123,16 @@ export async function buildApp({
   // BE-07: Telegram's updates for the bot. No sign-in (the secret token instead); wrong secrets
   // are counted per IP like failed sign-ins.
   const hookFailures = counter(L.authFailuresPerIp, (r) => `hook-fail:${r.ip}`);
-  registerBotWebhook(app, db, config.botWebhookSecret, async (req) => {
-    const r = await hookFailures(req);
-    if (!r.isAllowed && r.isExceeded) throw rateLimited(r.ttl);
-  });
+  registerBotWebhook(
+    app,
+    db,
+    config.botWebhookSecret,
+    async (req) => {
+      const r = await hookFailures(req);
+      if (!r.isAllowed && r.isExceeded) throw rateLimited(r.ttl);
+    },
+    parser,
+  );
   const perUser = limitHook(counter(L.perUser, (r) => `user:${r.user?.id}`));
   const uploads = limitHook(counter(L.uploadsPerUser, (r) => `upload:${r.user?.id}`));
   const imports = limitHook(counter(L.importsPerUser, (r) => `import:${r.user?.id}`));

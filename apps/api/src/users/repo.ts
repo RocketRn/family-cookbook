@@ -31,16 +31,20 @@ export function uiLangFromTelegram(code: string | undefined): UiLang {
  * leaves the field out rather than sending false, so it never turns it off: a 403 from the bot does.
  * A soft-deleted (anonymised, PRD 7.1) account is never refreshed: that would write the name and
  * photo back into a profile that was deliberately erased. It is returned as is, and the caller rejects it.
+ * The first sign-in stamps app_opened_at: from then on the bot reads recipes forwarded by this
+ * person (S6-2, D-054).
  */
 export async function upsertFromTelegram(tx: Tx, tg: TelegramUser): Promise<User> {
   const r = await tx.query<User>(
-    `INSERT INTO users (tg_user_id, tg_username, first_name, photo_url, ui_lang, bot_started)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO users (tg_user_id, tg_username, first_name, photo_url, ui_lang, bot_started,
+                        app_opened_at)
+     VALUES ($1, $2, $3, $4, $5, $6, now())
      ON CONFLICT (tg_user_id) DO UPDATE
        SET tg_username = EXCLUDED.tg_username,
            first_name = EXCLUDED.first_name,
            photo_url = EXCLUDED.photo_url,
            bot_started = users.bot_started OR EXCLUDED.bot_started,
+           app_opened_at = coalesce(users.app_opened_at, now()),
            last_seen_at = now()
        WHERE users.deleted_at IS NULL
      RETURNING *`,

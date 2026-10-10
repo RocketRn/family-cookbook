@@ -14,6 +14,7 @@ import { JoinScreen } from './screens/JoinScreen';
 import { LinkRecipeScreen } from './screens/LinkRecipeScreen';
 import { Onboarding } from './screens/Onboarding';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { DraftReviewScreen } from './editor/DraftReviewScreen';
 import { EditorScreen } from './editor/EditorScreen';
 import { ImportScreen } from './editor/ImportScreen';
 import { CookedScreen } from './screens/CookedScreen';
@@ -101,6 +102,7 @@ function Ready({ me }: { me: Me }) {
           <Route path="/recipe/new" element={<EditorScreen />} />
           <Route path="/import" element={<ImportScreen />} />
           <Route path="/recipe/:id/edit" element={<EditorScreen />} />
+          <Route path="/recipe/:id/review" element={<DraftReviewScreen />} />
           <Route path="/recipe/:id" element={<RecipeScreen me={me} />} />
           <Route path="/recipe/:id/cooked" element={<CookedScreen />} />
           <Route path="/cook/:id" element={<CookScreen me={me} />} />

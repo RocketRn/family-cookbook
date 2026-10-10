@@ -39,7 +39,7 @@ Before every push: `pnpm verify` is green. Before closing a sprint: a fresh clon
 
 ## 4. Critical paths in a browser (each sprint, Chromium, phone width 390 px)
 
-Automated since Sprint 5 (D-052): P1–P12 run as Playwright tests in CI on every push; P13 and P14 stay manual. To run them locally: `pnpm --filter @cookbook/e2e exec playwright install chromium` once, then `pnpm demo:stop`, `RATE_LIMIT_PER_USER=10000 RATE_LIMIT_PER_IP=10000 pnpm demo` (the tests click far faster than a person) and `pnpm e2e`. By hand: start with `pnpm demo` and open `http://localhost:5173/?devUser=1`. Expected results in brackets.
+Automated since Sprint 5 (D-052): P1–P12 and P15 run as Playwright tests in CI on every push; P13 and P14 stay manual. To run them locally: `pnpm --filter @cookbook/e2e exec playwright install chromium` once, then `pnpm demo:stop`, `RATE_LIMIT_PER_USER=10000 RATE_LIMIT_PER_IP=10000 pnpm demo` (the tests click far faster than a person) and `pnpm e2e`. By hand: start with `pnpm demo` and open `http://localhost:5173/?devUser=1`. Expected results in brackets.
 
 | #   | Path                  | Steps                                                                                                                                                                        | Expected                                                                                                                                                                                                                             |
 | --- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -57,6 +57,7 @@ Automated since Sprint 5 (D-052): P1–P12 run as Playwright tests in CI on ever
 | P12 | Timer offline         | Offline in the browser, start a timer; back online                                                                                                                           | "No connection" notice, then it syncs with the same id (no second timer)                                                                                                                                                             |
 | P13 | Import review         | Paste a text; keep one suggested timer, skip another; remove a suggested ingredient; move a line to another section; close and reopen the paste screen                       | Decisions are saved; "Continue checking" restores the review; the original is beside the form above 720 px                                                                                                                           |
 | P14 | Production stack      | `deploy/gcp/compose.yml` with throwaway secrets, through Caddy                                                                                                               | HTTPS, CSP header, `/api/health` ok, migrations ran; backup, restore test and restore work                                                                                                                                           |
+| P15 | Forward to the bot    | On the stand-in page: forward a recipe text as user 1; open the answer's button                                                                                              | "📝 Saved … to your drafts" with "Check the recipe" within 2 s; the button opens "Check the recipe" with the original text; nobody else sees the draft; the same text again: "already in your drafts"                                |
 
 Where each path is automated:
 
@@ -68,6 +69,7 @@ Where each path is automated:
 | `recalc.spec.ts`         | P7 from one product, kept after a reload, back to the original; P8 egg and garlic hints                                                                                         |
 | `timers.spec.ts`         | A timer from the recipe card with the bot's message; P12 offline, then one timer on the server; a blocked bot: "message not delivered"                                          |
 | `social.spec.ts`         | Reactions seen by the author; the "Saved" shelf with search; notification settings kept, quiet mode; the bot's answer to /start                                                 |
+| `forward.spec.ts`        | P15: a recipe forwarded to the bot → its answer → "Check the recipe" → published                                                                                                |
 
 A browser test also fails on any error in the browser console or an API answer of 500 or more.
 

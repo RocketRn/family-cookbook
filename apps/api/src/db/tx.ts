@@ -74,3 +74,22 @@ export function withWorker<T>(db: Db, fn: (c: Tx) => Promise<T>): Promise<T> {
     fn,
   );
 }
+
+/**
+ * Inside a system transaction, act as a user for the next statements (row-level security as that
+ * user), then come back with `asSystem`. Used where one update must do both atomically: the bot
+ * records a Telegram update and queues its answer (system), and writes the sender's draft (user).
+ * Both roles are transaction-scoped (SET LOCAL), like `withSystem` and `withUser`.
+ */
+export async function asUser(tx: Tx, ctx: RlsContext): Promise<void> {
+  await tx.query('SET LOCAL ROLE cookbook_app');
+  await tx.query(
+    `SELECT set_config('app.user_id', $1, true), set_config('app.share_token', $2, true)`,
+    [ctx.userId, ctx.shareToken ?? ''],
+  );
+}
+
+export async function asSystem(tx: Tx): Promise<void> {
+  await tx.query(`SELECT set_config('app.user_id', '', true)`);
+  await tx.query('SET LOCAL ROLE cookbook_system');
+}

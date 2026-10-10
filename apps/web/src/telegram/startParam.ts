@@ -64,7 +64,10 @@ export function routeForTarget(t: StartTarget): string | null {
     case 'cook':
       // From a timer message (BE-08): cooking mode at the step the timer belongs to.
       return `/cook/${t.recipeId}?step=${t.step}`;
+    case 'draft':
+      // S6-2: the bot's "Check the recipe" for a recipe forwarded to it (D-054).
+      return `/recipe/${t.draftId}/review`;
     default:
-      return null; // draft_ arrives with the bot's import (Sprint 5)
+      return null;
   }
 }

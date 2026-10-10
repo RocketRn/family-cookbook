@@ -28,6 +28,9 @@ export function watch(page: Page): Page {
   return page;
 }
 
+/** What `watch` collected for a page opened by the test itself (e.g. from a link). */
+export const errorsOf = (page: Page): string[] => errors.get(page) ?? [];
+
 async function offline(context: BrowserContext) {
   await context.route('https://telegram.org/**', (r) => r.abort());
 }

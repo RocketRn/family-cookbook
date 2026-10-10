@@ -20,6 +20,7 @@ const ALL = [
   '0009_reactions',
   '0010_notify_prefs',
   '0011_saved_recipes',
+  '0012_bot_forward',
 ];
 const TABLES = [
   'book_members',

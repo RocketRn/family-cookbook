@@ -1,5 +1,6 @@
 import type {
   Difficulty,
+  ImportNotes,
   ImportResult,
   Photo,
   RecipeListItem,
@@ -32,6 +33,8 @@ export interface RecipeApi {
   remove(id: string): Promise<void>;
   /** POST /recipes/import: pasted text becomes a private draft (PRD 2.2 variant A). */
   importText(text: string, uiLang: 'ru' | 'uk' | 'en' | 'sv'): Promise<ImportResult>;
+  /** GET /recipes/:id/import: the review notes of a draft not saved since its import (D-054). */
+  importNotes(id: string): Promise<ImportNotes>;
   /** POST /media: one photo, already made smaller on the device. */
   uploadPhoto(photo: Blob, filename: string): Promise<Photo>;
   /** D-051: put a recipe on your "Saved" shelf, or take it off. */

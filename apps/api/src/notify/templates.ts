@@ -253,6 +253,128 @@ export function renderBotStart(p: { start?: unknown }, lang: Lang, links: Links)
   };
 }
 
+/** S6-2 (D-054): the bot's answers to a recipe forwarded to it. */
+export type BotReplyPayload = { kind?: unknown; recipe_id?: unknown; title?: unknown };
+
+const REPLY_TEXTS: Record<
+  Lang,
+  {
+    draft_saved: string;
+    draft_exists: string;
+    no_text: string;
+    too_long: string;
+    too_many: string;
+    not_read: string;
+    open_app_first: string;
+    check: string;
+  }
+> = {
+  ru: {
+    draft_saved:
+      '📝 Сохранил рецепт {title} в ваши черновики. Его видите только вы. Проверьте его: строки, в которых я не уверен, подсвечены.',
+    draft_exists: '📝 Этот рецепт уже есть в ваших черновиках: {title}.',
+    no_text:
+      'Я читаю только текст. Перешлите сообщение с текстом рецепта: фото, файлы и подписи к ним я пока не читаю.',
+    too_long:
+      'Этот текст слишком длинный для меня. Вставьте его в приложении: «＋» → «Вставить текст рецепта».',
+    too_many:
+      'За этот час вы переслали много рецептов. Следующие я сохраню через час, а пока их можно вставить в приложении.',
+    not_read:
+      'Не получилось прочитать этот текст. Вставьте его в приложении: «＋» → «Вставить текст рецепта».',
+    open_app_first:
+      'Сначала откройте книгу рецептов. После этого я смогу сохранять пересланные рецепты в ваши черновики.',
+    check: 'Проверить рецепт',
+  },
+  uk: {
+    draft_saved:
+      '📝 Зберіг рецепт {title} у ваші чернетки. Його бачите лише ви. Перевірте його: рядки, у яких я не впевнений, підсвічені.',
+    draft_exists: '📝 Цей рецепт уже є у ваших чернетках: {title}.',
+    no_text:
+      'Я читаю лише текст. Перешліть повідомлення з текстом рецепта: фото, файли й підписи до них я поки не читаю.',
+    too_long:
+      'Цей текст задовгий для мене. Вставте його в застосунку: «＋» → «Вставити текст рецепта».',
+    too_many:
+      'За цю годину ви переслали багато рецептів. Наступні я збережу за годину, а поки їх можна вставити в застосунку.',
+    not_read:
+      'Не вдалося прочитати цей текст. Вставте його в застосунку: «＋» → «Вставити текст рецепта».',
+    open_app_first:
+      'Спочатку відкрийте книгу рецептів. Після цього я зможу зберігати переслані рецепти у ваші чернетки.',
+    check: 'Перевірити рецепт',
+  },
+  en: {
+    draft_saved:
+      '📝 I saved {title} to your drafts. Only you can see it. Please check it: the lines I am unsure about are highlighted.',
+    draft_exists: '📝 This recipe is already in your drafts: {title}.',
+    no_text:
+      'I can only read text. Forward a message with the recipe’s text: I don’t read photos, files or their captions yet.',
+    too_long:
+      'This text is too long for me. Paste it in the app instead: “＋” → “Paste recipe text”.',
+    too_many:
+      'You have forwarded many recipes this hour. I’ll save more in an hour; until then you can paste them in the app.',
+    not_read: 'I couldn’t read this text. Paste it in the app instead: “＋” → “Paste recipe text”.',
+    open_app_first:
+      'Please open the cookbook first. After that I can save the recipes you forward to your drafts.',
+    check: 'Check the recipe',
+  },
+  sv: {
+    draft_saved:
+      '📝 Jag sparade {title} bland dina utkast. Bara du kan se det. Kontrollera det: raderna jag är osäker på är markerade.',
+    draft_exists: '📝 Det här receptet finns redan bland dina utkast: {title}.',
+    no_text:
+      'Jag kan bara läsa text. Vidarebefordra ett meddelande med receptets text: bilder, filer och bildtexter läser jag inte än.',
+    too_long:
+      'Den här texten är för lång för mig. Klistra in den i appen i stället: ”＋” → ”Klistra in recepttext”.',
+    too_many:
+      'Du har vidarebefordrat många recept den här timmen. Fler sparar jag om en timme; fram till dess kan du klistra in dem i appen.',
+    not_read:
+      'Jag kunde inte läsa den här texten. Klistra in den i appen i stället: ”＋” → ”Klistra in recepttext”.',
+    open_app_first:
+      'Öppna kokboken först. Därefter kan jag spara recepten du vidarebefordrar bland dina utkast.',
+    check: 'Kontrollera receptet',
+  },
+};
+const REPLY_KINDS = [
+  'draft_saved',
+  'draft_exists',
+  'no_text',
+  'too_long',
+  'too_many',
+  'not_read',
+  'open_app_first',
+] as const;
+
+/** "Check the recipe": the app opens the draft's review (startapp=draft_<id>, PRD 4.7). */
+export function draftLink(links: Links, recipeId: string): string {
+  return /^[0-9a-f-]{36}$/i.test(recipeId)
+    ? appLink(links, `draft_${recipeId.replace(/-/g, '').toLowerCase()}`)
+    : appLink(links, null);
+}
+
+export function renderBotReply(p: BotReplyPayload, lang: Lang, links: Links): Rendered | null {
+  const kind = REPLY_KINDS.find((k) => k === p.kind);
+  if (!kind) return null;
+  const t = REPLY_TEXTS[lang] ?? REPLY_TEXTS.en;
+  if (kind === 'draft_saved' || kind === 'draft_exists') {
+    const title = fill((TEXTS[lang] ?? TEXTS.en).title, {
+      title: safe(typeof p.title === 'string' && p.title ? p.title : '…', TITLE_MAX),
+    });
+    return {
+      text: fill(t[kind], { title }),
+      reply_markup: {
+        inline_keyboard: [[{ text: t.check, url: draftLink(links, String(p.recipe_id ?? '')) }]],
+      },
+    };
+  }
+  return {
+    text: t[kind],
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: (START_TEXTS[lang] ?? START_TEXTS.en).open, url: appLink(links, null) }],
+      ],
+    },
+  };
+}
+
 /** Messages the sender knows how to write (PRD 4.4, BE-07). */
 export function renderMessage(
   type: string,
@@ -266,5 +388,6 @@ export function renderMessage(
   if (type === 'recipe_cooked')
     return renderRecipeCooked(payload as RecipeCookedPayload, lang, links);
   if (type === 'new_recipe') return renderNewRecipe(payload as NewRecipePayload, lang, links);
+  if (type === 'bot_reply') return renderBotReply((payload ?? {}) as BotReplyPayload, lang, links);
   return null;
 }

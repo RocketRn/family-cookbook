@@ -35,6 +35,8 @@ export type FakeTelegram = {
   sendUpdate(update: Record<string, unknown>): Promise<number | null>;
   /** The person in this private chat presses Start (optionally from a link: /start <payload>). */
   pressStart(chatId: number, payload?: string): Promise<number | null>;
+  /** The person forwards a message with this text to the bot (S6-2: a recipe → a draft). */
+  forwardText(chatId: number, text: string): Promise<number | null>;
   /** The person blocks the bot: my_chat_member "kicked", and messages to them get 403. */
   blockBot(chatId: number): Promise<number | null>;
   unblockBot(chatId: number): Promise<number | null>;
@@ -145,6 +147,22 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
         from: person(chatId),
         text: payload ? `/start ${payload}` : '/start',
         entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+      },
+    });
+  const forwardText = (chatId: number, text: string) =>
+    sendUpdate({
+      message: {
+        message_id: nextId++,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: chatId, type: 'private', first_name: person(chatId).first_name },
+        from: person(chatId),
+        // A forward from someone whose account is hidden: the commonest kind in family chats.
+        forward_origin: {
+          type: 'hidden_user',
+          sender_user_name: 'Бабушка',
+          date: Math.floor(Date.now() / 1000) - 86_400,
+        },
+        text,
       },
     });
   const memberChange = (chatId: number, status: 'kicked' | 'member') =>
@@ -325,12 +343,14 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
   async function pageAction(req: IncomingMessage, res: ServerResponse, action: string) {
     const chunks: Buffer[] = [];
     for await (const c of req) chunks.push(c as Buffer);
-    const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8').slice(0, 4096));
+    // A forwarded recipe may be long (Telegram allows 4096 characters, up to 6x when form-encoded).
+    const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8').slice(0, 65_536));
     const chat = Number(form.get('chat'));
     const payload = (form.get('payload') ?? '').trim();
     if (!Number.isSafeInteger(chat) || chat <= 0 || !/^[A-Za-z0-9_-]{0,64}$/.test(payload))
       return reply(res, 400, { ok: false, description: 'Bad Request: chat or payload' });
-    if (action === 'start') await pressStart(chat, payload || undefined);
+    if (action === 'forward') await forwardText(chat, form.get('text') ?? '');
+    else if (action === 'start') await pressStart(chat, payload || undefined);
     else if (action === 'block') await blockBot(chat);
     else await unblockBot(chat);
     res.writeHead(303, { location: '/' });
@@ -347,9 +367,12 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       return void control(req, res).catch(done);
     if (url.pathname === '/__messages') return reply(res, 200, { messages });
     // The page's buttons (BE-07): press /start, block or unblock the bot, as a demo user.
-    const action = { '/__start': 'start', '/__block': 'block', '/__unblock': 'unblock' }[
-      url.pathname
-    ];
+    const action = {
+      '/__start': 'start',
+      '/__block': 'block',
+      '/__unblock': 'unblock',
+      '/__forward': 'forward',
+    }[url.pathname];
     if (action && req.method === 'POST') return void pageAction(req, res, action).catch(done);
     if (url.pathname === '/' && req.method === 'GET') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
@@ -373,6 +396,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     },
     sendUpdate,
     pressStart,
+    forwardText,
     blockBot,
     unblockBot,
     failNext(count, failure) {
@@ -455,6 +479,9 @@ function chatPanel(
 <button>Нажать /start</button></form>
 <form method="post" action="/__block"><select name="chat">${options}</select><button>Заблокировать бота</button></form>
 <form method="post" action="/__unblock"><select name="chat">${options}</select><button>Разблокировать</button></form>
+<form method="post" action="/__forward" class="forward"><select name="chat">${options}</select>
+<textarea name="text" rows="5" placeholder="Текст рецепта: название, ингредиенты, шаги" aria-label="Текст рецепта"></textarea>
+<button>Переслать боту</button></form>
 ${state}${blockedNote}</section>`;
 }
 
@@ -481,7 +508,7 @@ function page(
 <title>Сообщения бота (локальная имитация)</title>
 <style>body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#f2f2f7;color:#111}h1{font-size:20px}h2{font-size:17px;margin:0 0 8px}
 ul{list-style:none;padding:0;max-width:560px}li,section{background:#fff;border-radius:12px;padding:12px;margin:0 0 10px;max-width:536px}
-form{margin:0 0 8px;display:flex;flex-wrap:wrap;gap:6px}input,select,button{font:inherit;padding:4px 8px}.note{color:#555;font-size:14px;margin:4px 0}.bad{color:#b00020}
+form{margin:0 0 8px;display:flex;flex-wrap:wrap;gap:6px}input,select,button,textarea{font:inherit;padding:4px 8px}textarea{flex:1 1 100%}.note{color:#555;font-size:14px;margin:4px 0}.bad{color:#b00020}
 .photo{max-width:100%;border-radius:8px;margin-bottom:6px}.meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8;text-decoration:none}</style>
 </head><body><h1>Сообщения бота</h1><p>Локальная имитация Telegram: эти сообщения никуда не отправлены. Страница обновляется сама.</p>
 ${chatPanel(webhook, last, blocked)}
