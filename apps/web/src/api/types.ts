@@ -15,6 +15,8 @@ export type RecipeListItem = {
   title: string;
   author: Author;
   is_mine: boolean;
+  /** D-051: on the viewer's "Saved" shelf (older answers may leave it out). */
+  is_saved?: boolean;
   difficulty: Difficulty | null;
   prep_min: number | null;
   cook_min: number | null;
@@ -70,6 +72,8 @@ export type Recipe = {
   title: string;
   author: Author;
   is_mine: boolean;
+  /** D-051: on the viewer's "Saved" shelf (older answers may leave it out). */
+  is_saved?: boolean;
   book_id: string | null;
   status: RecipeStatus;
   visibility: Visibility;

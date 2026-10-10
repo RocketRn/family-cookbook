@@ -7,7 +7,7 @@ import { recipeApi } from '../api/recipeApi';
 import { emojiFor } from '../api/recipes';
 import type { Photo, Recipe } from '../api/types';
 import { Button } from '../design/Button';
-import { Tag } from '../design/Chip';
+import { Chip, Tag } from '../design/Chip';
 import { EmptyState, ErrorState, Loading } from '../design/Feedback';
 import { errorMessage } from '../errors';
 import { isLanguage } from '../i18n';
@@ -23,7 +23,7 @@ import { Reactions } from '../recipe/Reactions';
 import { StepList } from '../recipe/StepList';
 import { VideoPlayer } from '../recipe/VideoPlayer';
 import { useToastStore } from '../state/store';
-import { confirmDialog } from '../telegram/sdk';
+import { confirmDialog, haptic } from '../telegram/sdk';
 
 /** Cover first, then step photos; a photo used twice is shown once. */
 function galleryPhotos(r: Recipe): Photo[] {
@@ -76,6 +76,12 @@ function RecipeView({ r, botStarted }: { r: Recipe; botStarted: boolean }) {
         <p className="hint">
           {t('recipe.by_author', { name: r.author.name ?? t('recipe.former_member') })}
         </p>
+        {/* UC-10, D-051: someone else's recipe can go on your "Saved" shelf. */}
+        {!r.is_mine && (
+          <div>
+            <SaveToggle recipe={r} />
+          </div>
+        )}
       </div>
       <div className="row row--wrap">
         {r.is_mine && r.status === 'draft' && <Tag>{t('recipe.draft')}</Tag>}
@@ -325,5 +331,38 @@ function RecipeActions({ recipe: r }: { recipe: Recipe }) {
         </p>
       )}
     </section>
+  );
+}
+
+/** 🔖 Save / Saved: puts the recipe on your "Saved" shelf or takes it off (D-051). */
+function SaveToggle({ recipe: r }: { recipe: Recipe }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const toast = useToastStore((s) => s.show);
+  const [saved, setSaved] = useState(!!r.is_saved);
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    setBusy(true);
+    haptic('select');
+    try {
+      if (saved) await recipeApi.unsave(r.id);
+      else await recipeApi.save(r.id);
+      setSaved(!saved);
+      qc.setQueryData<Recipe | null>(['recipe', r.id], (old) =>
+        old ? { ...old, is_saved: !saved } : old,
+      );
+      await qc.invalidateQueries({ queryKey: ['recipes'] });
+    } catch (err) {
+      toast(errorMessage(t, err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Chip selected={saved} disabled={busy} onToggle={() => void toggle()}>
+      {saved ? t('saved.saved') : t('saved.save')}
+    </Chip>
   );
 }

@@ -338,10 +338,12 @@ export type ListItem = {
   cover_media_id: string | null;
   ingredient_names: string[];
   tags: Array<{ slug: string; custom_name: string | null }>;
+  is_saved: boolean;
 };
 
 export type ListOptions = {
-  scope: 'book' | 'mine';
+  /** The book's published recipes, your own, or your "Saved" shelf (D-051). */
+  scope: 'book' | 'mine' | 'saved';
   userId: string;
   bookId: string | null;
   limit: number;
@@ -360,14 +362,23 @@ export type ListOptions = {
  * RLS. Results stay in date order (not by relevance) so pages remain stable for the cursor.
  */
 export async function listRecipes(tx: Tx, o: ListOptions): Promise<ListItem[]> {
-  const sortExpr = o.scope === 'book' ? 'coalesce(r.published_at, r.created_at)' : 'r.updated_at';
+  const sortExpr =
+    o.scope === 'book'
+      ? 'coalesce(r.published_at, r.created_at)'
+      : o.scope === 'saved'
+        ? 'sv.saved_at'
+        : 'r.updated_at';
   const params: unknown[] = [o.scope === 'book' ? o.bookId : o.userId, o.limit];
   const p = (v: unknown) => `$${params.push(v)}`;
   const conds = [
     o.scope === 'book'
       ? `r.book_id = $1 AND r.status = 'published' AND r.visibility IN ('book', 'link')`
-      : `r.author_id = $1`,
+      : o.scope === 'saved'
+        ? 'true' // the join below; the recipes policy hides what you may no longer read
+        : `r.author_id = $1`,
   ];
+  const savedJoin =
+    o.scope === 'saved' ? 'JOIN saved_recipes sv ON sv.recipe_id = r.id AND sv.user_id = $1' : '';
   if (o.after)
     conds.push(`(${sortExpr}, r.id) < (${p(o.after.at)}::timestamptz, ${p(o.after.id)}::uuid)`);
   if (o.words.length > 0) conds.push(`r.search_tsv @@ recipe_search_query(${p(o.words)}::text[])`);
@@ -390,8 +401,9 @@ export async function listRecipes(tx: Tx, o: ListOptions): Promise<ListItem[]> {
                      '{}') AS ingredient_names,
             coalesce((SELECT json_agg(json_build_object('slug', t.slug, 'custom_name', t.custom_name)
                                       ORDER BY t.custom_name NULLS FIRST, t.slug)
-                        FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id WHERE rt.recipe_id = r.id), '[]') AS tags
-       FROM recipes r
+                        FROM recipe_tags rt JOIN tags t ON t.id = rt.tag_id WHERE rt.recipe_id = r.id), '[]') AS tags,
+            EXISTS (SELECT 1 FROM saved_recipes s2 WHERE s2.recipe_id = r.id AND s2.user_id = app_user_id()) AS is_saved
+       FROM recipes r ${savedJoin}
       WHERE ${conds.join(' AND ')}
       ORDER BY ${sortExpr} DESC, r.id DESC
       LIMIT $2`,

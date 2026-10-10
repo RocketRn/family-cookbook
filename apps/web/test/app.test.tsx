@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../src/api/client';
 import { recipeApi } from '../src/api/recipeApi';
@@ -213,10 +213,15 @@ describe('Telegram BackButton (review round 2)', () => {
       'GET /api/me': () => json(200, ME),
       'GET /api/books/current': () => json(200, BOOK),
       [BOOK_LIST]: () => json(200, BOOK_PAGE),
+      'GET /api/recipes?scope=saved&limit=50': () =>
+        json(200, {
+          items: [listItem({ id: SYRNIKI_ID, title: 'Сырники' })],
+          next_cursor: null,
+        }),
       [`GET /api/recipes/${SYRNIKI_ID}`]: () =>
         json(200, { ...GOLUBTSY, id: SYRNIKI_ID, title: 'Сырники', is_mine: false }),
     });
-    // Saved (the dev sample shelf) -> recipe -> back lands on Saved, not on the first tab.
+    // Saved -> recipe -> back lands on Saved, not on the first tab.
     renderApp('/saved');
     fireEvent.click(await screen.findByText('Сырники'));
     await screen.findByRole('heading', { name: 'Сырники' });
@@ -402,32 +407,8 @@ describe('book list: pages of 50, search and filters on the server (BE-11)', () 
   });
 });
 
-describe('Saved tab (owner decision 5)', () => {
-  it('production build: a neutral empty shelf, no sample data', async () => {
-    vi.stubEnv('DEV', false);
-    vi.resetModules();
-    const { SavedScreen } = await import('../src/screens/SavedScreen');
-    await setLanguage('en');
-    render(<SavedScreen />);
-    expect(screen.getByText('Nothing saved yet')).toBeTruthy();
-    expect(screen.getByText('Recipes you save will appear here.')).toBeTruthy();
-    expect(document.querySelector('[data-testid=dev-saved-shelf]')).toBeNull();
-    vi.unstubAllEnvs();
-  });
-
-  it('development build: sample recipes, clearly marked', async () => {
-    await setLanguage('en');
-    stubApi({
-      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
-      'GET /api/books/current': () => json(200, BOOK),
-    });
-    renderApp('/saved');
-    expect(
-      await screen.findByText('Development sample: saving recipes arrives in a later sprint.'),
-    ).toBeTruthy();
-    expect(screen.getByText('Pannkakor')).toBeTruthy();
-  });
-});
+// The "Saved" tab is real since Sprint 5 (D-051): saved.test.tsx. The development sample shelf of
+// owner decision 5 is gone.
 
 describe('PATCH /me: the interface language is saved to the profile', () => {
   it('sends the chosen language; a failure keeps the choice and says so', async () => {

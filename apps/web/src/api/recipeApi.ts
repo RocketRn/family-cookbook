@@ -31,6 +31,10 @@ export const recipeApi: RecipeApi = {
   remove: (id) => api().request<void>('DELETE', `/recipes/${encodeURIComponent(id)}`),
   importText: (text, uiLang) =>
     api().request<ImportResult>('POST', '/recipes/import', { text, ui_lang: uiLang }),
+  save: async (id) => {
+    await api().request<{ saved: true }>('POST', `/recipes/${encodeURIComponent(id)}/save`);
+  },
+  unsave: (id) => api().request<void>('DELETE', `/recipes/${encodeURIComponent(id)}/save`),
   uploadPhoto(photo, filename) {
     const form = new FormData();
     form.append('file', photo, filename);

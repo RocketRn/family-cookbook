@@ -89,5 +89,6 @@ export function listItemView(r: ListItem, viewerId: string, photos: Map<string, 
     ingredient_names: r.ingredient_names,
     published_at: r.published_at,
     updated_at: r.updated_at,
+    is_saved: r.is_saved,
   };
 }

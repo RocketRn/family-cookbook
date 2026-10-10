@@ -10,7 +10,8 @@ import type {
 
 export type { Difficulty } from './types';
 /** "book": published recipes of my book; "mine": everything I wrote, drafts included. */
-export type RecipeScope = 'book' | 'mine';
+/** The book, your own recipes, or your "Saved" shelf (D-051). */
+export type RecipeScope = 'book' | 'mine' | 'saved';
 
 /** Page size of recipe lists. Search and filters run on the server (BE-11, D-034). */
 export const PAGE_SIZE = 50;
@@ -33,6 +34,9 @@ export interface RecipeApi {
   importText(text: string, uiLang: 'ru' | 'uk' | 'en' | 'sv'): Promise<ImportResult>;
   /** POST /media: one photo, already made smaller on the device. */
   uploadPhoto(photo: Blob, filename: string): Promise<Photo>;
+  /** D-051: put a recipe on your "Saved" shelf, or take it off. */
+  save(id: string): Promise<void>;
+  unsave(id: string): Promise<void>;
 }
 
 /** What a list row needs, derived from an API list item. */

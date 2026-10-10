@@ -66,7 +66,15 @@ export async function view(tx: Tx, storage: ObjectStorage, row: RecipeRow, userI
     ...children.steps.map((s) => s.photo_media_id as string | null),
   ]);
   const membership = await membershipOf(tx, userId);
-  return recipeView(row, children, { id: userId, membership }, await photoViews(storage, media));
+  const saved = await tx.query(
+    'SELECT 1 FROM saved_recipes WHERE recipe_id = $1 AND user_id = app_user_id()',
+    [row.id],
+  );
+  return {
+    ...recipeView(row, children, { id: userId, membership }, await photoViews(storage, media)),
+    // D-051: on the caller's "Saved" shelf.
+    is_saved: !!saved.rowCount,
+  };
 }
 
 /** An author attaches only their own uploads, at most 20 per recipe (PRD 7.1). */
@@ -279,6 +287,32 @@ export function registerRecipes(app: FastifyInstance, db: Db, storage: ObjectSto
       if (!done.rows[0]!.ok)
         throw forbidden('Only the author or the keeper of the book can unpublish this recipe');
     });
+    return reply.status(204).send();
+  });
+
+  // D-051, PRD 4.9: the personal "Saved" shelf. Any recipe you may read; saving twice is fine,
+  // and so is removing one that is not there.
+  app.post('/recipes/:id/save', async (req, reply) => {
+    const user = currentUser(req);
+    const { id } = recipeParams.parse(req.params);
+    const added = await withUser(db, { userId: user.id }, async (tx) => {
+      if (!(await findRecipe(tx, id))) throw recipeNotFound();
+      const r = await tx.query(
+        `INSERT INTO saved_recipes (user_id, recipe_id) VALUES (app_user_id(), $1)
+         ON CONFLICT (user_id, recipe_id) DO NOTHING`,
+        [id],
+      );
+      return !!r.rowCount;
+    });
+    return reply.status(added ? 201 : 200).send({ saved: true });
+  });
+
+  app.delete('/recipes/:id/save', async (req, reply) => {
+    const user = currentUser(req);
+    const { id } = recipeParams.parse(req.params);
+    await withUser(db, { userId: user.id }, (tx) =>
+      tx.query('DELETE FROM saved_recipes WHERE recipe_id = $1 AND user_id = app_user_id()', [id]),
+    );
     return reply.status(204).send();
   });
 

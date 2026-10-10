@@ -19,6 +19,7 @@ const ALL = [
   '0008_bot_updates',
   '0009_reactions',
   '0010_notify_prefs',
+  '0011_saved_recipes',
 ];
 const TABLES = [
   'book_members',
@@ -33,6 +34,7 @@ const TABLES = [
   'recipe_tags',
   'recipe_videos',
   'recipes',
+  'saved_recipes',
   'step_ingredients',
   'step_timers',
   'tags',

@@ -13,9 +13,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S5-4  | BE-10 reactions and "I cooked it", the message to the author       | done                                                               | `850b4e0` |
 | S5-5  | FE-10 reactions and "I cooked it" on screen                        | done                                                               | `f2e2a04` |
 | S5-6  | Notification settings, and the new-recipe message (off by default) | done                                                               | `5b82582` |
-| S5-7  | FE-09 timers, full version                                         | done                                                               | (this)    |
-| S5-8  | Saved recipes                                                      | next                                                               |           |
-| S5-9  | QA-01 automated browser tests in CI                                | to do                                                              |           |
+| S5-7  | FE-09 timers, full version                                         | done                                                               | `e2ae9c7` |
+| S5-8  | Saved recipes                                                      | done                                                               | (this)    |
+| S5-9  | QA-01 automated browser tests in CI                                | next                                                               |           |
 | —     | Fixes from the first Telegram test                                 | placeholder: the owner sends the findings later as a separate task |           |
 | S5-10 | Wrap-up: clean clone, CI, guides, report, Sprint 6 plan            | to do                                                              |           |
 
@@ -105,3 +105,11 @@ Additions:
 - Red first: 7 of 7 new web tests failed. One older test compared the card's timer chip text exactly and now includes the ▶ of the start button.
 - Checked in a browser on the demo with the bot blocked for user 1: a 1-minute timer from the card rang at 61.9 s and showed "message not delivered" at 66.8 s.
 - Guides: RUN-LOCALLY 5.12 (card timer, sound, "not delivered"); DEPLOY-GCP checklist: the card timer, the sound on each device and in silent mode, "not delivered" after blocking the bot.
+
+### S5-8 Saved recipes
+
+- "🔖 Save" on someone else's recipe puts it on your "Saved" shelf; the "Saved" tab lists it, newest saved first, with search; tapping again removes it. A saved recipe you may no longer read is not shown (D-051).
+- The development sample shelf is gone.
+- Red first: 6 of 6 API tests and 5 of 6 web tests failed (the one that passed checks that your own recipe has no "Save", which the old card also satisfied). Two older tests described the sample shelf and were replaced; one navigation test now uses the real shelf.
+- Not here: the book's filter sheet on the "Saved" tab (the API takes the filters already).
+- Guides: RUN-LOCALLY 5.10, DEPLOY-GCP checklist "Saved".

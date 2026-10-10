@@ -136,8 +136,9 @@
   "saved": {
     "title": "Sparade",
     "empty_title": "Inget sparat ännu",
-    "empty_text": "Här visas recept som du sparar.",
-    "dev_sample": "Utvecklingsexempel: att spara recept kommer i en senare sprint."
+    "empty_text": "Tryck på 🔖 Spara på ett recept så hamnar det här.",
+    "save": "🔖 Spara",
+    "saved": "🔖 Sparat"
   },
   "link_recipe": {
     "title": "Recept via länk",

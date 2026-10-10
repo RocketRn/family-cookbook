@@ -160,7 +160,7 @@ export type VideoInput = z.infer<typeof videoInput>;
 const tagSlug = z.string().regex(/^[a-z0-9_:-]{1,64}$/);
 export const listQuery = z
   .object({
-    scope: z.enum(['book', 'mine']).default('book'),
+    scope: z.enum(['book', 'mine', 'saved']).default('book'),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     cursor: z.string().max(200).optional(),
     // BE-11 (PRD 4.9): search text, tags (repeat the parameter: ?tag=soup&tag=vegan), difficulty,

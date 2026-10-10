@@ -133,8 +133,9 @@
   "saved": {
     "title": "Saved",
     "empty_title": "Nothing saved yet",
-    "empty_text": "Recipes you save will appear here.",
-    "dev_sample": "Development sample: saving recipes arrives in a later sprint."
+    "empty_text": "Tap 🔖 Save on a recipe to keep it here.",
+    "save": "🔖 Save",
+    "saved": "🔖 Saved"
   },
   "link_recipe": {
     "title": "Recipe by link",
