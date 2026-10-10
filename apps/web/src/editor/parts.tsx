@@ -8,6 +8,7 @@ import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
 import { TextField } from '../design/Fields';
 import { errorMessage } from '../errors';
+import { haptic } from '../telegram/sdk';
 import {
   amountPreview,
   canonicalText,
@@ -65,6 +66,7 @@ export function PhotoSlot({
       const prepared = await preparePhoto(file);
       onChange(await recipeApi.uploadPhoto(prepared, uploadName(file, prepared)));
     } catch (err) {
+      haptic('error');
       setError(err instanceof PhotoError ? t(`errors.${err.code}`) : errorMessage(t, err));
     } finally {
       setBusy(false);

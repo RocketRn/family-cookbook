@@ -25,5 +25,5 @@ export function Chip({
 }
 
 export function Tag({ children }: { children: React.ReactNode }) {
-  return <span className="chip chip--static">{children}</span>;
+  return <span className="chip chip--static chip--wraps">{children}</span>;
 }

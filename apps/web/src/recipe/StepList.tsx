@@ -153,7 +153,7 @@ export function StepList({
                         <button
                           key={tm.id}
                           type="button"
-                          className="chip"
+                          className="chip chip--wraps"
                           disabled={timers.isRunning(s.id, tm.label)}
                           aria-label={t('cook.timer_start', {
                             label: tm.label,
@@ -165,7 +165,7 @@ export function StepList({
                           <span aria-hidden="true">{' ▶'}</span>
                         </button>
                       ) : (
-                        <span key={tm.id} className="chip chip--static">
+                        <span key={tm.id} className="chip chip--static chip--wraps">
                           {content}
                         </span>
                       );

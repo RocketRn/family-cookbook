@@ -55,6 +55,7 @@ export function Reactions({ recipe }: { recipe: Recipe }) {
         qc.setQueryData<ReactionSummary>(key, r.summary);
       }
     } catch (err) {
+      haptic('error');
       toast(errorMessage(t, err));
     } finally {
       setBusy(null);

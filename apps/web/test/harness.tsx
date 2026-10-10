@@ -1,8 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import { App } from '../src/App';
+import { createQueryClient } from '../src/queryClient';
 
 /** Shared by the screen tests: a fetch stub keyed by "METHOD /api/path", and the whole app. */
 export type Handler = (init: RequestInit) => Response | Promise<Response>;
@@ -66,7 +67,7 @@ export function stubApi(routes: Record<string, Handler>) {
 }
 
 export function renderApp(path = '/') {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = createQueryClient();
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[path]}>

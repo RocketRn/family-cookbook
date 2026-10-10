@@ -44,6 +44,27 @@ export function TimerButtons({
   );
 }
 
+const CHIP_LABEL = 32;
+const graphemes = (s: string): string[] =>
+  typeof Intl.Segmenter === 'function'
+    ? Array.from(
+        new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(s),
+        (x) => x.segment,
+      )
+    : Array.from(s);
+/**
+ * S6-6: in the compact chips a long label is shortened (at a word when it can be), so the time
+ * left stays in view and the panel stays small; the whole label shows when the chip is opened.
+ */
+export function shortLabel(label: string): string {
+  const g = graphemes(label);
+  if (g.length <= CHIP_LABEL) return label;
+  let cut = g.slice(0, CHIP_LABEL - 1).join('');
+  const space = cut.lastIndexOf(' ');
+  if (space >= CHIP_LABEL * 0.6) cut = cut.slice(0, space);
+  return `${cut.trimEnd()}…`;
+}
+
 /** PRD 2.4 step 9: every running timer as a chip, on every step; +1 min and cancel. */
 export function TimersPanel({ timers }: { timers: CookTimers }) {
   const { t } = useTranslation();
@@ -65,21 +86,25 @@ export function TimersPanel({ timers }: { timers: CookTimers }) {
             return (
               <Chip
                 key={c.key}
+                className="chip--wraps"
                 selected={open === c.key}
                 onToggle={() => setOpen(open === c.key ? null : c.key)}
               >
                 {c.failed
-                  ? t('cook.timer_failed', { label: c.label })
+                  ? t('cook.timer_failed', { label: shortLabel(c.label) })
                   : over
-                    ? t('cook.timer_done', { label: c.label })
+                    ? t('cook.timer_done', { label: shortLabel(c.label) })
                     : t('cook.timer_running', {
-                        label: c.label,
+                        label: shortLabel(c.label),
                         left: formatClock((c.endsAt - serverNow) / 1000),
                       })}
               </Chip>
             );
           })}
         </div>
+      )}
+      {selected && shortLabel(selected.label) !== selected.label && (
+        <p className="hint">{selected.label}</p>
       )}
       {selected && selectedRunning && (
         <div className="row">

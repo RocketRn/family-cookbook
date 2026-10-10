@@ -33,6 +33,8 @@ import {
 import { TimerAlarm, TimerButtons, TimersPanel, WriteAccessSheet } from './TimerParts';
 import { useCookTimers, type CookTimers } from './useCookTimers';
 import { useWakeLock } from './wakeLock';
+import { isWaiting } from '../state/online';
+import { Tip } from '../design/Tip';
 
 type Phase = 'resume' | 'prep' | 'step' | 'done';
 type Langs = { recipeLang: Lang; uiLang: Lang };
@@ -68,7 +70,7 @@ export function CookScreen({ me }: { me: Me }) {
 
   // With progress on this device, cooking does not wait for the network.
   if (!saved) {
-    if (fresh.isLoading) return <Loading />;
+    if (isWaiting(fresh)) return <Loading />;
     if (fresh.isError)
       return <ErrorState error={fresh.error} onRetry={() => void fresh.refetch()} />;
     if (!fresh.data) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
@@ -481,6 +483,7 @@ function StepView({
       <div className="cook__progress" aria-hidden="true">
         <span style={{ width: `${((index + 1) / total) * 100}%` }} />
       </div>
+      <Tip id="timers" />
       <div
         className="cook__swipe stack"
         data-swipe-zone

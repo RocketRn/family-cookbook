@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, Loading } from '../design/Feedback';
 import { SearchField } from '../design/Fields';
 import { errorMessage } from '../errors';
 import { RecipeListItem } from './RecipeCard';
+import { isWaiting } from '../state/online';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -46,7 +47,7 @@ export function SavedScreen() {
         maxLength={SEARCH_MAX_CHARS}
         onChange={(e) => setText(e.target.value)}
       />
-      {list.isLoading && <Loading />}
+      {isWaiting(list) && <Loading />}
       {list.isError && !list.data && (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       )}

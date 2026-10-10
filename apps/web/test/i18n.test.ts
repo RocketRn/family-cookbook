@@ -37,3 +37,18 @@ describe('plural forms', () => {
     expect(i18n.t('does.not.exist', { defaultValue: 'x' })).toBe('x');
   });
 });
+
+describe('buttons shown together have different names (S6-6)', () => {
+  // Found at 320 px: on the last cooking step "Stop cooking" and "Finish" were both "Завершити".
+  const together: Array<[string, string, string]> = [
+    ['the last cooking step', 'cook.exit', 'cook.finish'],
+    ['a cooking step', 'cook.exit', 'cook.next'],
+    ['a cooking step', 'cook.prev', 'cook.next'],
+    ['the recipe card', 'recipe.recalculate', 'recipe.cook'],
+  ];
+  it.each(['ru', 'uk', 'en', 'sv'] as const)('%s', async (lang) => {
+    await setLanguage(lang);
+    for (const [where, a, b] of together)
+      expect(i18n.t(a), `${where}: ${a} and ${b}`).not.toBe(i18n.t(b));
+  });
+});

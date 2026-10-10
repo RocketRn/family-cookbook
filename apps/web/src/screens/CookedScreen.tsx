@@ -12,6 +12,7 @@ import { errorMessage } from '../errors';
 import { reactionsKey } from '../recipe/Reactions';
 import { useToastStore } from '../state/store';
 import { haptic } from '../telegram/sdk';
+import { isWaiting } from '../state/online';
 
 /** The same limit as the server (D-048); it also keeps the bot's photo caption short enough. */
 const NOTE_MAX = 500;
@@ -34,7 +35,7 @@ export function CookedScreen() {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
 
-  if (recipe.isLoading) return <Loading />;
+  if (isWaiting(recipe)) return <Loading />;
   if (recipe.isError)
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   const r = recipe.data;
@@ -59,6 +60,7 @@ export function CookedScreen() {
       await qc.invalidateQueries({ queryKey: reactionsKey(r!.id) });
       setSent(true);
     } catch (err) {
+      haptic('error');
       toast(errorMessage(t, err));
     } finally {
       setBusy(false);

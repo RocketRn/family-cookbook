@@ -18,8 +18,17 @@ export function Onboarding({ initialCode = '' }: { initialCode?: string }) {
     haptic('success');
     void qc.invalidateQueries({ queryKey: ['book'] });
   };
-  const create = useMutation({ mutationFn: () => createBook(title.trim()), onSuccess: done });
-  const join = useMutation({ mutationFn: () => joinBook(code.trim()), onSuccess: done });
+  const failed = () => haptic('error');
+  const create = useMutation({
+    mutationFn: () => createBook(title.trim()),
+    onSuccess: done,
+    onError: failed,
+  });
+  const join = useMutation({
+    mutationFn: () => joinBook(code.trim()),
+    onSuccess: done,
+    onError: failed,
+  });
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault();

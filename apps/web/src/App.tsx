@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { getMe, type Me } from './api/endpoints';
 import { Button } from './design/Button';
-import { EmptyState, ErrorState, Loading } from './design/Feedback';
+import { EmptyState, ErrorState, Loading, OfflineNote } from './design/Feedback';
 import { errorMessage } from './errors';
 import { readManualLanguage, resolveLanguage, setLanguage } from './i18n';
 import { bookQuery } from './queries';
@@ -24,6 +24,7 @@ import { PlainShell, TabShell, ToastHost } from './screens/Shell';
 import { initTelegram } from './telegram/sdk';
 import { parseStartParam, routeForTarget } from './telegram/startParam';
 import { useBackButton } from './telegram/useBackButton';
+import { isWaiting } from './state/online';
 
 // UX-03 design screens: development builds only (the import is dropped from production bundles).
 const DesignScreens = import.meta.env.DEV ? lazy(() => import('./dev/design/DesignScreens')) : null;
@@ -82,7 +83,7 @@ function useBoot(): { boot: Boot; retry: () => void } {
 
 function BookTab() {
   const book = useQuery(bookQuery);
-  if (book.isLoading) return <Loading />;
+  if (isWaiting(book)) return <Loading />;
   if (book.isError) return <ErrorState error={book.error} onRetry={() => void book.refetch()} />;
   if (!book.data) return <Onboarding />;
   return <BookScreen bookTitle={book.data.title} />;
@@ -92,6 +93,7 @@ function Ready({ me }: { me: Me }) {
   useBackButton();
   return (
     <>
+      <OfflineNote />
       <Routes>
         <Route element={<TabShell />}>
           <Route path="/" element={<BookTab />} />

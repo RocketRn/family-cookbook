@@ -175,6 +175,32 @@ describe('timers on the recipe card (outside cooking mode)', () => {
   });
 });
 
+describe('a long timer label (S6-6, found at 320 px)', () => {
+  const LONG =
+    'Тушите голубцы под крышкой на медленном огне, пока капуста не станет совсем мягкой и нежной';
+  it('the chip shows the start of it (the time left stays visible); opened, the whole label', async () => {
+    list = [serverTimer({ label: LONG })];
+    api();
+    renderApp(`/recipe/${GOLUBTSY_ID}`);
+    const region = await screen.findByRole('region', { name: 'Timers' });
+    const chip = await within(region).findByRole('button', {
+      name: /^⏱ Тушите голубцы под крышкой на…/,
+    });
+    expect(chip.textContent).toMatch(/…\s·\s\d+(:\d\d)+$/);
+    expect(chip.textContent).not.toContain('нежной');
+    fireEvent.click(chip);
+    expect(within(region).getByText(LONG)).toBeTruthy();
+  });
+
+  it('a short label is shown whole', async () => {
+    list = [serverTimer({ label: 'Тушить' })];
+    api();
+    renderApp(`/recipe/${GOLUBTSY_ID}`);
+    const region = await screen.findByRole('region', { name: 'Timers' });
+    expect(await within(region).findByRole('button', { name: /^⏱ Тушить · / })).toBeTruthy();
+  });
+});
+
 describe('"message not delivered" (PRD 4.4: the bot could not write)', () => {
   it('a timer the bot could not announce says so, with a way to open the bot', async () => {
     list = [

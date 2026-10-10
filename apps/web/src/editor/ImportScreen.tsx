@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { recipeApi } from '../api/recipeApi';
 import { Button } from '../design/Button';
 import { errorMessage } from '../errors';
+import { haptic } from '../telegram/sdk';
 import type { EditorState } from './EditorScreen';
 import { IMPORT_DRAFT_KEY, readImportDraft, startReview, writeImportText } from './importDraft';
 
@@ -54,6 +55,7 @@ export function ImportScreen() {
       const state: EditorState = { imported };
       navigate(`/recipe/${res.recipe.id}/edit`, { replace: true, state });
     } catch (err) {
+      haptic('error');
       setError(errorMessage(t, err));
     } finally {
       setBusy(false);

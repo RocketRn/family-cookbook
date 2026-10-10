@@ -21,6 +21,7 @@ import { BOT_USERNAME, MINI_APP_SHORT_NAME } from '../telegram/bot';
 import { getRuntime, haptic } from '../telegram/sdk';
 import { useToastStore } from '../state/store';
 import { NotifySettings } from './NotifySettings';
+import { isWaiting } from '../state/online';
 
 type Confirm = { kind: 'leave' } | { kind: 'rotate' } | { kind: 'remove'; member: Member } | null;
 
@@ -52,7 +53,10 @@ export function ProfileScreen({ me }: { me: Me }) {
   // the bot and other devices use. If saving it fails, the user is told and can pick again.
   const saveLanguage = useMutation({
     mutationFn: (lang: Language) => updateMe({ ui_lang: lang }),
-    onError: () => toast(t('profile.language_not_saved')),
+    onError: () => {
+      haptic('error');
+      toast(t('profile.language_not_saved'));
+    },
   });
   const pickLanguage = (lang: Language) => {
     saveManualLanguage(lang);
@@ -130,7 +134,7 @@ export function ProfileScreen({ me }: { me: Me }) {
 
       <section className="section stack stack--tight" aria-labelledby="book-h">
         <h2 id="book-h">{t('profile.book')}</h2>
-        {book.isLoading && <Loading />}
+        {isWaiting(book) && <Loading />}
         {book.isError && <ErrorState error={book.error} onRetry={() => void book.refetch()} />}
         {book.isSuccess && !b && <p className="hint">{t('profile.no_book')}</p>}
         {b && (

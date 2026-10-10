@@ -12,9 +12,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S6-3  | The screen for someone who opens a recipe link (guest)                     | done                                                                     | `d223223` |
 | S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | done                                                                     | `57e889b` |
 | S6-4  | Observability: the timer delay figure, health, an uptime alert             | done                                                                     | `b6b18a5` |
-| S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | done (found and fixed slow sending in a burst)                           | (this)    |
-| S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | next                                                                     |           |
-| S6-7  | Small Sprint 5 findings: Saved filters, timer's recipe name, hint language | to do                                                                    |           |
+| S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | done (found and fixed slow sending in a burst)                           | `34b5f2b` |
+| S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | done (found and fixed 5 layout problems and 2 offline ones)              | (this)    |
+| S6-7  | Small Sprint 5 findings: Saved filters, timer's recipe name, hint language | next                                                                     |           |
 | S6-8  | Usage counts                                                               | **not built** (owner's answer 3)                                         |           |
 | S6-9  | CSP decision                                                               | placeholder: after the first Telegram test's reports                     |           |
 | S6-10 | Wrap-up: clean clone, CI, guides, report, "before you invite the family"   | to do                                                                    |           |
@@ -86,3 +86,11 @@ Additions:
 - **Found:** every message went exactly once and the other 900 timers were untouched, but sending was slow: the last message 18.5 s after its timer ended, half of them over 8.8 s, 73 of 100 over the PRD's 5 s. The sender put a message off for half a second whenever the bot-wide pace (one message every 40 ms) had just been used, and idled between full batches.
 - **Fixed** (D-058): a short wait for the bot-wide pace is waited out; the worker takes the next batch at once while more is due. Now, three runs: the last message 4.4–4.6 s late, half within 2.4–2.6 s, none over 5 s, no 429.
 - Red first: the load test (18.5 s), and 3 of 4 new sender tests; the stand-in's new 429 test. One Sprint 4 test ("5 a second") expected the old putting-off and now expects the wait.
+
+### S6-6 Polish: no connection, buzzes, first-run tips, long texts
+
+- **No connection** (D-059): a note at the top of every screen; what was loaded stays; a screen not loaded before says it will load when the connection is back, then loads. **Found:** such a screen showed "Recipe not found" or "No recipes yet", and a tap waited silently; now a tap says "No connection" at once.
+- **Buzzes:** the same rule everywhere (a tick for a choice, "success" when something is done, "error" when something fails). Publishing, saving, deleting, a failed tap and a failed paste had none.
+- **First-run tips:** one on the book (forward a recipe to the bot), one on the card ("Recalculate"), one in cooking (timers keep going with the app closed), each until "Got it".
+- **Long texts at 320 px** (UX-06): a new browser test opens every main screen and sheet in Ukrainian, Swedish and Russian, plus a recipe with the longest texts a person writes. **Found and fixed:** the editor's unit chip cut "ingen enhet" (sv); a step's timer on a recalculated card (sv) and a long timer label in cooking mode made the screen scroll sideways; a title with one long word did the same; "Stop cooking" and "Finish" were both "Завершити" (uk). The first version of the check found nothing because of a mistake in it; a self-check now plants a broken button and requires it to be reported.
+- Red first: 4 of 4 offline tests, 5 of 5 buzz tests, 3 of 3 tip tests, the timer-label test and the uk button-name test failed on the old code. The 320 px test first failed on the problems above. RUN-LOCALLY 5.17; QA.md P17 and the test map.

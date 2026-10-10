@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { errorMessage } from '../errors';
+import { useOnline } from '../state/online';
 import { Button } from './Button';
 
 export function EmptyState({
@@ -40,11 +41,24 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => 
   );
 }
 
+/** "Loading…", or, without a connection, that it will load when the connection is back (S6-6). */
 export function Loading() {
   const { t } = useTranslation();
+  const online = useOnline();
   return (
     <p className="hint" role="status">
-      {t('common.loading')}
+      {online ? t('common.loading') : t('offline.waiting')}
+    </p>
+  );
+}
+
+/** S6-6: a note at the top of every screen while there is no connection. */
+export function OfflineNote() {
+  const { t } = useTranslation();
+  if (useOnline()) return null;
+  return (
+    <p className="offline-note" role="status">
+      {t('offline.note')}
     </p>
   );
 }

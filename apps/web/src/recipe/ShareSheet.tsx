@@ -8,6 +8,7 @@ import { Button } from '../design/Button';
 import { ErrorState, Loading } from '../design/Feedback';
 import { useToastStore } from '../state/store';
 import { getRuntime, haptic } from '../telegram/sdk';
+import { isWaiting } from '../state/online';
 
 /** A recipe can be shared once it is in the book or shared by link (S6-3b, D-056). */
 export const canShare = (r: Recipe) => r.status === 'published' && r.visibility !== 'private';
@@ -60,9 +61,11 @@ function ShareSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }
     if (!share.data) return;
     try {
       await navigator.clipboard.writeText(share.data.link);
+      haptic('success');
       toast(t('common.copied'));
     } catch {
       /* clipboard may be blocked in some WebViews; "Send to a chat" remains */
+      haptic('error');
     }
   };
 
@@ -72,7 +75,7 @@ function ShareSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }
         <p className="hint">
           {recipe.visibility === 'link' ? t('share.for_anyone') : t('share.for_book')}
         </p>
-        {share.isLoading && <Loading />}
+        {isWaiting(share) && <Loading />}
         {share.isError && <ErrorState error={share.error} onRetry={() => void share.refetch()} />}
         {share.data && (
           <>

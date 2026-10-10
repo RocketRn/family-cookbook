@@ -38,6 +38,7 @@ export function NotifySettings({ me }: { me: Me }) {
       return { before };
     },
     onError: (err, _patch, ctx) => {
+      haptic('error');
       if (ctx?.before) qc.setQueryData<Me>(ME_KEY, ctx.before);
       toast(errorMessage(t, err));
     },

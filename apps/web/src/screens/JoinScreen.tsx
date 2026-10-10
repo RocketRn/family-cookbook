@@ -22,6 +22,7 @@ export function JoinScreen() {
       toast(t('join.success'));
       navigate('/', { replace: true });
     },
+    onError: () => haptic('error'),
   });
 
   return (

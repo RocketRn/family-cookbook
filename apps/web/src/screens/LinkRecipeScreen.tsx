@@ -5,6 +5,7 @@ import type { Me } from '../api/endpoints';
 import { recipeApi } from '../api/recipeApi';
 import { EmptyState, ErrorState, Loading } from '../design/Feedback';
 import { RecipeView } from './RecipeScreen';
+import { isWaiting } from '../state/online';
 
 /**
  * FE-11 / S6-3 (PRD UC-08, 4.7 `r_<share_token>`; owner's Sprint 6 answer 2; D-055): a recipe
@@ -26,7 +27,7 @@ export function LinkRecipeScreen({ me }: { me?: Me }) {
     retry: false,
   });
 
-  if (shared.isLoading || (id && usual.isLoading)) return <Loading />;
+  if (isWaiting(shared) || (id && isWaiting(usual))) return <Loading />;
   if (shared.isError)
     return <ErrorState error={shared.error} onRetry={() => void shared.refetch()} />;
   if (!shared.data)

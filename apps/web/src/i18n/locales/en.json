@@ -482,5 +482,16 @@
     "sent": "Sent",
     "for_book": "Only members of your book can open it. To share it with anyone, choose “By link” under “Who can see it” when editing.",
     "for_anyone": "Anyone with the link can open it, recalculate it and cook it. Only you can change it."
+  },
+  "offline": {
+    "note": "No connection. You see what was already loaded; anything you change needs the connection.",
+    "waiting": "No connection. This will load when the connection is back."
+  },
+  "tips": {
+    "label": "Tip",
+    "got_it": "Got it",
+    "forward": "You can forward a recipe’s text to the bot in Telegram: it becomes your draft, and you check it here.",
+    "recalculate": "“Recalculate” changes the amounts for any number of servings, or for how much of one product you have.",
+    "timers": "Timers keep going when you close the app. When one ends, the bot sends you a message."
   }
 }

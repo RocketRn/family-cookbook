@@ -15,7 +15,7 @@ import { isLanguage, LANGUAGE_NAMES, LANGUAGES } from '../i18n';
 import { bookQuery } from '../queries';
 import { SYSTEM_TAGS } from '../screens/BookScreen';
 import { useLeaveGuard, useToastStore } from '../state/store';
-import { setClosingConfirmation } from '../telegram/sdk';
+import { haptic, setClosingConfirmation } from '../telegram/sdk';
 import {
   check,
   countSuggestions,
@@ -41,6 +41,7 @@ import {
 } from './model';
 import { endReview, reviewFor, saveReviewEdits } from './importDraft';
 import { IngredientRow, IngredientSheet, LOW_CONFIDENCE, PhotoSlot, StepCard } from './parts';
+import { isWaiting } from '../state/online';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 const VISIBILITIES = ['private', 'book', 'link'] as const;
@@ -68,10 +69,10 @@ export function EditorScreen() {
   const book = useQuery(bookQuery);
 
   if (id === undefined) {
-    if (book.isLoading) return <Loading />;
+    if (isWaiting(book)) return <Loading />;
     return <Editor key="new" initial={emptyRecipe(uiLang, !!book.data)} inBook={!!book.data} />;
   }
-  if (recipe.isLoading || book.isLoading) return <Loading />;
+  if (isWaiting(recipe) || isWaiting(book)) return <Loading />;
   if (recipe.isError)
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   if (!recipe.data) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
@@ -174,6 +175,7 @@ function Editor({
     const found = check(r, status === 'published');
     setErrors(found);
     if (Object.keys(found).length > 0) {
+      haptic('error');
       setGeneral(t('editor.err_check_fields'));
       return;
     }
@@ -187,9 +189,11 @@ function Editor({
       endReview(saved.id);
       qc.setQueryData(['recipe', saved.id], saved);
       void qc.invalidateQueries({ queryKey: ['recipes'] });
+      haptic('success');
       toast(status === 'published' ? t('editor.published') : t('editor.saved'));
       navigate(`/recipe/${saved.id}`, { replace: true });
     } catch (err) {
+      haptic('error');
       const mapped =
         err instanceof ApiError
           ? serverErrors(err.code, err.details, { ingredientKeys, stepKeys })

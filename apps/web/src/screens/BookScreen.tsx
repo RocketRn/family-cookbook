@@ -12,6 +12,8 @@ import { errorMessage } from '../errors';
 import { SearchField } from '../design/Fields';
 import { useFilterStore } from '../state/store';
 import { RecipeListItem } from './RecipeCard';
+import { isWaiting } from '../state/online';
+import { Tip } from '../design/Tip';
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
 const TIME_LIMITS = [30, 60, 120];
@@ -75,6 +77,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
           {'＋'}
         </Button>
       </div>
+      <Tip id="forward" />
       <div>
         {list.data && (
           <p className="hint" aria-live="polite">
@@ -114,7 +117,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
         </Chip>
       </div>
 
-      {list.isLoading && <Loading />}
+      {isWaiting(list) && <Loading />}
       {list.isError && !list.data && (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       )}

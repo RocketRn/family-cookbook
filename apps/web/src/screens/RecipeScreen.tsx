@@ -25,6 +25,8 @@ import { StepList } from '../recipe/StepList';
 import { VideoPlayer } from '../recipe/VideoPlayer';
 import { useToastStore } from '../state/store';
 import { confirmDialog, haptic } from '../telegram/sdk';
+import { isWaiting } from '../state/online';
+import { Tip } from '../design/Tip';
 
 /** Cover first, then step photos; a photo used twice is shown once. */
 function galleryPhotos(r: Recipe): Photo[] {
@@ -42,7 +44,7 @@ export function RecipeScreen({ me }: { me?: Me }) {
   const { id = '' } = useParams();
   const recipe = useQuery({ queryKey: ['recipe', id], queryFn: () => recipeApi.get(id) });
 
-  if (recipe.isLoading) return <Loading />;
+  if (isWaiting(recipe)) return <Loading />;
   // A failed request is not "not found": show why and offer a retry.
   if (recipe.isError)
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
@@ -136,6 +138,7 @@ export function RecipeView({
           {t('recipe.cook')}
         </Button>
       </div>
+      <Tip id="recalculate" />
 
       {recalc && (
         <RecalcBanner
@@ -291,6 +294,7 @@ function RecipeActions({ recipe: r }: { recipe: Recipe }) {
     setError(null);
     try {
       await run();
+      haptic('success');
       void qc.invalidateQueries({ queryKey: ['recipes'] });
       toast(done);
       if (leave) {
@@ -298,6 +302,7 @@ function RecipeActions({ recipe: r }: { recipe: Recipe }) {
         navigate('/', { replace: true });
       } else await qc.invalidateQueries({ queryKey: ['recipe', r.id] });
     } catch (err) {
+      haptic('error');
       setError(errorMessage(t, err));
     } finally {
       setBusy(false);
@@ -372,6 +377,7 @@ function SaveToggle({ recipe: r }: { recipe: Recipe }) {
       );
       await qc.invalidateQueries({ queryKey: ['recipes'] });
     } catch (err) {
+      haptic('error');
       toast(errorMessage(t, err));
     } finally {
       setBusy(false);

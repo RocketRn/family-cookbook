@@ -485,5 +485,16 @@
     "sent": "Skickat",
     "for_book": "Bara medlemmar i din bok kan öppna det. För att dela med vem som helst, välj ”Via länk” under ”Vem kan se det” när du redigerar.",
     "for_anyone": "Alla med länken kan öppna, räkna om och laga receptet. Bara du kan ändra det."
+  },
+  "offline": {
+    "note": "Ingen anslutning. Du ser det som redan har laddats; för att ändra något behövs anslutning.",
+    "waiting": "Ingen anslutning. Det laddas när anslutningen är tillbaka."
+  },
+  "tips": {
+    "label": "Tips",
+    "got_it": "Uppfattat",
+    "forward": "Du kan vidarebefordra ett recepts text till boten i Telegram: det blir ditt utkast, och du kontrollerar det här.",
+    "recalculate": "”Räkna om” ändrar mängderna för valfritt antal portioner, eller för hur mycket du har av en vara.",
+    "timers": "Timrar fortsätter när du stänger appen. När en är klar skickar boten ett meddelande."
   }
 }
