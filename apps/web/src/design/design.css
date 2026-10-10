@@ -679,3 +679,14 @@ h2 {
   width: 12rem;
   max-width: 100%;
 }
+
+/* FE-10: who cooked the recipe (for its author). */
+.cooked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cooked-list > li + li {
+  border-top: 1px solid var(--separator, rgba(0, 0, 0, 0.1));
+  padding-top: 8px;
+}

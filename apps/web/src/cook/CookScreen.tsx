@@ -279,7 +279,7 @@ function Cooking({
   }
 
   if (phase === 'done') {
-    const cooked = `${t('cook.cooked')} · ${t('common.coming_soon')}`;
+    const session = st.session_id ? `?session=${encodeURIComponent(st.session_id)}` : '';
     return (
       <div className="stack center">
         <p className="cook__done" aria-hidden="true">
@@ -294,9 +294,13 @@ function Cooking({
         <Button block variant="secondary" onClick={() => restart(fresh ?? recipe)}>
           {t('cook.again')}
         </Button>
-        {/* Saving "I cooked it" arrives with reactions (BE-10, Sprint 5); "My version" is hidden. */}
-        <Button block variant="ghost" disabled>
-          {cooked}
+        {/* FE-10: "I cooked it", tied to this cooking session. "My version" stays hidden. */}
+        <Button
+          block
+          variant="ghost"
+          onClick={() => navigate(`/recipe/${recipe.id}/cooked${session}`)}
+        >
+          {t('cook.cooked')}
         </Button>
       </div>
     );

@@ -209,7 +209,14 @@
     "cooked": "Jag lagade den",
     "cook_again": "Lagar igen",
     "my_version": "Min version",
-    "coming_soon": "Reaktioner kommer i en senare version."
+    "chip_label": "{{name}}: {{count}}",
+    "cooked_times_one": "👨‍🍳 Lagad {{count}} gång",
+    "cooked_times_other": "👨‍🍳 Lagad {{count}} gånger",
+    "cooked_mine_one": "Du har lagat den {{count}} gång",
+    "cooked_mine_other": "Du har lagat den {{count}} gånger",
+    "cooked_by": "Vem har lagat den",
+    "someone": "Någon",
+    "dish_of": "{{name}}s rätt"
   },
   "editor": {
     "title_new": "Nytt recept",
@@ -442,15 +449,18 @@
     "screen_author": "Vad författaren ser",
     "screen_own": "Ditt eget recept",
     "title": "Du lagade ”{{title}}”",
-    "intro": "Ett foto och några ord är frivilliga. {{name}} får dem i ett meddelande från boten.",
+    "intro": "Ett foto och några ord är frivilliga. {{name}} får dem i ett meddelande från boten, om hen inte har stängt av sådana meddelanden.",
     "comment_hint": "Till exempel: hur det blev, vad du ändrade",
     "later": "Utan foto eller ord",
     "sent_title": "Skickat!",
-    "sent_text": "{{name}} får ett meddelande med ditt foto och dina ord.",
+    "sent_text": "{{name}} får ett meddelande med ditt foto och dina ord, om hen inte har stängt av sådana meddelanden.",
     "sent_reaction": "Receptkortet visar ”👨‍🍳 Lagade det”.",
     "author_note": "Så här ser meddelandet ut i författarens chatt med boten:",
     "author_msg": "👨‍🍳 {{name}} lagade ditt ”{{title}}”!",
     "author_open": "Öppna receptet",
-    "own_text": "Det här är ditt eget recept: markeringen sparas på kortet och ingen får något meddelande."
+    "own_text": "Det här är ditt eget recept: markeringen sparas på kortet och ingen får något meddelande.",
+    "own_intro": "Det här är ditt eget recept: markeringen sparas på kortet och ingen får något meddelande.",
+    "comment_own": "Några ord (bara du ser dem)",
+    "photo_alt": "Din rätt"
   }
 }

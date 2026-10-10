@@ -10,9 +10,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S5-1  | Storage compatibility with Google Cloud Storage, and what to check | done                                                               | `a1186e5` |
 | S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | done                                                               | `3eb1329` |
 | S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | done                                                               | `d628269` |
-| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | done                                                               | (this)    |
-| S5-5  | FE-10 reactions and "I cooked it" on screen                        | next                                                               |           |
-| S5-6  | Notification settings, and the new-recipe message (off by default) | to do                                                              |           |
+| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | done                                                               | `850b4e0` |
+| S5-5  | FE-10 reactions and "I cooked it" on screen                        | done                                                               | (this)    |
+| S5-6  | Notification settings, and the new-recipe message (off by default) | next                                                               |           |
 | S5-7  | FE-09 timers, full version                                         | to do                                                              |           |
 | S5-8  | Saved recipes                                                      | to do                                                              |           |
 | S5-9  | QA-01 automated browser tests in CI                                | to do                                                              |           |
@@ -81,3 +81,11 @@ Additions:
 - Red first: 23 of 25 API tests failed (the 2 that passed are "refused" checks that a missing route also satisfies), and 4 stand-in tests failed. Now 25 and 23 pass.
 - Not here: the screens (S5-5) and the settings (S5-6). The guides change with the screens.
 - Also recorded: the bot does not use grammY yet (D-047), a deviation from PRD 4.1, explained there.
+
+### S5-5 FE-10 Reactions and "I cooked it" on screen
+
+- The card's reactions block is live: ❤️ 😋 🔥 💡 🤔 🔁 with counts, yours pressed, a second tap removes it; "👨‍🍳 Cooked N times" and "You cooked it N times"; "My version" is gone. The author also sees "Who cooked it": name, date, photo and words.
+- "👨‍🍳 I cooked it" (from the card or from cooking's Done screen, then tied to that cooking session): an optional photo (the editor's photo field), up to 500 characters, "Send" or "Without a photo or words", then "Sent!". For your own recipe the screen says nobody gets a message. The texts now say the author may have turned these messages off (quiet mode, S5-6). Texts in all four languages.
+- Red first: 10 of 10 new web tests failed. Two older tests described the old behaviour and were updated: the Sprint 2 "markup only" reactions block, and the greyed-out "I cooked it" on the Done screen. The design preview's "sent" text was also updated.
+- Checked in a browser on the demo: user 2 reacted and marked "I cooked it" with a photo and words; the author's bot message with the photo reached the stand-in 1.0 s later (PRD: within 10 s), and its photo link opened (291 KB). The author's card showed "Who cooked it" with the photo and words.
+- Guides: RUN-LOCALLY 5.3, 5.11, 5.12 and a new 5.14 with two screenshots; DEPLOY-GCP section 10 checklist "Reactions and I cooked it", with what to send if the photo does not arrive.

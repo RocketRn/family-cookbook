@@ -309,15 +309,27 @@ describe('FE-03 recipe card', () => {
     open.mockRestore();
   });
 
-  it('shows the reactions block as markup only (BE-10 is Sprint 5)', async () => {
+  it('shows the reactions block with live counts (FE-10; the details: reactions.test.tsx)', async () => {
     await setLanguage('en');
-    card();
+    const zero = { heart: 0, yum: 0, fire: 0, idea: 0, curious: 0, cook_again: 0 };
+    stubApi({
+      'GET /api/me': () => json(200, { ...ME, ui_lang: 'en' }),
+      'GET /api/books/current': () => json(200, BOOK),
+      [`GET /api/recipes/${GOLUBTSY_ID}`]: () => json(200, GOLUBTSY),
+      [`GET /api/recipes/${GOLUBTSY_ID}/reactions`]: () =>
+        json(200, {
+          counts: { ...zero, heart: 1, cooked: 0 },
+          mine: { ...zero, heart: null, cooked: 0 },
+          cooked: [],
+        }),
+    });
     renderApp(`/recipe/${GOLUBTSY_ID}`);
     const block = await screen.findByRole('region', { name: 'Reactions' });
+    expect(await within(block).findByRole('button', { name: 'Love it: 1' })).toBeTruthy();
+    // Six one-of reactions and "I cooked it"; "My version" is hidden (owner, Sprint 4).
     const buttons = block.querySelectorAll('button');
-    expect(buttons).toHaveLength(8);
-    buttons.forEach((b) => expect(b.disabled).toBe(true));
-    expect(screen.getByRole('button', { name: 'Love it' })).toBeTruthy();
+    expect(buttons).toHaveLength(7);
+    buttons.forEach((b) => expect(b.disabled).toBe(false));
   });
 
   it('a recipe the API does not show is "not found"', async () => {
@@ -497,7 +509,9 @@ describe('UX-03 design screens (development build only)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(screen.getByRole('heading', { name: 'Sent!' })).toBeTruthy();
     expect(
-      screen.getByText('Dev Keeper will get a message with your photo and your words.'),
+      screen.getByText(
+        'Dev Keeper will get a message with your photo and your words, unless they have turned these messages off.',
+      ),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'What the author sees' }));
     expect(screen.getByText('👨‍🍳 Dev Member cooked your “Шарлотка”!')).toBeTruthy();

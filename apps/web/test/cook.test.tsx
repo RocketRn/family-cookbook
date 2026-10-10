@@ -135,11 +135,11 @@ describe('cooking mode', () => {
         state: 'finished',
       }),
     );
-    // "My version" is hidden for now (owner's answer); "I cooked it" arrives with reactions.
+    // "My version" is hidden for now (owner's answer); "I cooked it" works (FE-10, reactions.test).
     expect(screen.queryByRole('button', { name: /My version/ })).toBeNull();
     expect(
       (screen.getByRole('button', { name: /I cooked it/ }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    ).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: "🔁 I'll cook it again" }));
     expect(screen.getByRole('button', { name: 'Start cooking' })).toBeTruthy();
   });

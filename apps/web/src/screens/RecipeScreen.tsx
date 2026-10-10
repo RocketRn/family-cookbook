@@ -177,7 +177,7 @@ function RecipeView({ r }: { r: Recipe }) {
           </p>
         </section>
       )}
-      <Reactions />
+      <Reactions recipe={r} />
       <RecipeActions recipe={r} />
     </article>
   );

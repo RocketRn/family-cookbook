@@ -206,7 +206,14 @@
     "cooked": "I cooked it",
     "cook_again": "Cook again",
     "my_version": "My version",
-    "coming_soon": "Reactions will be available in a later version."
+    "chip_label": "{{name}}: {{count}}",
+    "cooked_times_one": "👨‍🍳 Cooked {{count}} time",
+    "cooked_times_other": "👨‍🍳 Cooked {{count}} times",
+    "cooked_mine_one": "You cooked it {{count}} time",
+    "cooked_mine_other": "You cooked it {{count}} times",
+    "cooked_by": "Who cooked it",
+    "someone": "Someone",
+    "dish_of": "{{name}}’s dish"
   },
   "editor": {
     "title_new": "New recipe",
@@ -439,15 +446,18 @@
     "screen_author": "What the author sees",
     "screen_own": "Your own recipe",
     "title": "You cooked “{{title}}”",
-    "intro": "A photo and a few words are optional. {{name}} gets them in a message from the bot.",
+    "intro": "A photo and a few words are optional. {{name}} gets them in a message from the bot, unless they have turned these messages off.",
     "comment_hint": "For example: how it turned out, what you changed",
     "later": "Without a photo or words",
     "sent_title": "Sent!",
-    "sent_text": "{{name}} will get a message with your photo and your words.",
+    "sent_text": "{{name}} will get a message with your photo and your words, unless they have turned these messages off.",
     "sent_reaction": "The recipe card will show “👨‍🍳 Cooked it”.",
     "author_note": "This is how the message looks in the author’s chat with the bot:",
     "author_msg": "👨‍🍳 {{name}} cooked your “{{title}}”!",
     "author_open": "Open the recipe",
-    "own_text": "This is your own recipe: the mark is kept on the card, and nobody gets a message."
+    "own_text": "This is your own recipe: the mark is kept on the card, and nobody gets a message.",
+    "own_intro": "This is your own recipe: the mark stays on the card, and nobody gets a message.",
+    "comment_own": "A few words (only you see them)",
+    "photo_alt": "Your dish"
   }
 }
