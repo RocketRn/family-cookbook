@@ -8,6 +8,7 @@ import {
   roundAmount,
   scaleAmount,
   scaleRecipe,
+  unitLabel,
   type IngredientAmount,
   type Lang,
   type ScaledAmount,
@@ -314,6 +315,46 @@ describe('locales: numbers in the recipe language, hints in the UI language', ()
     expect(fmt(s2, 'en')).toBe('3 pcs (or 2 pcs and ½ of one more)');
   });
 
+  // Owner's Sprint 6 answer 4: hints stay in the reader's language, but the unit word inside a
+  // hint is in the ingredient line's (the recipe's) language, so a line never mixes "2 pcs" and
+  // "1 шт.".
+  it('the unit word in a hint is in the recipe’s language, the rest in the reader’s', () => {
+    const egg = scaleAmount(exact(1, 'pcs', 'whole_item', { name: 'яйцо' }), 1.3);
+    expect(fmt(egg, 'ru', 'en')).toBe('1 шт. (or whisk 2 шт. and take ⅔)');
+    expect(fmt(egg, 'ru', 'sv')).toBe('1 шт. (eller vispa 2 шт. och ta ⅔)');
+    expect(fmt(egg, 'sv', 'ru')).toBe('1 st (или взбить 2 st и взять ⅔)');
+    const garlic = scaleAmount(exact(1, 'clove', 'whole_item', { name: 'чеснок' }), 1.3);
+    expect(fmt(garlic, 'ru', 'en')).toBe('1 зубчик (or take 2 зубчика and use ⅔)');
+    expect(fmt(garlic, 'en', 'uk')).toBe('1 clove (або взяти 2 cloves і використати ⅔)');
+    expect(fmt(garlic, 'uk', 'sv')).toBe('1 зубчик (eller ta 2 зубчики och använd ⅔)');
+    const s2 = scaleAmount(exact(4, 'pcs', 'whole_item', { name: 'eggs' }), 0.625);
+    expect(fmt(s2, 'en', 'ru')).toBe('3 pcs (или 2 pcs и ½ ещё одного)');
+  });
+
+  it('no line ever mixes two languages’ unit words (every recipe × reader language)', () => {
+    const langs = ['ru', 'uk', 'en', 'sv'] as const;
+    for (const unit of ['pcs', 'clove'] as const)
+      for (const recipeLang of langs)
+        for (const uiLang of langs) {
+          const s = scaleAmount(exact(1, unit, 'whole_item', { name: 'x' }), 1.3);
+          const line = fmt(s, recipeLang, uiLang);
+          const own = [1, 2].map((n) => unitLabel(unit, recipeLang, n));
+          const others = langs
+            .filter((l) => l !== recipeLang)
+            .flatMap((l) => [1, 2].map((n) => unitLabel(unit, l, n)))
+            .filter((w) => w && !own.includes(w));
+          const inHint = line.slice(line.indexOf('('));
+          expect(
+            own.some((w) => inHint.includes(` ${w} `)),
+            `${recipeLang}/${uiLang}: ${line}`,
+          ).toBe(true);
+          for (const w of others)
+            expect(inHint.includes(` ${w} `), `${recipeLang}/${uiLang}: ${line} has "${w}"`).toBe(
+              false,
+            );
+        }
+  });
+
   it('hints in all four UI languages: other whole items are taken, not whisked', () => {
     const garlic = scaleAmount(exact(1, 'clove', 'whole_item', { name: 'чеснок' }), 1.3);
     expect(fmt(garlic, 'ru')).toBe('1 зубчик (или взять 2 зубчика и использовать ⅔)');
@@ -328,9 +369,10 @@ describe('locales: numbers in the recipe language, hints in the UI language', ()
     expect(fmt(raw, 'ru')).toBe('1 шт. (или взбить 2 шт. и взять ⅔)');
   });
 
-  it('a Swedish recipe viewed in a Russian UI: amount in Swedish, hint in Russian', () => {
+  it('a Swedish recipe viewed in a Russian UI: amount in Swedish, hint in Russian (its unit in Swedish)', () => {
     const s = scaleAmount(exact(1, 'pcs', 'whole_item', { name: 'ägg' }), 1.3);
-    expect(fmt(s, 'sv', 'ru')).toBe('1 st (или взбить 2 шт. и взять ⅔)');
+    // Until Sprint 6 the hint said "2 шт." next to "1 st" (owner's Sprint 6 answer 4).
+    expect(fmt(s, 'sv', 'ru')).toBe('1 st (или взбить 2 st и взять ⅔)');
   });
 
   it('non-scalable labels per recipe language', () => {

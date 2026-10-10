@@ -559,7 +559,7 @@ function StepView({
           ))}
         <p className="hint">{t('cook.swipe_hint')}</p>
       </div>
-      <TimersPanel timers={timers} />
+      <TimersPanel timers={timers} recipeId={recipe.id} />
       <WriteAccessSheet timers={timers} />
       <div className="actionbar row">
         <Button

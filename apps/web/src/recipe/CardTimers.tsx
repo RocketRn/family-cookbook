@@ -30,11 +30,11 @@ export function useCardTimers(r: Recipe, botStarted: boolean, guest?: string): C
 }
 
 /** Timers on the card: shown only while there are any, kept in view at the bottom. */
-export function CardTimersPanel({ timers }: { timers: CookTimers }) {
+export function CardTimersPanel({ timers, recipeId }: { timers: CookTimers; recipeId: string }) {
   if (timers.chips.length === 0) return null;
   return (
     <div className="card-timers">
-      <TimersPanel timers={timers} />
+      <TimersPanel timers={timers} recipeId={recipeId} />
     </div>
   );
 }

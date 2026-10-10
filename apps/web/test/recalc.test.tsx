@@ -262,10 +262,11 @@ describe('recalculation on the recipe card', () => {
     const sheet = screen.getByRole('dialog', { name: 'Recalculate the recipe' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'More servings' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Recalculate' }));
-    // Numbers and units in the recipe's language (ru), hints in the interface language (en).
+    // Numbers and units in the recipe's language (ru), hints in the interface language (en); the
+    // unit word inside the hint stays in the line's language (owner's Sprint 6 answer 4).
     expect(amounts()).toEqual([
-      '1 шт. (or whisk 2 pcs and take ⅔)',
-      '1 зубчик (or take 2 cloves and use ⅔)',
+      '1 шт. (or whisk 2 шт. and take ⅔)',
+      '1 зубчик (or take 2 зубчика and use ⅔)',
     ]);
   });
 });

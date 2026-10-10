@@ -25,6 +25,9 @@ export type TimerChip = {
   failed: boolean;
   /** Started without a connection: only on this screen until it syncs. */
   local: boolean;
+  /** S6-7: the recipe it belongs to (null: this device's own offline timer, of this recipe). */
+  recipeId: string | null;
+  recipeTitle: string | null;
 };
 
 /**
@@ -48,6 +51,8 @@ export function timerChips(server: ServerTimer[] | undefined, mine: CookTimer[])
       ended: t.status !== 'running',
       failed: t.status === 'failed',
       local: false,
+      recipeId: t.recipe_id,
+      recipeTitle: t.recipe_title,
     });
   }
   for (const t of mine) {
@@ -62,6 +67,8 @@ export function timerChips(server: ServerTimer[] | undefined, mine: CookTimer[])
       ended: false,
       failed: false,
       local: !t.synced,
+      recipeId: null,
+      recipeTitle: null,
     });
   }
   return chips.sort((a, b) => a.endsAt - b.endsAt);

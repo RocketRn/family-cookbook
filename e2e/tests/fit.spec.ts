@@ -169,6 +169,8 @@ for (const lang of ['uk', 'sv', 'ru'] as const) {
       await check(page, 'book → new recipe');
 
       await visit(page, MEMBER, '/saved', 'saved');
+      await page.getByRole('button', { name: t('book.filters') }).click();
+      await check(page, 'saved → filters');
       await visit(page, MEMBER, '/profile', 'profile');
 
       await visit(page, MEMBER, `/recipe/${GOLUBTSY}`, 'recipe card');

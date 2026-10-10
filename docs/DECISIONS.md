@@ -670,3 +670,9 @@ PRD 4.1 names grammY for the bot. The owner decided to keep the current code. Re
   - a title with one long word made the card and cooking mode scroll sideways: headings break such words;
   - "Stop cooking" and "Finish" were the same word in Ukrainian ("Завершити") on the last step, and nearly so in Russian: now "Вийти" / "Выйти" (a test checks such pairs in every language).
 - A list row's title is still cut with "…" on purpose (one line per recipe).
+
+### D-060 Three small things found in Sprint 5 (S6-7)
+
+- **The unit word inside a hint** (owner's Sprint 6 answer 4): a whole-item hint stays in the reader's interface language (PRD 5.3), but its unit word is in the ingredient line's language (the recipe's), so a line never mixes "2 pcs" and "1 шт.". An English reader of a Russian recipe sees "1 шт. (or whisk 2 шт. and take ⅔)". A test checks every recipe language against every interface language. The Sprint 3 test that expected "1 st (или взбить 2 шт. …)" now expects "2 st".
+- **Another recipe's timer on a card** names its recipe: "⏱ Духовка · 12:40 · Шарлотка" (from the timer's own copy of the recipe title, so nothing new is asked of the server). In cooking mode too. A timer of this recipe, and a timer started offline on this screen, show no title.
+- **Filters on the "Saved" tab**: the same sheet as the book's (difficulty, total time, tags), with the count on its button and "Nothing found" when nothing matches. The shelf keeps its own choice, apart from the book's. The server already applied filters to `scope=saved`; an API test now proves it.

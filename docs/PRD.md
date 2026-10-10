@@ -808,6 +808,8 @@ function roundWhole(x: number, m: number): { value: number; hint?: Hint } {
 
 The H2 hint is the same for every whole item ("или 2 шт. и ½ ещё одного"). An ingredient counts as an egg by its name (яйцо, яйця, egg, ägg; not "eggplant").
 
+**The unit word inside a hint (owner's Sprint 6 answer 4).** A hint's words are in the reader's interface language, but its unit word is in the language of the ingredient line it belongs to (the recipe's), so a line never mixes "2 pcs" and "1 шт.": an English reader of a Russian recipe sees "1 шт. (or whisk 2 шт. and take ⅔)". The table above shows each language for a recipe in that same language.
+
 **Class `spice_item` (bay leaf, clove, peppercorn).** A whole number, not less than 1: `n = max(1, floorHalfUp(x))`, no hints (spices tolerate error).
 
 **Not scaled:** `to_taste`, `pinch`, `unparsed` are shown as they are.

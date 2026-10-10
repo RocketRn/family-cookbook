@@ -212,7 +212,7 @@ export function RecipeView({
       )}
       {!guest && <Reactions recipe={r} />}
       {!guest && <RecipeActions recipe={r} />}
-      <CardTimersPanel timers={timers} />
+      <CardTimersPanel timers={timers} recipeId={r.id} />
       <TimerAlarm timers={timers} />
       <WriteAccessSheet timers={timers} />
     </article>

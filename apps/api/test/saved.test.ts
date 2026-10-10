@@ -109,6 +109,34 @@ describe('saving a recipe', () => {
     expect(page2.items.map((i: { title: string }) => i.title)).toEqual(['Борщ']);
   });
 
+  it('the shelf filters like the book: tags, difficulty and time (S6-7)', async () => {
+    const make = async (title: string, extra: Record<string, unknown>) => {
+      const r = await call('POST', '/recipes', KEEPER, {
+        title,
+        servings: 2,
+        language: 'ru',
+        status: 'published',
+        visibility: 'book',
+        ingredients: [
+          { ref: 'a', name: 'мука', qty_kind: 'exact', amount_min: 300, unit_code: 'g' },
+        ],
+        steps: [{ body: 'Пеките.' }],
+        ...extra,
+      });
+      expect(r.statusCode, r.body).toBe(201);
+      await save(MEMBER, r.json().id);
+    };
+    await make('Пирог', { tags: ['baking'], difficulty: 'easy', prep_min: 20, cook_min: 40 });
+    await make('Хлеб', { tags: ['baking'], difficulty: 'hard', prep_min: 60, cook_min: 60 });
+    await make('Салат', { difficulty: 'easy', prep_min: 10 });
+    const titles = async (query: string) =>
+      (await shelf(MEMBER, query)).items.map((i) => i.title).sort();
+    expect(await titles('&tag=baking')).toEqual(['Пирог', 'Хлеб']);
+    expect(await titles('&difficulty=easy')).toEqual(['Пирог', 'Салат']);
+    expect(await titles('&max_min=60')).toEqual(['Пирог', 'Салат']);
+    expect(await titles('&tag=baking&difficulty=easy&max_min=60')).toEqual(['Пирог']);
+  });
+
   it('the database keeps each shelf private', async () => {
     await save(MEMBER);
     const keeperId = (

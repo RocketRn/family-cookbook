@@ -175,6 +175,29 @@ describe('timers on the recipe card (outside cooking mode)', () => {
   });
 });
 
+describe('a timer of another recipe (S6-7, found in Sprint 5)', () => {
+  it('on a card, its chip names that recipe; this recipe’s own timer does not', async () => {
+    list = [
+      serverTimer(),
+      serverTimer({
+        id: '71e70000-0000-4000-8000-000000000002',
+        client_timer_id: '00000000-0000-4000-8000-0000000000ab',
+        recipe_id: '00000000-0000-4000-8000-0000000000f1',
+        step_id: '00000000-0000-4000-8000-0000000000f2',
+        label: 'Духовка',
+        recipe_title: 'Шарлотка',
+      }),
+    ];
+    api();
+    renderApp(`/recipe/${GOLUBTSY_ID}`);
+    const region = await screen.findByRole('region', { name: 'Timers' });
+    const other = await within(region).findByRole('button', { name: /^⏱ Духовка/ });
+    expect(other.textContent).toMatch(/· Шарлотка$/);
+    const own = within(region).getByRole('button', { name: /^⏱ Тушить/ });
+    expect(own.textContent).not.toContain('Голубцы');
+  });
+});
+
 describe('a long timer label (S6-6, found at 320 px)', () => {
   const LONG =
     'Тушите голубцы под крышкой на медленном огне, пока капуста не станет совсем мягкой и нежной';

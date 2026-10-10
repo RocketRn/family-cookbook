@@ -5,7 +5,9 @@ import { unitByCode } from './units.js';
 
 /**
  * Turns structured quantities into text. Numbers and units follow the RECIPE language (PRD 1.5 #5:
- * the recipe language chooses unit declensions); hints follow the UI language (PRD 5.3).
+ * the recipe language chooses unit declensions); hints follow the UI language (PRD 5.3), except
+ * the unit word inside a hint, which stays in the recipe language so that a line never mixes
+ * "2 pcs" and "1 шт." (owner's Sprint 6 answer 4).
  * Texts for uk and sv need native review (docs/ASSUMPTIONS.md).
  */
 export type FormatOptions = { recipeLang: Lang; uiLang: Lang };
@@ -118,9 +120,15 @@ function withUnit(numbers: string, unit: string | null): string {
   return unit ? `${numbers} ${unit}` : numbers;
 }
 
-function hintText(hint: Hint, q: Quantity, unitRaw: string | null, lang: Lang): string {
+function hintText(
+  hint: Hint,
+  q: Quantity,
+  unitRaw: string | null,
+  lang: Lang,
+  unitLang: Lang,
+): string {
   const n = hint.kind === 'take_fraction_of' ? hint.pieces : hint.whole;
-  const unit = unitLabel(q.unit, lang, n) ?? (unitRaw?.trim() || null);
+  const unit = unitLabel(q.unit, unitLang, n) ?? (unitRaw?.trim() || null);
   const pattern =
     hint.kind === 'whole_plus_fraction'
       ? HINTS[lang].whole_plus_fraction
@@ -146,5 +154,7 @@ export function formatAmount(s: ScaledAmount, { recipeLang, uiLang }: FormatOpti
     ? `${numberText(s.min, recipeLang)}–${numberText(s.max, recipeLang)}`
     : numberText(s.min, recipeLang);
   const text = withUnit(numbers, unit);
-  return s.min.hint ? `${text} (${hintText(s.min.hint, s.min, s.unitRaw, uiLang)})` : text;
+  return s.min.hint
+    ? `${text} (${hintText(s.min.hint, s.min, s.unitRaw, uiLang, recipeLang)})`
+    : text;
 }

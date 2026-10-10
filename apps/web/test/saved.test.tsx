@@ -104,6 +104,34 @@ describe('the "Saved" tab', () => {
     expect(screen.queryByText(/Development sample/)).toBeNull();
   });
 
+  it('filters like the book (S6-7): the choice goes to the server and shows on the button', async () => {
+    const calls = api({
+      [`GET ${SHELF}`]: () => json(200, page(['Голубцы', 'Сырники'])),
+      [`GET ${SHELF}&difficulty=easy`]: () => json(200, page(['Сырники'])),
+    });
+    renderApp('/saved');
+    await screen.findByText('Голубцы');
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Filters' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Easy' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Show recipes' }));
+    await waitFor(() => expect(screen.queryByText('Голубцы')).toBeNull());
+    expect(calls.some((c) => c.url === `${SHELF}&difficulty=easy`)).toBe(true);
+    expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeTruthy();
+  });
+
+  it('the shelf’s filters are its own: the book’s are not changed', async () => {
+    api({ [`GET ${SHELF}&difficulty=easy`]: () => json(200, page([])) });
+    renderApp('/saved');
+    fireEvent.click(await screen.findByRole('button', { name: 'Filters' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Filters' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Easy' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Show recipes' }));
+    expect(await screen.findByText('Nothing found')).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: /Book/ }));
+    expect(await screen.findByRole('button', { name: 'Filters' })).toBeTruthy();
+  });
+
   it('empty: says how to save a recipe', async () => {
     api();
     renderApp('/saved');

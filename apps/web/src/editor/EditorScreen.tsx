@@ -13,7 +13,7 @@ import { TextField } from '../design/Fields';
 import { errorMessage } from '../errors';
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES } from '../i18n';
 import { bookQuery } from '../queries';
-import { SYSTEM_TAGS } from '../screens/BookScreen';
+import { SYSTEM_TAGS } from '../screens/FilterSheet';
 import { useLeaveGuard, useToastStore } from '../state/store';
 import { haptic, setClosingConfirmation } from '../telegram/sdk';
 import {

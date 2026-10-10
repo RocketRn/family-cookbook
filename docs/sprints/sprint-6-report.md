@@ -13,11 +13,11 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S6-3b | Sharing a recipe into a Telegram chat ("Share")                            | done                                                                     | `57e889b` |
 | S6-4  | Observability: the timer delay figure, health, an uptime alert             | done                                                                     | `b6b18a5` |
 | S6-5  | QA-03 worker load: 1000 timers, 100 at once                                | done (found and fixed slow sending in a burst)                           | `34b5f2b` |
-| S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | done (found and fixed 5 layout problems and 2 offline ones)              | (this)    |
-| S6-7  | Small Sprint 5 findings: Saved filters, timer's recipe name, hint language | next                                                                     |           |
+| S6-6  | Polish: first-run hints, error and offline states, haptics, long texts     | done (found and fixed 5 layout problems and 2 offline ones)              | `80d082e` |
+| S6-7  | Small Sprint 5 findings: Saved filters, timer's recipe name, hint language | done                                                                     | (this)    |
 | S6-8  | Usage counts                                                               | **not built** (owner's answer 3)                                         |           |
 | S6-9  | CSP decision                                                               | placeholder: after the first Telegram test's reports                     |           |
-| S6-10 | Wrap-up: clean clone, CI, guides, report, "before you invite the family"   | to do                                                                    |           |
+| S6-10 | Wrap-up: clean clone, CI, guides, report, "before you invite the family"   | next                                                                     |           |
 
 ## The owner's answers (Sprint 6 approval)
 
@@ -94,3 +94,10 @@ Additions:
 - **First-run tips:** one on the book (forward a recipe to the bot), one on the card ("Recalculate"), one in cooking (timers keep going with the app closed), each until "Got it".
 - **Long texts at 320 px** (UX-06): a new browser test opens every main screen and sheet in Ukrainian, Swedish and Russian, plus a recipe with the longest texts a person writes. **Found and fixed:** the editor's unit chip cut "ingen enhet" (sv); a step's timer on a recalculated card (sv) and a long timer label in cooking mode made the screen scroll sideways; a title with one long word did the same; "Stop cooking" and "Finish" were both "Завершити" (uk). The first version of the check found nothing because of a mistake in it; a self-check now plants a broken button and requires it to be reported.
 - Red first: 4 of 4 offline tests, 5 of 5 buzz tests, 3 of 3 tip tests, the timer-label test and the uk button-name test failed on the old code. The 320 px test first failed on the problems above. RUN-LOCALLY 5.17; QA.md P17 and the test map.
+
+### S6-7 Small things found in Sprint 5
+
+- **The unit word inside a hint** (owner's answer 4): hints stay in the reader's language, their unit word follows the ingredient line, so an English reader of a Russian recipe sees "1 шт. (or whisk 2 шт. and take ⅔)", never "2 pcs" next to "1 шт.". A test checks every recipe language against every reader language. Two older tests expected the mixing and now expect the rule (D-060; PRD 5.3 has the rule).
+- **Another recipe's timer** on a card (and in cooking mode) names its recipe: "⏱ Духовка · 12:40 · Шарлотка".
+- **Filters on the "Saved" tab**: the book's sheet (now one component for both), with the shelf's own choice.
+- Red first: the 2 hint tests, the timer test and 2 of 2 Saved web tests failed on the old code. The API test for filtered saved lists passed at once: the server already did it; the test now guards it. The 320 px test covers the Saved tab's filters too. RUN-LOCALLY 5.3, 5.10, 5.12.

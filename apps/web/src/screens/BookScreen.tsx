@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { recipeApi } from '../api/recipeApi';
-import { SEARCH_MAX_CHARS, toSummary, type Difficulty } from '../api/recipes';
+import { SEARCH_MAX_CHARS, toSummary } from '../api/recipes';
 import { BottomSheet } from '../design/BottomSheet';
 import { Button } from '../design/Button';
 import { Chip } from '../design/Chip';
@@ -11,24 +11,10 @@ import { EmptyState, ErrorState, Loading } from '../design/Feedback';
 import { errorMessage } from '../errors';
 import { SearchField } from '../design/Fields';
 import { useFilterStore } from '../state/store';
+import { activeFilters, FilterSheet } from './FilterSheet';
 import { RecipeListItem } from './RecipeCard';
 import { isWaiting } from '../state/online';
 import { Tip } from '../design/Tip';
-
-const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard'];
-const TIME_LIMITS = [30, 60, 120];
-/** The system tags seeded by migration 0004 (PRD 3.2 tags). */
-export const SYSTEM_TAGS = [
-  'soup',
-  'main',
-  'salad',
-  'breakfast',
-  'baking',
-  'dessert',
-  'vegan',
-  'gluten_free',
-  'lean',
-];
 
 /** Wait until the user stops typing before asking the server again. */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -64,8 +50,7 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
     () => list.data?.pages.flatMap((p) => p.items.map(toSummary)) ?? [],
     [list.data],
   );
-  const activeCount =
-    (filters.difficulty ? 1 : 0) + (filters.maxMin !== null ? 1 : 0) + filters.tags.length;
+  const activeCount = activeFilters(filters);
   const hasCriteria = activeCount > 0 || filters.q.trim() !== '';
   const more = list.hasNextPage;
 
@@ -174,65 +159,12 @@ export function BookScreen({ bookTitle }: { bookTitle: string }) {
         </div>
       </BottomSheet>
 
-      <BottomSheet open={sheetOpen} title={t('book.filters')} onClose={() => setSheetOpen(false)}>
-        <div className="stack">
-          <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="label">{t('filters.difficulty')}</legend>
-            <div className="row row--wrap">
-              <Chip
-                selected={filters.difficulty === null}
-                onToggle={() => store.setDifficulty(null)}
-              >
-                {t('filters.any')}
-              </Chip>
-              {DIFFICULTIES.map((d) => (
-                <Chip
-                  key={d}
-                  selected={filters.difficulty === d}
-                  onToggle={() => store.setDifficulty(d)}
-                >
-                  {t(`difficulty.${d}`)}
-                </Chip>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="label">{t('filters.time')}</legend>
-            <div className="row row--wrap">
-              <Chip selected={filters.maxMin === null} onToggle={() => store.setMaxMin(null)}>
-                {t('filters.any')}
-              </Chip>
-              {TIME_LIMITS.map((m) => (
-                <Chip key={m} selected={filters.maxMin === m} onToggle={() => store.setMaxMin(m)}>
-                  {t('filters.up_to_minutes', { count: m })}
-                </Chip>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="label">{t('filters.tags')}</legend>
-            <div className="row row--wrap">
-              {SYSTEM_TAGS.map((tag) => (
-                <Chip
-                  key={tag}
-                  selected={filters.tags.includes(tag)}
-                  onToggle={() => store.toggleTag(tag)}
-                >
-                  {t(`tags.${tag}`)}
-                </Chip>
-              ))}
-            </div>
-          </fieldset>
-          <div className="row">
-            <Button variant="ghost" onClick={store.resetFilters}>
-              {t('book.filters_reset')}
-            </Button>
-            <Button className="grow" onClick={() => setSheetOpen(false)}>
-              {t('book.filters_apply')}
-            </Button>
-          </div>
-        </div>
-      </BottomSheet>
+      <FilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        filters={filters}
+        controls={store}
+      />
     </div>
   );
 }

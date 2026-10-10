@@ -65,8 +65,11 @@ export function shortLabel(label: string): string {
   return `${cut.trimEnd()}…`;
 }
 
-/** PRD 2.4 step 9: every running timer as a chip, on every step; +1 min and cancel. */
-export function TimersPanel({ timers }: { timers: CookTimers }) {
+/**
+ * PRD 2.4 step 9: every running timer as a chip, on every step; +1 min and cancel. A timer of
+ * another recipe than `recipeId` also names its recipe (S6-7).
+ */
+export function TimersPanel({ timers, recipeId }: { timers: CookTimers; recipeId: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
   const { chips, serverNow } = timers;
@@ -98,6 +101,12 @@ export function TimersPanel({ timers }: { timers: CookTimers }) {
                         label: shortLabel(c.label),
                         left: formatClock((c.endsAt - serverNow) / 1000),
                       })}
+                {c.recipeTitle && c.recipeId && c.recipeId !== recipeId && (
+                  <span className="hint">
+                    {' · '}
+                    {shortLabel(c.recipeTitle)}
+                  </span>
+                )}
               </Chip>
             );
           })}
