@@ -16,6 +16,9 @@ import { readRecalc, writeRecalc, type RecalcState } from '../recipe/recalc';
 import { RecalcSheet, servingsText } from '../recipe/RecalcSheet';
 import { Gallery } from '../recipe/Gallery';
 import { IngredientList } from '../recipe/IngredientList';
+import type { Me } from '../api/endpoints';
+import { TimerAlarm, WriteAccessSheet } from '../cook/TimerParts';
+import { CardTimersPanel, useCardTimers } from '../recipe/CardTimers';
 import { Reactions } from '../recipe/Reactions';
 import { StepList } from '../recipe/StepList';
 import { VideoPlayer } from '../recipe/VideoPlayer';
@@ -33,7 +36,7 @@ function galleryPhotos(r: Recipe): Photo[] {
 }
 
 /** FE-03 recipe card (PRD 1.4): photos, ingredients, steps with photos, timers and video, notes. */
-export function RecipeScreen() {
+export function RecipeScreen({ me }: { me?: Me }) {
   const { t } = useTranslation();
   const { id = '' } = useParams();
   const recipe = useQuery({ queryKey: ['recipe', id], queryFn: () => recipeApi.get(id) });
@@ -44,15 +47,17 @@ export function RecipeScreen() {
     return <ErrorState error={recipe.error} onRetry={() => void recipe.refetch()} />;
   const r = recipe.data;
   if (!r) return <EmptyState icon={'🍽️'} title={t('recipe.not_found')} />;
-  return <RecipeView key={r.id} r={r} />;
+  return <RecipeView key={r.id} r={r} botStarted={me?.bot_started ?? false} />;
 }
 
-function RecipeView({ r }: { r: Recipe }) {
+function RecipeView({ r, botStarted }: { r: Recipe; botStarted: boolean }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // FE-07: the recalculation the user chose is kept per recipe (PRD 4.8 recalc:<id>).
   const [recalc, setRecalc] = useState<RecalcState | null>(() => readRecalc(r));
   const [recalcOpen, setRecalcOpen] = useState(false);
+  // FE-09: a step's timer starts from the card too (D-050).
+  const timers = useCardTimers(r, botStarted);
   const k = recalc?.k ?? 1;
   const uiLang: Lang = isLanguage(i18n.language) ? i18n.language : 'en';
   const langs = { recipeLang: recipeLangOf(r, uiLang), uiLang };
@@ -153,6 +158,7 @@ function RecipeView({ r }: { r: Recipe }) {
       )}
       {r.steps.length > 0 && (
         <StepList
+          timers={timers}
           steps={r.steps}
           ingredients={r.ingredients}
           videos={r.videos}
@@ -179,6 +185,9 @@ function RecipeView({ r }: { r: Recipe }) {
       )}
       <Reactions recipe={r} />
       <RecipeActions recipe={r} />
+      <CardTimersPanel timers={timers} />
+      <TimerAlarm timers={timers} />
+      <WriteAccessSheet timers={timers} />
     </article>
   );
 }

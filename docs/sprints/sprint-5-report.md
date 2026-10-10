@@ -12,9 +12,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | done                                                               | `d628269` |
 | S5-4  | BE-10 reactions and "I cooked it", the message to the author       | done                                                               | `850b4e0` |
 | S5-5  | FE-10 reactions and "I cooked it" on screen                        | done                                                               | `f2e2a04` |
-| S5-6  | Notification settings, and the new-recipe message (off by default) | done                                                               | (this)    |
-| S5-7  | FE-09 timers, full version                                         | next                                                               |           |
-| S5-8  | Saved recipes                                                      | to do                                                              |           |
+| S5-6  | Notification settings, and the new-recipe message (off by default) | done                                                               | `5b82582` |
+| S5-7  | FE-09 timers, full version                                         | done                                                               | (this)    |
+| S5-8  | Saved recipes                                                      | next                                                               |           |
 | S5-9  | QA-01 automated browser tests in CI                                | to do                                                              |           |
 | —     | Fixes from the first Telegram test                                 | placeholder: the owner sends the findings later as a separate task |           |
 | S5-10 | Wrap-up: clean clone, CI, guides, report, Sprint 6 plan            | to do                                                              |           |
@@ -96,3 +96,12 @@ Additions:
 - A recipe that reaches the book sends "📖 {Name} added «{title}»" to the members who turned it on, about 5 minutes later. More than three at once become one message ("New recipes in the book: N"); a recipe taken back before then sends nothing.
 - Red first: 12 of 19 API tests and 4 of 4 web tests failed. Two of the 7 that passed on the old code passed only because the test's recipes could not be published (no ingredient); the helper now checks that the recipe was created, and they test what they say.
 - Guides: RUN-LOCALLY 5.15 (new), DEPLOY-GCP checklist "Notifications".
+
+### S5-7 FE-09 Timers, full version
+
+- A step's timer starts from the recipe card, without cooking mode; running timers show in a panel at the bottom of the card, with +1 min and Cancel (D-050).
+- "⚠️ … message not delivered" on a timer whose bot message failed, with "Open the bot"; the app asks the server again 5 s and 60 s after zero.
+- Three short beeps at zero (Web Audio), prepared by the tap that starts the timer.
+- Red first: 7 of 7 new web tests failed. One older test compared the card's timer chip text exactly and now includes the ▶ of the start button.
+- Checked in a browser on the demo with the bot blocked for user 1: a 1-minute timer from the card rang at 61.9 s and showed "message not delivered" at 66.8 s.
+- Guides: RUN-LOCALLY 5.12 (card timer, sound, "not delivered"); DEPLOY-GCP checklist: the card timer, the sound on each device and in silent mode, "not delivered" after blocking the bot.

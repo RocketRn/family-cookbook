@@ -14,6 +14,7 @@ import type { Step } from '../api/types';
 import { errorMessage } from '../errors';
 import { useToastStore } from '../state/store';
 import { getRuntime, haptic, requestWriteAccess } from '../telegram/sdk';
+import { playAlarm, primeSound } from './sound';
 import type { CookState, CookTimer } from './state';
 import { newClientId, timerChips, type TimerChip } from './timers';
 
@@ -21,6 +22,11 @@ type StepTimer = Step['timers'][number];
 const LIST_KEY = ['timers', 'active'] as const;
 /** While a timer waits to sync, try again this often (and at once when the connection returns). */
 const RETRY_MS = 15_000;
+/**
+ * After a timer reaches zero on screen, ask the server again (D-050): by then the worker has tried
+ * to send the bot's message, and a failure ("not delivered", PRD 4.4) shows on the chip.
+ */
+const RECHECK_MS = [5_000, 60_000];
 /** PRD 4.5: the user's answer to "may the bot write to you?", for this app session. */
 const WRITE_KEY = 'bot-write';
 
@@ -86,6 +92,7 @@ export function useCookTimers({
   const [, setTick] = useState(0);
   const [ringing, setRinging] = useState<string[]>([]);
   const seen = useRef(new Map<string, boolean>()); // chip key -> was it over when first seen
+  const rechecks = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [choice, setChoice] = useState(readChoice);
   const [pending, setPending] = useState<{ step: Step; timer: StepTimer } | null>(null);
   const syncing = useRef(false);
@@ -240,9 +247,12 @@ export function useCookTimers({
     }
     if (due.length) {
       haptic('warning');
+      playAlarm();
       setRinging((r) => [...r, ...due]);
+      for (const ms of RECHECK_MS) rechecks.current.push(setTimeout(() => void list.refetch(), ms));
     }
   });
+  useEffect(() => () => rechecks.current.forEach(clearTimeout), []);
 
   const tgUser = getRuntime().webApp.initDataUnsafe.user;
   const botCanWrite = botStarted || tgUser?.allows_write_to_pm === true || choice === 'granted';
@@ -260,6 +270,7 @@ export function useCookTimers({
       synced: false,
     };
     haptic('select');
+    primeSound(); // a tap: the browser now allows the alarm's sound
     inflight.current.add(x.client_timer_id);
     setTimers((ts) => [...ts, x]); // first on this device, so nothing is lost if the app closes
     try {

@@ -441,7 +441,9 @@
     "write_text": "När en timer är klar skickar boten ett meddelande, även om appen är stängd. Telegram frågar om lov en gång.",
     "write_allow": "Tillåt meddelanden",
     "write_later": "Inte nu",
-    "timer_no_message": "Boten får inte skriva till dig, så inget Telegram-meddelande kommer. Timern går på den här skärmen."
+    "timer_no_message": "Boten får inte skriva till dig, så inget Telegram-meddelande kommer. Timern går på den här skärmen.",
+    "timer_failed": "⚠️ {{label}} · meddelandet levererades inte",
+    "timer_failed_hint": "Boten kunde inte skicka meddelandet: den kan vara blockerad, eller så har chatten med den aldrig startats. Öppna boten och tryck på Starta."
   },
   "cooked": {
     "screen_form": "Din rätt",

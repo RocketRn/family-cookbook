@@ -68,12 +68,14 @@ export function TimersPanel({ timers }: { timers: CookTimers }) {
                 selected={open === c.key}
                 onToggle={() => setOpen(open === c.key ? null : c.key)}
               >
-                {over
-                  ? t('cook.timer_done', { label: c.label })
-                  : t('cook.timer_running', {
-                      label: c.label,
-                      left: formatClock((c.endsAt - serverNow) / 1000),
-                    })}
+                {c.failed
+                  ? t('cook.timer_failed', { label: c.label })
+                  : over
+                    ? t('cook.timer_done', { label: c.label })
+                    : t('cook.timer_running', {
+                        label: c.label,
+                        left: formatClock((c.endsAt - serverNow) / 1000),
+                      })}
               </Chip>
             );
           })}
@@ -97,11 +99,13 @@ export function TimersPanel({ timers }: { timers: CookTimers }) {
           </Button>
         </div>
       )}
-      {timers.botCanWrite ? (
+      {timers.botCanWrite && !chips.some((c) => c.failed) ? (
         <p className="hint">{t('cook.timer_bot')}</p>
       ) : (
         <div className="stack stack--tight">
-          <p className="hint">{t('cook.timer_no_message')}</p>
+          <p className="hint">
+            {chips.some((c) => c.failed) ? t('cook.timer_failed_hint') : t('cook.timer_no_message')}
+          </p>
           <div>
             <Button
               variant="secondary"

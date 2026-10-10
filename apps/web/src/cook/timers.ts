@@ -21,6 +21,8 @@ export type TimerChip = {
   endsAt: number;
   /** The server says it ended (fired, or failed to deliver its message). */
   ended: boolean;
+  /** PRD 4.4: the bot could not deliver its message (blocked, or never started). */
+  failed: boolean;
   /** Started without a connection: only on this screen until it syncs. */
   local: boolean;
 };
@@ -44,6 +46,7 @@ export function timerChips(server: ServerTimer[] | undefined, mine: CookTimer[])
       stepId: t.step_id,
       endsAt: Date.parse(t.ends_at),
       ended: t.status !== 'running',
+      failed: t.status === 'failed',
       local: false,
     });
   }
@@ -57,6 +60,7 @@ export function timerChips(server: ServerTimer[] | undefined, mine: CookTimer[])
       stepId: t.step_id,
       endsAt: Date.parse(t.ends_at),
       ended: false,
+      failed: false,
       local: !t.synced,
     });
   }

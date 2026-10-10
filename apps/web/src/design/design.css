@@ -708,3 +708,14 @@ h2 {
 .toggle input:disabled + span {
   opacity: 0.5;
 }
+
+/* FE-09 (D-050): running timers on the recipe card stay in view at the bottom. */
+.card-timers {
+  position: sticky;
+  bottom: calc(var(--safe-bottom, 0px) + 8px);
+  z-index: 5;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-secondary, var(--bg));
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--text) 15%, transparent);
+}

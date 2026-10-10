@@ -2,6 +2,8 @@ import type { Lang } from '@cookbook/recipe-core';
 import { useTranslation } from 'react-i18next';
 import type { Ingredient, Step, Video } from '../api/types';
 import { amountText, photoSrcSet, splitDuration, stepBodyParts } from './amounts';
+import { formatClock } from '../cook/timers';
+import type { CookTimers } from '../cook/useCookTimers';
 import { VideoPlayer } from './VideoPlayer';
 
 type Langs = { recipeLang: Lang; uiLang: Lang };
@@ -29,6 +31,7 @@ export function StepList({
   langs,
   lang,
   k = 1,
+  timers,
 }: {
   steps: Step[];
   ingredients: Ingredient[];
@@ -37,6 +40,8 @@ export function StepList({
   lang: string | undefined;
   /** Recalculation factor (FE-07): amounts follow it; times and numbers typed in the text do not. */
   k?: number;
+  /** FE-09: when given, each step timer is a button that starts it. */
+  timers?: CookTimers;
 }) {
   const { t } = useTranslation();
   const recalculated = Math.abs(k - 1) > 1e-9;
@@ -125,23 +130,46 @@ export function StepList({
                 )}
                 {s.timers.length > 0 && (
                   <div className="row row--wrap">
-                    {s.timers.map((tm) => (
-                      <span key={tm.id} className="chip chip--static">
-                        <span aria-hidden="true">{'⏱'}</span>
-                        <span lang={lang}>{tm.label}</span>
-                        <span>
-                          {' · '}
-                          <Duration sec={tm.duration_sec} />
-                        </span>
-                        {/* PRD 2.3: timers are not scaled; after a recalculation they may differ. */}
-                        {recalculated && (
-                          <span className="hint">
+                    {s.timers.map((tm) => {
+                      const content = (
+                        <>
+                          <span aria-hidden="true">{'⏱'}</span>
+                          <span lang={lang}>{tm.label}</span>
+                          <span>
                             {' · '}
-                            {t('recalc.time_may_differ')}
+                            <Duration sec={tm.duration_sec} />
                           </span>
-                        )}
-                      </span>
-                    ))}
+                          {/* PRD 2.3: timers are not scaled; after a recalculation they may differ. */}
+                          {recalculated && (
+                            <span className="hint">
+                              {' · '}
+                              {t('recalc.time_may_differ')}
+                            </span>
+                          )}
+                        </>
+                      );
+                      // FE-09 (D-050): on the card a step's timer starts with a tap.
+                      return timers ? (
+                        <button
+                          key={tm.id}
+                          type="button"
+                          className="chip"
+                          disabled={timers.isRunning(s.id, tm.label)}
+                          aria-label={t('cook.timer_start', {
+                            label: tm.label,
+                            time: formatClock(tm.duration_sec),
+                          })}
+                          onClick={() => timers.start(s, tm)}
+                        >
+                          {content}
+                          <span aria-hidden="true">{' ▶'}</span>
+                        </button>
+                      ) : (
+                        <span key={tm.id} className="chip chip--static">
+                          {content}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
                 {video && <VideoPlayer video={video} startSec={s.video_start_sec} />}

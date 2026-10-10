@@ -153,9 +153,10 @@ describe('recalculation on the recipe card', () => {
     expect(
       screen.getByText(/Timers and numbers typed in the step text are for the original amount/),
     ).toBeTruthy();
-    // PRD 2.3: the timer itself is not scaled, and says its time may differ.
+    // PRD 2.3: the timer itself is not scaled, and says its time may differ. (On the card it is a
+    // button that starts it, FE-09: hence the ▶.)
     expect(screen.getByText('Тушить').parentElement!.textContent).toBe(
-      '⏱Тушить · 1 h 30 min · time may differ',
+      '⏱Тушить · 1 h 30 min · time may differ ▶',
     );
     expect(JSON.parse(localStorage.getItem(`recalc:${GOLUBTSY_ID}`)!)).toEqual({
       mode: 'servings',

@@ -101,7 +101,7 @@ function Ready({ me }: { me: Me }) {
           <Route path="/recipe/new" element={<EditorScreen />} />
           <Route path="/import" element={<ImportScreen />} />
           <Route path="/recipe/:id/edit" element={<EditorScreen />} />
-          <Route path="/recipe/:id" element={<RecipeScreen />} />
+          <Route path="/recipe/:id" element={<RecipeScreen me={me} />} />
           <Route path="/recipe/:id/cooked" element={<CookedScreen />} />
           <Route path="/cook/:id" element={<CookScreen me={me} />} />
           <Route path="/join/:code" element={<JoinScreen />} />
