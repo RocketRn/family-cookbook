@@ -16,9 +16,9 @@ Independent, read-first audit of the whole codebase (Sprints 1–6), requested a
 | #   | Area                                                              | State                   |
 | --- | ----------------------------------------------------------------- | ----------------------- |
 | 1   | Authentication and sessions                                       | done: no High or Medium |
-| 2   | Data access: RLS, roles, definer functions, SQL                   | next                    |
-| 3   | Bot and queue                                                     | to do                   |
-| 4   | Uploads and storage                                               | to do                   |
+| 2   | Data access: RLS, roles, definer functions, SQL                   | done: no High or Medium |
+| 3   | Bot and queue                                                     | done: no High or Medium |
+| 4   | Uploads and storage                                               | next                    |
 | 5   | Parser and import                                                 | to do                   |
 | 6   | Recalculation math                                                | to do                   |
 | 7   | Web app                                                           | to do                   |
