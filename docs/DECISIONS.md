@@ -563,7 +563,7 @@ The Sprint 4 near miss: a measurement copy of the production files was restarted
 - **Roles.** `cookbook_system` (the sign-in role) may record updates and queue only `bot_start` messages (row-level security); the user role cannot read the update log.
 - **Registering the webhook** is a command, `docker compose run --rm webhook [set|info|delete]` on the server. It follows D-046: the real API only from an armed production setting, the address always `https://<DOMAIN>/api/bot/webhook`, only `message` and `my_chat_member` updates. The demo runs the same command against the stand-in.
 - **The stand-in** takes `setWebhook` / `getWebhookInfo` / `deleteWebhook` (delivering only to this computer) and has buttons for /start (with a payload) and for blocking and unblocking the bot as a demo user.
-- **No grammY yet** (PRD 4.1 names it for the bot). The bot handles two kinds of update and sends everything through the outbox, so a framework would add a dependency without removing code. It can come with forwarding recipes to the bot (UC-02), where a conversation needs one.
+- **No grammY** (PRD 4.1 names it for the bot): kept so by the owner's decision in Sprint 6, with the reasons in D-053.
 
 ### D-048 Reactions and "I cooked it" (BE-10; owner's Sprint 5 answers 1 and 2)
 
@@ -602,3 +602,13 @@ The Sprint 4 near miss: a measurement copy of the production files was restarted
 - **Request limits.** The tests click far faster than a person and all come from one address, so the stack runs with `RATE_LIMIT_PER_USER` and `RATE_LIMIT_PER_IP` raised. The PRD 7.1 limits are unchanged and stay covered by the API tests. A 429 in a browser test names this setting.
 - **Strict.** A test also fails on any error in the browser console, an uncaught error, or an API answer of 500 or more. No retries: a failure is looked into. One worker, because the tests share the two demo people. The tests' recipes carry the mark "E2E ·" and are deleted at the end (and at the start, after an interrupted run). Telegram's script is not fetched; nothing leaves the computer.
 - **Versions.** `@playwright/test` 1.63.0 (CI installs its headless Chromium); a local browser can be named with `E2E_CHROMIUM`.
+
+### D-053 The bot stays on plain HTTP calls, without grammY (owner's Sprint 6 answer 5)
+
+PRD 4.1 names grammY for the bot. The owner decided to keep the current code. Reasons:
+
+- **The work is small and already done.** The bot receives three kinds of update (/start, blocked or unblocked, and from Sprint 6 a forwarded text) and replies only through the outbox, which already handles Telegram's limits, 429 / 403 and retries (D-039). A framework would wrap the same few lines.
+- **Safety stays in one place.** Every call to Telegram goes through one guarded client (D-046): the real API only from an armed production process, never from a test, never with a fake-looking token. A framework brings its own HTTP client, which would need the same guard around it.
+- **Fewer moving parts** on a small server: no extra dependency to update and audit, no second way to reach Telegram.
+- **What it costs:** if the bot ever needs conversations with several steps, menus or payments, grammY (or similar) would save work then. Nothing in PRD stage 1 needs that.
+- The webhook's secret check, once-per-update handling and the outbox stay as described in D-047.
