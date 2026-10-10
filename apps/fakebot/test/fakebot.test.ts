@@ -255,3 +255,63 @@ describe('the stand-in as the sender of updates (webhook)', () => {
     expect(received[0]!.body).toMatchObject({ message: { text: '/start join_Ab3dE5' } });
   });
 });
+
+/** BE-10 (Sprint 5): the "I cooked it" message to the author is a photo with a caption. */
+describe('sendPhoto', () => {
+  let bot: FakeTelegram;
+  beforeAll(async () => {
+    bot = await startFakeTelegram({ token: '123:fake' });
+  });
+  afterAll(() => bot.close());
+  beforeEach(() => bot.clear());
+  const photo = (body: object) =>
+    fetch(`${bot.url}/bot123:fake/sendPhoto`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('records the photo address and the caption like a message', async () => {
+    const res = await photo({
+      chat_id: 7,
+      photo: 'http://127.0.0.1:8333/b/media/x/full.jpg?sig',
+      caption: '<b>Лена</b> приготовила',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Open', url: 'https://t.me/b/a?startapp=rc_x' }]],
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(bot.messages).toEqual([
+      expect.objectContaining({
+        chat_id: '7',
+        photo: 'http://127.0.0.1:8333/b/media/x/full.jpg?sig',
+        plain: 'Лена приготовила',
+      }),
+    ]);
+  });
+
+  it('refuses what Telegram refuses: no usable photo address (400), a caption over 1024 (400)', async () => {
+    expect((await photo({ chat_id: 7, photo: 'not-a-url', caption: 'x' })).status).toBe(400);
+    expect(
+      (await photo({ chat_id: 7, photo: 'http://h/p.jpg', caption: 'я'.repeat(1025) })).status,
+    ).toBe(400);
+    expect(bot.messages).toEqual([]);
+  });
+
+  it('a blocked chat gets 403, and queued failures apply', async () => {
+    bot.blockChat(8);
+    expect((await photo({ chat_id: 8, photo: 'http://h/p.jpg' })).status).toBe(403);
+    bot.failNext(1, { status: 429, retryAfter: 2 });
+    expect((await photo({ chat_id: 7, photo: 'http://h/p.jpg' })).status).toBe(429);
+  });
+
+  it('a text message has no photo', async () => {
+    await fetch(`${bot.url}/bot123:fake/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: 7, text: 'hi' }),
+    });
+    expect(bot.messages[0]).toMatchObject({ photo: null });
+  });
+});

@@ -1,7 +1,7 @@
 import type { Db } from '../db/pool.js';
 import { withWorker, type Tx } from '../db/tx.js';
-import type { TelegramClient } from './telegram.js';
-import { renderMessage, type Lang, type Links } from './templates.js';
+import type { SendResult, TelegramClient } from './telegram.js';
+import { renderMessage, type Lang, type Links, type Rendered } from './templates.js';
 
 /**
  * BE-08 outbox sender (PRD 4.4; D-039). Each call takes a batch of due messages and sends them.
@@ -30,6 +30,11 @@ export type SenderOptions = {
   backoffSec?: number[];
   maxAttempts?: number;
   log?: (level: 'info' | 'warn' | 'error', msg: string, extra?: Record<string, unknown>) => void;
+  /**
+   * BE-10: a link Telegram can fetch for a stored photo (a signed link to its full copy). Without
+   * it, a message with a photo goes as text.
+   */
+  photoUrl?: (storageKey: string) => Promise<string>;
 };
 
 export type SendStats = {
@@ -54,6 +59,35 @@ type Claimed = {
 };
 
 const BACKOFF = [1, 5, 30, 300];
+
+/**
+ * A message with a photo ("I cooked it") goes as the photo with the text as its caption. If the
+ * photo cannot be used (no link, or Telegram refuses it), the text still goes, alone.
+ */
+async function deliver(
+  telegram: TelegramClient,
+  m: Claimed,
+  rendered: Rendered,
+  opts: SenderOptions,
+  log: NonNullable<SenderOptions['log']>,
+): Promise<SendResult> {
+  const extra = { reply_markup: rendered.reply_markup };
+  const key = typeof m.payload.photo_key === 'string' ? m.payload.photo_key : null;
+  if (key && opts.photoUrl && telegram.sendPhoto) {
+    let url: string | null = null;
+    try {
+      url = await opts.photoUrl(key);
+    } catch (err) {
+      log('warn', 'no link for the photo; sending the text alone', { error: String(err) });
+    }
+    if (url) {
+      const r = await telegram.sendPhoto(m.chat_id, url, rendered.text, extra);
+      if (r.ok || r.kind !== 'rejected') return r;
+      log('warn', 'Telegram refused the photo; sending the text alone', { reason: r.description });
+    }
+  }
+  return telegram.sendMessage(m.chat_id, rendered.text, extra);
+}
 
 class GateClosed extends Error {
   constructor(readonly until: Date) {
@@ -177,9 +211,7 @@ export async function sendDueMessages(
       continue;
     }
 
-    const result = await telegram.sendMessage(m.chat_id, rendered.text, {
-      reply_markup: rendered.reply_markup,
-    });
+    const result = await deliver(telegram, m, rendered, opts, log);
     if (result.ok) {
       await done(
         `UPDATE notification_outbox SET status = 'sent', sent_at = now(), locked_until = NULL,

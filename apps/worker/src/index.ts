@@ -9,6 +9,7 @@ import {
   createTelegramClient,
   fireDueTimers,
   loadWorkerConfig,
+  objectKeys,
   S3Storage,
   sendDueMessages,
 } from '@cookbook/api/jobs';
@@ -73,7 +74,12 @@ const stops = [
   }),
   loop('outbox', config.outboxPollMs, async () => {
     if (!telegram) return; // no Bot API configured: messages wait in the outbox
-    const s = await sendDueMessages(db, telegram, { links: config.links, log });
+    const s = await sendDueMessages(db, telegram, {
+      links: config.links,
+      log,
+      // BE-10: "I cooked it" photos: Telegram fetches the full copy by a signed link.
+      photoUrl: (key) => storage.url(objectKeys(key).full),
+    });
     if (s.sent || s.failed || s.blocked || s.retried) log('info', 'outbox', s);
   }),
   loop('timers clean-up', 60 * 60_000, async () => {

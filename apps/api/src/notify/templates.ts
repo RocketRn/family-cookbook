@@ -89,6 +89,64 @@ export function renderTimerFired(p: TimerFiredPayload, lang: Lang, links: Links)
   };
 }
 
+/** BE-10 (PRD 4.4): what the worker stores for "I cooked it" (a snapshot made with the mark). */
+export type RecipeCookedPayload = {
+  reaction_id: string;
+  recipe_id: string;
+  recipe_title: string;
+  cook_name: string | null;
+  note: string | null;
+  photo_key: string | null;
+};
+
+/** PRD 4.4: "{Name} cooked «{title}»" + the words, in the author's language. */
+const COOKED_TEXTS: Record<Lang, { cooked: string; someone: string; open: string }> = {
+  ru: {
+    cooked: '👨‍🍳 <b>{name}</b> приготовил(а) ваш рецепт {title}',
+    someone: 'Кто-то',
+    open: 'Открыть рецепт',
+  },
+  uk: {
+    cooked: '👨‍🍳 <b>{name}</b> приготував(ла) ваш рецепт {title}',
+    someone: 'Хтось',
+    open: 'Відкрити рецепт',
+  },
+  en: {
+    cooked: '👨‍🍳 <b>{name}</b> cooked your recipe {title}',
+    someone: 'Someone',
+    open: 'Open the recipe',
+  },
+  sv: {
+    cooked: '👨‍🍳 <b>{name}</b> lagade ditt recept {title}',
+    someone: 'Någon',
+    open: 'Öppna receptet',
+  },
+};
+/** "I cooked it" words: the same limit as the API (500), which keeps the caption under 1024. */
+export const NOTE_MAX = 500;
+const NAME_MAX = 64;
+
+/** PRD 4.7: a book recipe, rc_<uuid without dashes>. */
+export function recipeLink(links: Links, recipeId: string): string {
+  return /^[0-9a-f-]{36}$/i.test(recipeId)
+    ? appLink(links, `rc_${recipeId.replace(/-/g, '').toLowerCase()}`)
+    : appLink(links, null);
+}
+
+export function renderRecipeCooked(p: RecipeCookedPayload, lang: Lang, links: Links): Rendered {
+  const t = COOKED_TEXTS[lang] ?? COOKED_TEXTS.en;
+  const name = p.cook_name ? safe(p.cook_name, NAME_MAX) : t.someone;
+  const title = fill((TEXTS[lang] ?? TEXTS.en).title, {
+    title: safe(p.recipe_title || '…', TITLE_MAX),
+  });
+  const lines = [fill(t.cooked, { name, title })];
+  if (p.note) lines.push(`💬 ${safe(p.note, NOTE_MAX)}`);
+  return {
+    text: lines.join('\n'),
+    reply_markup: { inline_keyboard: [[{ text: t.open, url: recipeLink(links, p.recipe_id) }]] },
+  };
+}
+
 /** BE-07: the answer to /start, and to /start from an invitation link (join_<code>). */
 const START_TEXTS: Record<Lang, { hello: string; invited: string; open: string; join: string }> = {
   ru: {
@@ -139,7 +197,7 @@ export function renderBotStart(p: { start?: unknown }, lang: Lang, links: Links)
   };
 }
 
-/** Messages the sender knows how to write. new_recipe / recipe_cooked arrive with BE-10 (Sprint 5). */
+/** Messages the sender knows how to write. new_recipe arrives with the notification settings (S5-6). */
 export function renderMessage(
   type: string,
   payload: unknown,
@@ -149,5 +207,7 @@ export function renderMessage(
   if (type === 'timer_fired') return renderTimerFired(payload as TimerFiredPayload, lang, links);
   if (type === 'bot_start')
     return renderBotStart((payload ?? {}) as { start?: unknown }, lang, links);
+  if (type === 'recipe_cooked')
+    return renderRecipeCooked(payload as RecipeCookedPayload, lang, links);
   return null;
 }

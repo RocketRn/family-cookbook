@@ -17,6 +17,7 @@ const ALL = [
   '0006_search',
   '0007_timers_outbox',
   '0008_bot_updates',
+  '0009_reactions',
 ];
 const TABLES = [
   'book_members',
@@ -25,6 +26,7 @@ const TABLES = [
   'media',
   'notification_outbox',
   'outbox_gates',
+  'reactions',
   'recipe_ingredients',
   'recipe_steps',
   'recipe_tags',

@@ -21,6 +21,13 @@ export interface TelegramClient {
     text: string,
     extra?: { reply_markup?: unknown },
   ): Promise<SendResult>;
+  /** A photo by its address with the text as its caption (at most 1024 characters). */
+  sendPhoto?(
+    chatId: string,
+    photoUrl: string,
+    caption: string,
+    extra?: { reply_markup?: unknown },
+  ): Promise<SendResult>;
 }
 
 export const REAL_TELEGRAM = 'https://api.telegram.org';
@@ -128,52 +135,63 @@ export function createTelegramClient(o: ClientOptions): TelegramClient {
   const base = checkedBase(o);
   const timeoutMs = o.timeoutMs ?? 10_000;
 
+  async function send(method: string, payload: Record<string, unknown>): Promise<SendResult> {
+    let res: Response;
+    try {
+      res = await fetch(`${base}/bot${o.token}/${method}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      const name = (err as { name?: string }).name;
+      return {
+        ok: false,
+        kind: 'temporary',
+        description: name === 'TimeoutError' ? 'timeout' : 'network error',
+      };
+    }
+    let body: { ok?: boolean; description?: string; parameters?: { retry_after?: number } } = {};
+    try {
+      body = (await res.json()) as typeof body;
+    } catch {
+      /* not JSON: judged by the status alone */
+    }
+    const description = String(body.description ?? `HTTP ${res.status}`).slice(0, 300);
+    if (res.ok && body.ok) return { ok: true };
+    if (res.status === 429) {
+      const retryAfter = Number(body.parameters?.retry_after);
+      return {
+        ok: false,
+        kind: 'rate_limited',
+        retryAfter: Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 3600) : 5,
+        description,
+      };
+    }
+    if (res.status === 403) return { ok: false, kind: 'blocked', description };
+    if (res.status === 400 || res.status === 404)
+      return { ok: false, kind: 'rejected', description };
+    return { ok: false, kind: 'temporary', description };
+  }
+
   return {
-    async sendMessage(chatId, text, extra = {}) {
-      let res: Response;
-      try {
-        res = await fetch(`${base}/bot${o.token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text,
-            parse_mode: 'HTML',
-            link_preview_options: { is_disabled: true },
-            ...(extra.reply_markup ? { reply_markup: extra.reply_markup } : {}),
-          }),
-          signal: AbortSignal.timeout(timeoutMs),
-        });
-      } catch (err) {
-        const name = (err as { name?: string }).name;
-        return {
-          ok: false,
-          kind: 'temporary',
-          description: name === 'TimeoutError' ? 'timeout' : 'network error',
-        };
-      }
-      let body: { ok?: boolean; description?: string; parameters?: { retry_after?: number } } = {};
-      try {
-        body = (await res.json()) as typeof body;
-      } catch {
-        /* not JSON: judged by the status alone */
-      }
-      const description = String(body.description ?? `HTTP ${res.status}`).slice(0, 300);
-      if (res.ok && body.ok) return { ok: true };
-      if (res.status === 429) {
-        const retryAfter = Number(body.parameters?.retry_after);
-        return {
-          ok: false,
-          kind: 'rate_limited',
-          retryAfter:
-            Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 3600) : 5,
-          description,
-        };
-      }
-      if (res.status === 403) return { ok: false, kind: 'blocked', description };
-      if (res.status === 400 || res.status === 404)
-        return { ok: false, kind: 'rejected', description };
-      return { ok: false, kind: 'temporary', description };
-    },
+    sendMessage: (chatId, text, extra = {}) =>
+      send('sendMessage', {
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        link_preview_options: { is_disabled: true },
+        ...(extra.reply_markup ? { reply_markup: extra.reply_markup } : {}),
+      }),
+    // BE-10: Telegram fetches the photo from its address (a signed link to the stored copy).
+    sendPhoto: (chatId, photoUrl, caption, extra = {}) =>
+      send('sendPhoto', {
+        chat_id: chatId,
+        photo: photoUrl,
+        caption,
+        parse_mode: 'HTML',
+        ...(extra.reply_markup ? { reply_markup: extra.reply_markup } : {}),
+      }),
   };
 }

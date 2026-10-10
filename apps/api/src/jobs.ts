@@ -2,6 +2,7 @@
 export { ConfigError } from './config.js';
 export { createPool } from './db/pool.js';
 export { cleanupOrphanMedia } from './media/cleanup.js';
+export { objectKeys } from './media/repo.js';
 export { sendDueMessages } from './notify/outbox.js';
 export { createTelegramClient } from './notify/telegram.js';
 export { S3Storage } from './storage/storage.js';

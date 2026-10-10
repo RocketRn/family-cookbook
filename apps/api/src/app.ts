@@ -16,6 +16,7 @@ import type { Db } from './db/pool.js';
 import { AppError, registerErrorHandling } from './errors.js';
 import { MAX_UPLOAD_BYTES } from './media/process.js';
 import { registerMedia } from './media/routes.js';
+import { registerReactions } from './reactions/routes.js';
 import { registerRecipes } from './recipes/routes.js';
 import { registerCspReport } from './routes/cspReport.js';
 import { registerHealth } from './routes/health.js';
@@ -144,6 +145,7 @@ export async function buildApp({
     registerImport(authed, db, files, parser, imports);
     registerTimers(authed, db);
     registerCookSessions(authed, db);
+    registerReactions(authed, db, files);
   });
 
   return app;

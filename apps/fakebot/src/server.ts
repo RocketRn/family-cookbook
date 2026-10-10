@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { parseTelegramHtml } from './html.js';
 
 /**
- * A local stand-in for the Telegram Bot API (D-039): `sendMessage` and `getMe`, the same answers as
+ * A local stand-in for the Telegram Bot API (D-039): `sendMessage`, `sendPhoto` and `getMe`, the same answers as
  * Telegram (ok, 429 with retry_after, 403 "bot was blocked by the user", 400 for bad HTML), and a
  * page that shows every message "sent". For development, the demo and tests only: it never talks
  * to Telegram, and it is never deployed.
@@ -16,6 +16,8 @@ export type SentMessage = {
   plain: string;
   parse_mode: string | null;
   reply_markup: unknown;
+  /** sendPhoto: the photo's address; null for a text message. */
+  photo: string | null;
   date: number;
 };
 
@@ -246,7 +248,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       webhook = null;
       return reply(res, 200, { ok: true, result: true, description: 'Webhook was deleted' });
     }
-    if (method !== 'sendMessage')
+    if (method !== 'sendMessage' && method !== 'sendPhoto')
       return reply(res, 404, {
         ok: false,
         error_code: 404,
@@ -254,22 +256,34 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       });
     calls++;
     const body = await readJson(req);
+    const isPhoto = method === 'sendPhoto';
     const chatId = String(body.chat_id ?? '');
-    const text = typeof body.text === 'string' ? body.text : '';
+    // A photo's text is its caption (optional, at most 1024 characters); a message's is required.
+    const textField = isPhoto ? body.caption : body.text;
+    const text = typeof textField === 'string' ? textField : '';
+    const photo = isPhoto && typeof body.photo === 'string' ? body.photo : null;
     const queued = queue.shift();
     if (queued) return fail(res, queued);
     if (blocked.has(chatId)) return fail(res, { status: 403 });
-    if (!chatId || !text)
+    if (!chatId || (!isPhoto && !text))
       return fail(res, { status: 400, description: 'Bad Request: chat_id and text are required' });
+    // The stand-in takes a photo by address only (the worker sends it that way).
+    if (isPhoto && !/^https?:\/\/\S+$/.test(photo ?? ''))
+      return fail(res, {
+        status: 400,
+        description: 'Bad Request: wrong file identifier/HTTP URL specified',
+      });
     const parseMode = typeof body.parse_mode === 'string' ? body.parse_mode : null;
     let plain = text;
-    if (parseMode === 'HTML') {
+    if (parseMode === 'HTML' && text) {
       const parsed = parseTelegramHtml(text);
       if (!parsed.ok) return fail(res, { status: 400, description: parsed.description });
       plain = parsed.plain;
     } else if ([...text].length > 4096) {
       return fail(res, { status: 400, description: 'Bad Request: message is too long' });
     }
+    if (isPhoto && [...plain].length > 1024)
+      return fail(res, { status: 400, description: 'Bad Request: message caption is too long' });
     const msg: SentMessage = {
       message_id: nextId++,
       chat_id: chatId,
@@ -277,6 +291,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       plain,
       parse_mode: parseMode,
       reply_markup: body.reply_markup ?? null,
+      photo,
       date: Math.floor(Date.now() / 1000),
     };
     messages.push(msg);
@@ -286,7 +301,9 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
         message_id: msg.message_id,
         chat: { id: Number(chatId) },
         date: msg.date,
-        text: plain,
+        ...(isPhoto
+          ? { caption: plain, photo: [{ file_id: `stand-in-${msg.message_id}` }] }
+          : { text: plain }),
       },
     });
   }
@@ -455,7 +472,7 @@ function page(
           m.date * 1000,
         ).toLocaleTimeString(
           'ru-RU',
-        )}</div><div class="text">${esc(m.plain)}</div>${buttons(m.reply_markup, m.chat_id, appUrl)}</li>`,
+        )}</div>${m.photo ? `<img class="photo" src="${esc(m.photo)}" alt="">` : ''}<div class="text">${esc(m.plain)}</div>${buttons(m.reply_markup, m.chat_id, appUrl)}</li>`,
     )
     .join('');
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -463,7 +480,7 @@ function page(
 <style>body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#f2f2f7;color:#111}h1{font-size:20px}h2{font-size:17px;margin:0 0 8px}
 ul{list-style:none;padding:0;max-width:560px}li,section{background:#fff;border-radius:12px;padding:12px;margin:0 0 10px;max-width:536px}
 form{margin:0 0 8px;display:flex;flex-wrap:wrap;gap:6px}input,select,button{font:inherit;padding:4px 8px}.note{color:#555;font-size:14px;margin:4px 0}.bad{color:#b00020}
-.meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8;text-decoration:none}</style>
+.photo{max-width:100%;border-radius:8px;margin-bottom:6px}.meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8;text-decoration:none}</style>
 </head><body><h1>Сообщения бота</h1><p>Локальная имитация Telegram: эти сообщения никуда не отправлены. Страница обновляется сама.</p>
 ${chatPanel(webhook, last, blocked)}
 ${items ? `<ul>${items}</ul>` : '<p><b>Пока сообщений нет.</b> Запустите таймер в режиме готовки или нажмите /start выше.</p>'}

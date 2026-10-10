@@ -4,7 +4,7 @@ import type { ObjectStorage } from '../storage/storage.js';
 import { objectKeys } from './repo.js';
 
 /**
- * PRD 6.2 BE-05: removes uploads that no recipe or step uses, once they are old enough that nobody
+ * PRD 6.2 BE-05: removes uploads that no recipe, step or "I cooked it" uses, once they are old enough that nobody
  * is still editing (default 24 h). Rows go first; a leftover file is harmless, a row without a
  * file would be a broken photo. Safe in several workers at once: the DELETE locks its rows, so a
  * concurrent run waits and then finds them gone. (No FOR UPDATE: the system role has no UPDATE right.)
@@ -21,6 +21,7 @@ export async function cleanupOrphanMedia(
           WHERE m.created_at < now() - make_interval(hours => $1)
             AND NOT EXISTS (SELECT 1 FROM recipes r WHERE r.cover_media_id = m.id)
             AND NOT EXISTS (SELECT 1 FROM recipe_steps s WHERE s.photo_media_id = m.id)
+            AND NOT EXISTS (SELECT 1 FROM reactions x WHERE x.photo_media_id = m.id)
           ORDER BY m.created_at
           LIMIT $2)
        DELETE FROM media m USING doomed d WHERE m.id = d.id

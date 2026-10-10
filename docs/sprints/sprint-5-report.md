@@ -9,9 +9,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | S5-0  | Plan and this progress file                                        | done                                                               | `50722d3` |
 | S5-1  | Storage compatibility with Google Cloud Storage, and what to check | done                                                               | `a1186e5` |
 | S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | done                                                               | `3eb1329` |
-| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | done                                                               | (this)    |
-| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | next                                                               |           |
-| S5-5  | FE-10 reactions and "I cooked it" on screen                        | to do                                                              |           |
+| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | done                                                               | `d628269` |
+| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | done                                                               | (this)    |
+| S5-5  | FE-10 reactions and "I cooked it" on screen                        | next                                                               |           |
 | S5-6  | Notification settings, and the new-recipe message (off by default) | to do                                                              |           |
 | S5-7  | FE-09 timers, full version                                         | to do                                                              |           |
 | S5-8  | Saved recipes                                                      | to do                                                              |           |
@@ -71,3 +71,13 @@ Additions:
 - Red first: the webhook tests (28 of 32 failed; the 4 that passed check that nothing happens, which a missing route also satisfies), the command tests (module missing), the stand-in tests (6 failed), the deploy-file checks (2 failed).
 - Checked by hand in the demo: /start with an invite as user 2 → English "invited" answer with the invite in the button; /start as user 1 → Russian welcome; block → `bot_started = false`; unblock → `true`.
 - Not done here: forwarding a recipe to the bot (PRD UC-02) — the bot ignores other messages for now.
+
+### S5-4 BE-10 Reactions and "I cooked it", the message to the author
+
+- Reactions ❤️ 😋 🔥 💡 🤔 🔁 (one each, removable) and 👨‍🍳 "I cooked it" (any number of times, with an optional photo and up to 500 characters for the author). "My version" stays hidden. Anyone who may read the recipe may react, also from its link (D-048).
+- Counts for everyone; the photo and words of "I cooked it" only for the author and the cook.
+- The author gets one bot message per mark, with the photo when there is one; none for your own recipe; none when turned off (the switches come in S5-6). The database writes this message together with the mark; the app cannot write one itself.
+- If Telegram cannot take the photo, the words still arrive as text.
+- Red first: 23 of 25 API tests failed (the 2 that passed are "refused" checks that a missing route also satisfies), and 4 stand-in tests failed. Now 25 and 23 pass.
+- Not here: the screens (S5-5) and the settings (S5-6). The guides change with the screens.
+- Also recorded: the bot does not use grammY yet (D-047), a deviation from PRD 4.1, explained there.
