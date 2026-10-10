@@ -76,7 +76,8 @@ export function realApiRefusal(o: ClientOptions, env: Env = process.env): string
   return null;
 }
 
-export function createTelegramClient(o: ClientOptions): TelegramClient {
+/** The address calls may go to (checked before the token goes anywhere), without a trailing /. */
+function checkedBase(o: ClientOptions): string {
   const url = new URL(o.baseUrl);
   // Any Telegram address counts as the real one, however it is written.
   const real = /(^|\.)telegram\.org\.?$/.test(url.hostname);
@@ -89,7 +90,42 @@ export function createTelegramClient(o: ClientOptions): TelegramClient {
       `Refusing to send the bot token to ${url.host}: only a local stand-in is allowed outside production`,
     );
   }
-  const base = o.baseUrl.replace(/\/+$/, '');
+  return o.baseUrl.replace(/\/+$/, '');
+}
+
+export type ApiAnswer = { ok: boolean; result?: unknown; description?: string };
+
+/**
+ * Any other Bot API method (BE-07: setWebhook, getWebhookInfo, deleteWebhook), with the same
+ * checks as sending a message. Telegram's answer as it is; the token is never in it.
+ */
+export async function botApiCall(
+  o: ClientOptions,
+  method: string,
+  params: Record<string, unknown> = {},
+): Promise<ApiAnswer> {
+  const base = checkedBase(o);
+  let res: Response;
+  try {
+    res = await fetch(`${base}/bot${o.token}/${method}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(o.timeoutMs ?? 10_000),
+    });
+  } catch (err) {
+    const name = (err as { name?: string }).name;
+    return { ok: false, description: name === 'TimeoutError' ? 'timeout' : 'network error' };
+  }
+  try {
+    return (await res.json()) as ApiAnswer;
+  } catch {
+    return { ok: false, description: `HTTP ${res.status}` };
+  }
+}
+
+export function createTelegramClient(o: ClientOptions): TelegramClient {
+  const base = checkedBase(o);
   const timeoutMs = o.timeoutMs ?? 10_000;
 
   return {

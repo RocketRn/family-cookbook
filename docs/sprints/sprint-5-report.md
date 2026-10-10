@@ -8,9 +8,9 @@ Branch `claude/zen-brown-nifiv3`. This file is updated after every task, so the 
 | ----- | ------------------------------------------------------------------ | ------------------------------------------------------------------ | --------- |
 | S5-0  | Plan and this progress file                                        | done                                                               | `50722d3` |
 | S5-1  | Storage compatibility with Google Cloud Storage, and what to check | done                                                               | `a1186e5` |
-| S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | done                                                               | (this)    |
-| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | next                                                               |           |
-| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | to do                                                              |           |
+| S5-2  | Production safety guard (fake tokens, stand-in addresses, arming)  | done                                                               | `3eb1329` |
+| S5-3  | BE-07 bot chat handling: /start, blocked bot, duplicate updates    | done                                                               | (this)    |
+| S5-4  | BE-10 reactions and "I cooked it", the message to the author       | next                                                               |           |
 | S5-5  | FE-10 reactions and "I cooked it" on screen                        | to do                                                              |           |
 | S5-6  | Notification settings, and the new-recipe message (off by default) | to do                                                              |           |
 | S5-7  | FE-09 timers, full version                                         | to do                                                              |           |
@@ -62,3 +62,12 @@ Additions:
 - CI #29 (S5-2) failed on Postgres 16 only, in a web test: the timer chip was on screen but the saved progress had no timer. Reproduced locally about once in 25 runs.
 - Cause: cooking opened at a step writes its state once when the screen opens, and it wrote the state it opened with. A timer started before that write (a tap in the instant the step appeared) was erased from the device's copy. It is now written from the current state.
 - Red first: a new test taps "Start timer" as soon as the button is in the page; it failed 8 of 8 runs before the fix and passes 8 of 8 after; the test that failed in CI passed 40 of 40 runs after the fix.
+
+### S5-3 BE-07 The bot's chat: /start, blocking, duplicate deliveries
+
+- The bot answers **/start** in the person's language with a button into the app; from an invitation link (`/start join_<code>`) it says "you've been invited" and the button opens the joining screen. The answer goes through the outbox like timer messages. **Blocking** the bot switches its messages to that person off; unblocking switches them on. Every update is handled **once**, however often Telegram delivers it (D-047).
+- On the server, one command connects the bot: `docker compose run --rm webhook` (`info` shows Telegram's view and its last error, `delete` disconnects). The secret is made by the guide's `.env` command. Guide: 9.5, 9.8, the checklist (section 10), the update steps, "delete everything" and five rows in section 13.
+- In the demo, the stand-in page has "Write to the bot" buttons: /start (with an invite code), block, unblock (RUN-LOCALLY 5.13). The demo connects the bot with the same command as the server.
+- Red first: the webhook tests (28 of 32 failed; the 4 that passed check that nothing happens, which a missing route also satisfies), the command tests (module missing), the stand-in tests (6 failed), the deploy-file checks (2 failed).
+- Checked by hand in the demo: /start with an invite as user 2 → English "invited" answer with the invite in the button; /start as user 1 → Russian welcome; block → `bot_started = false`; unblock → `true`.
+- Not done here: forwarding a recipe to the bot (PRD UC-02) — the bot ignores other messages for now.

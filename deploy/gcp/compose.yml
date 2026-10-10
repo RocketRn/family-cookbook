@@ -76,6 +76,8 @@ services:
       BOT_USERNAME: ${BOT_USERNAME:?Fill in BOT_USERNAME in .env}
       MINI_APP_SHORT_NAME: ${MINI_APP_SHORT_NAME:?Fill in MINI_APP_SHORT_NAME in .env}
       ALLOW_DEV_INIT_DATA: 'false'
+      # BE-07: Telegram sends this with every update for the bot (made by the guide's command, 9.5).
+      BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET:?Fill in BOT_WEBHOOK_SECRET in .env}
       CORS_ORIGIN: https://${DOMAIN:?Fill in DOMAIN in .env}
       # Caddy is the only way in: trust its X-Forwarded-For so limits see the visitor's address.
       TRUST_PROXY: 'true'
@@ -168,6 +170,24 @@ services:
       S3_TEST_SECRET_KEY: ${S3_SECRET_KEY}
       S3_TEST_PREFIX: contract-test/
     networks: [backend]
+
+  # A command, not a service: `docker compose run --rm webhook` tells Telegram to deliver the bot's
+  # updates to https://DOMAIN/api/bot/webhook with the secret; `... webhook info` shows what
+  # Telegram knows (and its last error); `... webhook delete` stops the deliveries (BE-07, 9.8).
+  # Like the worker it reaches Telegram only when armed in .env (S5-2).
+  webhook:
+    <<: *app
+    profiles: [tools]
+    restart: 'no'
+    entrypoint: [node, apps/api/dist/bot/cli.js]
+    command: [set]
+    environment:
+      NODE_ENV: production
+      TELEGRAM_LIVE: ${TELEGRAM_LIVE:-no}
+      BOT_TOKEN: ${BOT_TOKEN}
+      BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET}
+      DOMAIN: ${DOMAIN}
+    mem_limit: 96m
 
 networks:
   backend: {}

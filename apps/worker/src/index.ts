@@ -78,7 +78,7 @@ const stops = [
   }),
   loop('timers clean-up', 60 * 60_000, async () => {
     const removed = await cleanupFinished(db);
-    if (removed.timers || removed.outbox || removed.abandoned)
+    if (removed.timers || removed.outbox || removed.abandoned || removed.updates)
       log('info', 'timers clean-up done', removed);
   }),
   loop('media clean-up', config.mediaCleanupMin * 60_000, async () => {

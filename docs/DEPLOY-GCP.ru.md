@@ -329,11 +329,11 @@ cd ~/family-cookbook && git checkout claude/zen-brown-nifiv3
 
 ### 9.5. Файл настроек `.env` (здесь и только здесь секреты)
 
-Эта команда создаёт файл и сразу вписывает в него два случайных пароля базы данных (вы их не увидите, и это нормально):
+Эта команда создаёт файл и сразу вписывает в него три случайных значения: два пароля базы данных и секрет бота, которым Telegram подтверждает, что сообщения идут именно от него (вы их не увидите, и это нормально):
 
 ```bash
 cd ~/family-cookbook/deploy/gcp && cp -n .env.example .env && chmod 600 .env
-sed -i "s/^POSTGRES_PASSWORD=CHANGE_ME$/POSTGRES_PASSWORD=$(openssl rand -hex 24)/; s/^API_DB_PASSWORD=CHANGE_ME$/API_DB_PASSWORD=$(openssl rand -hex 24)/" .env
+sed -i "s/^POSTGRES_PASSWORD=CHANGE_ME$/POSTGRES_PASSWORD=$(openssl rand -hex 24)/; s/^API_DB_PASSWORD=CHANGE_ME$/API_DB_PASSWORD=$(openssl rand -hex 24)/; s/^BOT_WEBHOOK_SECRET=CHANGE_ME$/BOT_WEBHOOK_SECRET=$(openssl rand -hex 32)/" .env
 ```
 
 Теперь откройте файл в простом редакторе:
@@ -445,6 +445,20 @@ docker compose ps
 
 Откройте в браузере `https://<ваш DOMAIN>`. Должна открыться страница «Откройте в Telegram» с замочком в адресной строке. Сертификат появляется в течение минуты после запуска; если замочка нет, подождите 2–3 минуты и обновите страницу.
 
+**Подключите бота к серверу** (один раз, когда замочек уже есть): эта команда сообщает Telegram адрес, куда доставлять сообщения боту (`/start`, блокировку бота).
+
+```bash
+cd ~/family-cookbook/deploy/gcp && docker compose run --rm webhook
+```
+
+Должно вывести `Готово: Telegram будет доставлять сообщения боту на https://<ваш DOMAIN>/api/bot/webhook`. Проверка:
+
+```bash
+docker compose run --rm webhook info
+```
+
+Должно быть `Ошибок нет`. Если там ошибка, смотрите раздел 13. Теперь откройте бота в Telegram и нажмите **Start**: бот должен ответить приветствием с кнопкой «Открыть книгу».
+
 ### 9.9. Первая резервная копия
 
 ```bash
@@ -461,7 +475,8 @@ cd ~/family-cookbook/deploy/gcp && ./backup.sh && ./restore-test.sh
 
 **Открытие**
 
-- [ ] Откройте бота, нажмите **Start** (бот ничего не ответит, это нормально в этой версии).
+- [ ] Откройте бота, нажмите **Start**. Бот должен ответить приветствием на языке вашего Telegram (русский, украинский, английский или шведский) с кнопкой «Открыть книгу». Запишите, через сколько секунд пришёл ответ.
+- [ ] Нажмите **Start** ещё раз: придёт ещё одно приветствие (на каждое нажатие — один ответ, без повторов).
 - [ ] Откройте приложение по ссылке `https://t.me/<бот>/<short name>` или кнопкой меню. Запишите, открылось ли оно сразу, со своим ли языком интерфейса и в цветах темы Telegram (светлой и тёмной).
 
 **Книга и рецепты (как в демо, разделы 5.1–5.5)**
@@ -482,6 +497,11 @@ cd ~/family-cookbook/deploy/gcp && ./backup.sh && ./restore-test.sh
 - [ ] Нажмите в сообщении **Открыть шаг**: приложение должно открыться сразу на том шаге.
 - [ ] «+1 мин» и «Отменить таймер». Отменённый таймер сообщение не присылает.
 - [ ] Включите режим полёта, запустите таймер (появится плашка «Нет связи…»), выключите режим полёта: плашка должна исчезнуть.
+
+**Блокировка бота**
+
+- [ ] В чате с ботом: ⋮ (или имя бота) → **Заблокировать** (Block). Запустите таймер на 1 минуту: сообщения не будет, и это правильно.
+- [ ] Разблокируйте бота и нажмите **Start**: бот снова отвечает, следующий таймер снова присылает сообщение.
 
 **Отчёты CSP (защита страницы)**
 
@@ -542,10 +562,12 @@ cd ~/family-cookbook && git pull && cd deploy/gcp && docker compose up -d --buil
 
 Изменения в базе применяются сами, при запуске. Перед обновлением полезно сделать копию: `./backup.sh`.
 
-Если `.env` создан до появления строки `TELEGRAM_LIVE` (см. раздел 9.5), добавьте её один раз, иначе фоновый процесс не запустится:
+Если `.env` создан до появления строк `TELEGRAM_LIVE` и `BOT_WEBHOOK_SECRET` (см. раздел 9.5), добавьте их один раз, иначе фоновый процесс и сервер не запустятся. Затем подключите бота (раздел 9.8):
 
 ```bash
 cd ~/family-cookbook/deploy/gcp && grep -q '^TELEGRAM_LIVE=' .env || echo 'TELEGRAM_LIVE=yes' >> .env
+grep -q '^BOT_WEBHOOK_SECRET=' .env || echo "BOT_WEBHOOK_SECRET=$(openssl rand -hex 32)" >> .env
+docker compose up -d && docker compose run --rm webhook
 ```
 
 **Откатиться на предыдущую версию:**
@@ -586,9 +608,10 @@ cd ~/family-cookbook/deploy/gcp && docker compose down
 
 **Удалить всё** (если проект больше не нужен):
 
-1. Удалите сервер (**Delete** в списке VM).
-2. Удалите оба ведра в Cloud Storage.
-3. Закройте проект: **IAM & Admin → Settings → Shut down**.
+1. Отключите бота от сервера, чтобы Telegram перестал доставлять ему сообщения: `cd ~/family-cookbook/deploy/gcp && docker compose run --rm webhook delete`.
+2. Удалите сервер (**Delete** в списке VM).
+3. Удалите оба ведра в Cloud Storage.
+4. Закройте проект: **IAM & Admin → Settings → Shut down**.
 
 После этого расходов нет.
 
@@ -615,6 +638,11 @@ cd ~/family-cookbook/deploy/gcp && docker compose ps && docker compose logs --ta
 | `s3check`: `SignatureDoesNotMatch`                                                                       | Неверный ключ: скопировался не целиком или с пробелом. Создайте новый ключ (раздел 5.3).                                                                                                                                                                                                                                                       |
 | Фото не загружаются или не показываются                                                                  | Раздел 9.7, «Что проверить именно на Google Cloud Storage»: там признаки, причины и что делать.                                                                                                                                                                                                                                                |
 | `backup.sh`: `AccessDeniedException` / `403`                                                             | У `cookbook-vm` нет ролей на ведре копий (раздел 6.1) или сервер создан не с этим аккаунтом (раздел 6.2, пункт 6).                                                                                                                                                                                                                             |
+| Бот не отвечает на **Start**                                                                             | Выполните `docker compose run --rm webhook info`. «Адрес: (не задан)» — подключите бота: `docker compose run --rm webhook`. Есть «Последняя ошибка» — см. строки ниже.                                                                                                                                                                         |
+| `webhook info`: `Wrong response from the webhook: 401 Unauthorized`                                      | Секрет в `.env` поменялся после подключения бота. Подключите заново: `docker compose run --rm webhook`.                                                                                                                                                                                                                                        |
+| `webhook info`: `… 404 Not Found` или `… 502 Bad Gateway`                                                | Сервер `api` не запущен или запущена старая версия. `docker compose ps`; если `api` не `healthy`, смотрите строку про `unhealthy` выше. Затем `docker compose run --rm webhook`.                                                                                                                                                               |
+| `webhook info`: `SSL error …`, `Connection refused` или `Failed to resolve host`                         | Нет замочка или адрес DuckDNS указывает не на сервер (разделы 7 и 9.8). Когда замочек появится, выполните `docker compose run --rm webhook` ещё раз.                                                                                                                                                                                           |
+| `webhook`: `BOT_WEBHOOK_SECRET: …` или `DOMAIN: …`                                                       | В `.env` нет секрета (команда из раздела 12, «Обновить приложение») или `DOMAIN` всё ещё заглушка.                                                                                                                                                                                                                                             |
 | Сообщение таймера не пришло                                                                              | Нажимали ли **Start** у бота? Разрешили ли сообщения? Посмотрите журнал: `docker compose logs worker \| tail -30`. Строка `bot may not write to this user` значит, что бот не может вам писать.                                                                                                                                                |
 
 Память и диск сервера:

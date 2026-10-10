@@ -21,18 +21,62 @@ export type SentMessage = {
 
 export type Failure = { status: 429 | 403 | 400 | 500; retryAfter?: number; description?: string };
 
+/** What setWebhook stored (BE-07). Telegram never shows the secret back; the stand-in tells tests. */
+export type Webhook = { url: string; secret: string | null; allowed_updates: string[] | null };
+
 export type FakeTelegram = {
   url: string;
   messages: SentMessage[];
+  /** The address the app registered with setWebhook, or null. */
+  readonly webhook: Webhook | null;
+  /** Delivers an update to the webhook like Telegram: the app's HTTP status, or null without one. */
+  sendUpdate(update: Record<string, unknown>): Promise<number | null>;
+  /** The person in this private chat presses Start (optionally from a link: /start <payload>). */
+  pressStart(chatId: number, payload?: string): Promise<number | null>;
+  /** The person blocks the bot: my_chat_member "kicked", and messages to them get 403. */
+  blockBot(chatId: number): Promise<number | null>;
+  unblockBot(chatId: number): Promise<number | null>;
   /** Number of sendMessage calls, including refused ones. */
   calls: number;
   /** The next `count` sendMessage calls fail like this (any chat). */
   failNext(count: number, failure: Failure): void;
   /** Every message to this chat gets 403, like a user who blocked the bot. */
   blockChat(chatId: string | number): void;
+  /** Forgets messages, failures, blocks and the webhook. */
   clear(): void;
   close(): Promise<void>;
 };
+
+/** Dev users 1-3 of the demo (apps/web mock, db/seeds/dev.sql): same names and languages. */
+const DEMO_PEOPLE: Record<number, { first_name: string; username: string; language_code: string }> =
+  {
+    100000001: { first_name: 'Dev Keeper', username: 'dev_keeper', language_code: 'ru' },
+    100000002: { first_name: 'Dev Member', username: 'dev_member', language_code: 'en' },
+    100000003: { first_name: 'Ny Användare', username: 'dev_new', language_code: 'sv' },
+  };
+const person = (id: number) => ({
+  id,
+  is_bot: false,
+  ...(DEMO_PEOPLE[id] ?? { first_name: `User ${id}`, language_code: 'en' }),
+});
+const BOT_USER = { id: 1, is_bot: true, first_name: 'Cookbook (local stand-in)' };
+
+/** The stand-in delivers only to this computer (or a one-word Docker host), like the app's rule. */
+function localHook(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  if (url.username || url.password) return null;
+  const h = url.hostname;
+  const ok =
+    h === '127.0.0.1' || h === 'localhost' || h === '[::1]' || /^[a-z][a-z0-9-]{0,62}$/.test(h);
+  return ok ? raw : null;
+}
 
 export type Options = {
   port?: number;
@@ -58,6 +102,65 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
   const blocked = new Set<string>();
   let calls = 0;
   let nextId = 1;
+  let webhook: Webhook | null = null;
+  let nextUpdateId = 1;
+  let lastDelivery: { date: number; status: number | null; error: string | null } | null = null;
+
+  async function sendUpdate(update: Record<string, unknown>): Promise<number | null> {
+    if (!webhook) return null;
+    const body = { update_id: nextUpdateId++, ...update };
+    const date = Math.floor(Date.now() / 1000);
+    try {
+      const res = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(webhook.secret ? { 'x-telegram-bot-api-secret-token': webhook.secret } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10_000),
+      });
+      await res.arrayBuffer();
+      lastDelivery = {
+        date,
+        status: res.status,
+        error: res.ok ? null : `Wrong response from the webhook: ${res.status}`,
+      };
+      return res.status;
+    } catch (err) {
+      lastDelivery = { date, status: 0, error: `Connection failed: ${String(err)}` };
+      return 0;
+    }
+  }
+  const pressStart = (chatId: number, payload?: string) =>
+    sendUpdate({
+      message: {
+        message_id: nextId++,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: chatId, type: 'private', first_name: person(chatId).first_name },
+        from: person(chatId),
+        text: payload ? `/start ${payload}` : '/start',
+        entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+      },
+    });
+  const memberChange = (chatId: number, status: 'kicked' | 'member') =>
+    sendUpdate({
+      my_chat_member: {
+        chat: { id: chatId, type: 'private', first_name: person(chatId).first_name },
+        from: person(chatId),
+        date: Math.floor(Date.now() / 1000),
+        old_chat_member: { status: status === 'kicked' ? 'member' : 'kicked', user: BOT_USER },
+        new_chat_member: { status, user: BOT_USER },
+      },
+    });
+  const blockBot = (chatId: number) => {
+    blocked.add(String(chatId));
+    return memberChange(chatId, 'kicked');
+  };
+  const unblockBot = (chatId: number) => {
+    blocked.delete(String(chatId));
+    return memberChange(chatId, 'member');
+  };
 
   const reply = (res: ServerResponse, status: number, body: unknown) => {
     res.writeHead(status, { 'content-type': 'application/json' });
@@ -105,6 +208,44 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
           username: 'local_stand_in_bot',
         },
       });
+    if (method === 'setWebhook') {
+      const body = await readJson(req);
+      if (body.url === '') {
+        webhook = null;
+        return reply(res, 200, { ok: true, result: true, description: 'Webhook was deleted' });
+      }
+      const url = localHook(body.url);
+      if (!url)
+        return fail(res, {
+          status: 400,
+          description: 'Bad Request: bad webhook: the stand-in delivers only to this computer',
+        });
+      webhook = {
+        url,
+        secret: typeof body.secret_token === 'string' ? body.secret_token : null,
+        allowed_updates: Array.isArray(body.allowed_updates)
+          ? body.allowed_updates.map(String)
+          : null,
+      };
+      return reply(res, 200, { ok: true, result: true, description: 'Webhook was set' });
+    }
+    if (method === 'getWebhookInfo')
+      return reply(res, 200, {
+        ok: true,
+        result: {
+          url: webhook?.url ?? '',
+          has_custom_certificate: false,
+          pending_update_count: 0,
+          ...(webhook?.allowed_updates ? { allowed_updates: webhook.allowed_updates } : {}),
+          ...(lastDelivery?.error
+            ? { last_error_date: lastDelivery.date, last_error_message: lastDelivery.error }
+            : {}),
+        },
+      });
+    if (method === 'deleteWebhook') {
+      webhook = null;
+      return reply(res, 200, { ok: true, result: true, description: 'Webhook was deleted' });
+    }
     if (method !== 'sendMessage')
       return reply(res, 404, {
         ok: false,
@@ -162,6 +303,21 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     reply(res, 200, { ok: true, queued: queue.length, blocked: [...blocked] });
   }
 
+  async function pageAction(req: IncomingMessage, res: ServerResponse, action: string) {
+    const chunks: Buffer[] = [];
+    for await (const c of req) chunks.push(c as Buffer);
+    const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8').slice(0, 4096));
+    const chat = Number(form.get('chat'));
+    const payload = (form.get('payload') ?? '').trim();
+    if (!Number.isSafeInteger(chat) || chat <= 0 || !/^[A-Za-z0-9_-]{0,64}$/.test(payload))
+      return reply(res, 400, { ok: false, description: 'Bad Request: chat or payload' });
+    if (action === 'start') await pressStart(chat, payload || undefined);
+    else if (action === 'block') await blockBot(chat);
+    else await unblockBot(chat);
+    res.writeHead(303, { location: '/' });
+    res.end();
+  }
+
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://local');
     const m = /^\/bot([^/]+)\/([A-Za-z]+)$/.exec(url.pathname);
@@ -171,9 +327,14 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     if (url.pathname === '/__control' && req.method === 'POST')
       return void control(req, res).catch(done);
     if (url.pathname === '/__messages') return reply(res, 200, { messages });
+    // The page's buttons (BE-07): press /start, block or unblock the bot, as a demo user.
+    const action = { '/__start': 'start', '/__block': 'block', '/__unblock': 'unblock' }[
+      url.pathname
+    ];
+    if (action && req.method === 'POST') return void pageAction(req, res, action).catch(done);
     if (url.pathname === '/' && req.method === 'GET') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      return void res.end(page(messages, opts.appUrl));
+      return void res.end(page(messages, opts.appUrl, webhook, lastDelivery, blocked));
     }
     reply(res, 404, { ok: false, error_code: 404, description: 'Not Found' });
   });
@@ -188,6 +349,13 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     get calls() {
       return calls;
     },
+    get webhook() {
+      return webhook ? { ...webhook } : null;
+    },
+    sendUpdate,
+    pressStart,
+    blockBot,
+    unblockBot,
     failNext(count, failure) {
       for (let i = 0; i < count; i++) queue.push(failure);
     },
@@ -199,6 +367,8 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       queue.length = 0;
       blocked.clear();
       calls = 0;
+      webhook = null;
+      lastDelivery = null;
     },
     close: () => new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve()))),
   };
@@ -241,8 +411,42 @@ function buttons(markup: unknown, chatId: string, appUrl: string | undefined): s
     .join(' ');
 }
 
+/** The chat side (BE-07): press /start (also with an invite) or block the bot, as a demo user. */
+function chatPanel(
+  webhook: Webhook | null,
+  last: { date: number; status: number | null; error: string | null } | null,
+  blocked: Set<string>,
+): string {
+  if (!webhook)
+    return '<p class="note">Бот пока не получает сообщения: адрес не задан (демо задаёт его при запуске).</p>';
+  const options = Object.entries(DEMO_PEOPLE)
+    .map(([id, p]) => `<option value="${id}">${esc(p.first_name)} (${id})</option>`)
+    .join('');
+  const state = last
+    ? last.error
+      ? `<p class="note bad">Последняя доставка: ${esc(last.error)}</p>`
+      : `<p class="note">Последняя доставка: ответ приложения ${last.status}.</p>`
+    : '';
+  const blockedNote = blocked.size
+    ? `<p class="note">Заблокировали бота: ${[...blocked].map(esc).join(', ')}</p>`
+    : '';
+  return `<section><h2>Написать боту</h2>
+<form method="post" action="/__start"><select name="chat">${options}</select>
+<input name="payload" placeholder="join_… (код приглашения, можно пусто)" maxlength="64" pattern="[A-Za-z0-9_-]*">
+<button>Нажать /start</button></form>
+<form method="post" action="/__block"><select name="chat">${options}</select><button>Заблокировать бота</button></form>
+<form method="post" action="/__unblock"><select name="chat">${options}</select><button>Разблокировать</button></form>
+${state}${blockedNote}</section>`;
+}
+
 /** What a person would see in Telegram, newest first. Everything is escaped: nothing here runs. */
-function page(messages: SentMessage[], appUrl: string | undefined): string {
+function page(
+  messages: SentMessage[],
+  appUrl: string | undefined,
+  webhook: Webhook | null,
+  last: { date: number; status: number | null; error: string | null } | null,
+  blocked: Set<string>,
+): string {
   const items = [...messages]
     .reverse()
     .map(
@@ -255,10 +459,13 @@ function page(messages: SentMessage[], appUrl: string | undefined): string {
     )
     .join('');
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="refresh" content="3"><title>Сообщения бота (локальная имитация)</title>
-<style>body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#f2f2f7;color:#111}h1{font-size:20px}
-ul{list-style:none;padding:0;max-width:560px}li{background:#fff;border-radius:12px;padding:12px;margin:0 0 10px}
+<title>Сообщения бота (локальная имитация)</title>
+<style>body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#f2f2f7;color:#111}h1{font-size:20px}h2{font-size:17px;margin:0 0 8px}
+ul{list-style:none;padding:0;max-width:560px}li,section{background:#fff;border-radius:12px;padding:12px;margin:0 0 10px;max-width:536px}
+form{margin:0 0 8px;display:flex;flex-wrap:wrap;gap:6px}input,select,button{font:inherit;padding:4px 8px}.note{color:#555;font-size:14px;margin:4px 0}.bad{color:#b00020}
 .meta{color:#888;font-size:13px;margin-bottom:6px}.text{white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:#e8f0fe;color:#1a73e8;text-decoration:none}</style>
 </head><body><h1>Сообщения бота</h1><p>Локальная имитация Telegram: эти сообщения никуда не отправлены. Страница обновляется сама.</p>
-${items ? `<ul>${items}</ul>` : '<p><b>Пока сообщений нет.</b> Запустите таймер в режиме готовки.</p>'}</body></html>`;
+${chatPanel(webhook, last, blocked)}
+${items ? `<ul>${items}</ul>` : '<p><b>Пока сообщений нет.</b> Запустите таймер в режиме готовки или нажмите /start выше.</p>'}
+<script>setInterval(function(){var a=document.activeElement;if(!a||a===document.body)location.reload()},3000)</script></body></html>`;
 }

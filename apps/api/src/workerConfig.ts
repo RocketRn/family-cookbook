@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { ConfigError, isRealLookingToken } from './config.js';
+import { ConfigError } from './config.js';
 import { dbUrlProblem, isPlaceholder, PLACEHOLDER_BOT } from './prodGuard.js';
-import { isLocalStandIn, type ClientOptions } from './notify/telegram.js';
+import { telegramTarget, type TelegramTarget } from './notify/target.js';
 import type { Links } from './notify/templates.js';
 import {
   DEV_S3_KEYS,
@@ -9,11 +9,6 @@ import {
   toStorageConfig,
   type StorageConfig,
 } from './storage/config.js';
-
-/** The real Bot API, used only by the production worker (D-039). */
-const REAL_API = 'https://api.telegram.org';
-
-const sameApi = (raw: string) => raw.replace(/\/+$/, '') === REAL_API;
 
 const envSchema = z
   .object({
@@ -45,22 +40,8 @@ const envSchema = z
   .superRefine((env, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    telegramTarget(env, issue);
     if (env.NODE_ENV === 'production') {
-      if (env.TELEGRAM_LIVE !== 'yes') {
-        issue(
-          'TELEGRAM_LIVE',
-          'must be "yes" for the worker to send real Telegram messages; write it only in .env on the real server (docs/DEPLOY-GCP.ru.md, 9.5)',
-        );
-      }
-      if (!env.BOT_TOKEN || !isRealLookingToken(env.BOT_TOKEN)) {
-        issue(
-          'BOT_TOKEN',
-          'must be the real token from @BotFather in production (missing, a placeholder or malformed)',
-        );
-      }
-      if (env.TELEGRAM_API_BASE && !sameApi(env.TELEGRAM_API_BASE)) {
-        issue('TELEGRAM_API_BASE', `must be ${REAL_API} in production (or left unset)`);
-      }
       if (!env.BOT_USERNAME || env.BOT_USERNAME === PLACEHOLDER_BOT) {
         issue(
           'BOT_USERNAME',
@@ -75,14 +56,6 @@ const envSchema = z
       }
       const db = dbUrlProblem(env.DATABASE_URL);
       if (db) issue('DATABASE_URL', db);
-    } else if (env.TELEGRAM_API_BASE) {
-      if (!isLocalStandIn(env.TELEGRAM_API_BASE) || sameApi(env.TELEGRAM_API_BASE)) {
-        issue(
-          'TELEGRAM_API_BASE',
-          'outside production only a local stand-in is allowed (e.g. http://127.0.0.1:8081)',
-        );
-      }
-      if (!env.BOT_TOKEN) issue('BOT_TOKEN', 'the stand-in needs a (fake) token');
     }
   });
 
@@ -91,7 +64,7 @@ export type WorkerConfig = {
   databaseUrl: string;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   /** null: no Bot API configured, messages wait in the outbox (development without the stand-in). */
-  telegram: Required<Omit<ClientOptions, 'timeoutMs'>> | null;
+  telegram: TelegramTarget | null;
   links: Links;
   timerPollMs: number;
   outboxPollMs: number;
@@ -110,16 +83,11 @@ export function loadWorkerConfig(
     throw new ConfigError(`Invalid environment configuration:\n${lines.join('\n')}`);
   }
   const e = parsed.data;
-  const prod = e.NODE_ENV === 'production';
-  const base = prod ? REAL_API : e.TELEGRAM_API_BASE;
   return {
     nodeEnv: e.NODE_ENV,
     databaseUrl: e.DATABASE_URL,
     logLevel: e.LOG_LEVEL,
-    telegram:
-      base && e.BOT_TOKEN
-        ? { baseUrl: base, token: e.BOT_TOKEN, allowReal: prod, allowLocal: !prod }
-        : null,
+    telegram: telegramTarget(e, () => undefined),
     links: { botUsername: e.BOT_USERNAME ?? PLACEHOLDER_BOT, appShortName: e.MINI_APP_SHORT_NAME },
     timerPollMs: e.TIMER_POLL_MS,
     outboxPollMs: e.OUTBOX_POLL_MS,

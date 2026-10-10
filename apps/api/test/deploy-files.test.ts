@@ -67,6 +67,24 @@ describe('deploy/gcp/compose.yml', () => {
     }
   });
 
+  it('the bot webhook: the API checks the secret; a one-off command registers it (S5-3)', () => {
+    expect(service('api')).toMatch(
+      /BOT_WEBHOOK_SECRET: \$\{BOT_WEBHOOK_SECRET:\?Fill in BOT_WEBHOOK_SECRET in \.env\}/,
+    );
+    for (const s of ['postgres', 'migrate', 'worker', 'web', 's3check']) {
+      expect(service(s), s).not.toMatch(/BOT_WEBHOOK_SECRET/);
+    }
+    const hook = service('webhook');
+    expect(hook).toMatch(/profiles: \[tools\]/);
+    expect(hook).toMatch(/entrypoint: \[node, apps\/api\/dist\/bot\/cli\.js\]/);
+    expect(hook).toMatch(/command: \[set\]/);
+    expect(hook).toMatch(/NODE_ENV: production/);
+    expect(hook).toMatch(/TELEGRAM_LIVE: \$\{TELEGRAM_LIVE:-no\}/);
+    expect(hook).toMatch(/DOMAIN: \$\{DOMAIN/);
+    // It only talks to Telegram: no database, no photos.
+    expect(hook).not.toMatch(/DATABASE_URL|S3_/);
+  });
+
   it('every service has a memory limit (measured, D-045)', () => {
     for (const s of ['postgres', 'migrate', 'api', 'worker', 'web']) {
       expect(service(s), s).toMatch(/mem_limit: /);
@@ -95,6 +113,7 @@ describe('deploy/gcp/.env.example', () => {
       'POSTGRES_PASSWORD',
       'API_DB_PASSWORD',
       'BOT_TOKEN',
+      'BOT_WEBHOOK_SECRET',
       'S3_ACCESS_KEY',
       'S3_SECRET_KEY',
       'DUCKDNS_TOKEN',

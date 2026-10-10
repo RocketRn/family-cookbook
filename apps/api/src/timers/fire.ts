@@ -48,11 +48,12 @@ export async function fireDueTimers(
 
 /**
  * Housekeeping (hourly): finished timers go after 7 days (PRD 4.6), delivered or abandoned outbox
- * rows after 30, and a cooking session idle for 24 hours becomes "abandoned" (PRD 3.2).
+ * rows after 30, a cooking session idle for 24 hours becomes "abandoned" (PRD 3.2), and the ids
+ * of Telegram updates already handled are forgotten after 7 days (BE-07).
  */
 export async function cleanupFinished(
   db: Db,
-): Promise<{ timers: number; outbox: number; abandoned: number }> {
+): Promise<{ timers: number; outbox: number; abandoned: number; updates: number }> {
   return withWorker(db, async (tx) => {
     const timers = await tx.query(
       `DELETE FROM timers
@@ -66,10 +67,15 @@ export async function cleanupFinished(
       `UPDATE cook_sessions SET state = 'abandoned', updated_at = now()
         WHERE state = 'active' AND updated_at < now() - interval '24 hours'`,
     );
+    // BE-07: Telegram re-delivers an update for at most a day; a week of update ids is plenty.
+    const updates = await tx.query(
+      `DELETE FROM tg_updates WHERE received_at < now() - interval '7 days'`,
+    );
     return {
       timers: timers.rowCount ?? 0,
       outbox: outbox.rowCount ?? 0,
       abandoned: abandoned.rowCount ?? 0,
+      updates: updates.rowCount ?? 0,
     };
   });
 }

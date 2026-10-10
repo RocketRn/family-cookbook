@@ -16,6 +16,7 @@ const ALL = [
   '0005_media',
   '0006_search',
   '0007_timers_outbox',
+  '0008_bot_updates',
 ];
 const TABLES = [
   'book_members',
@@ -32,6 +33,7 @@ const TABLES = [
   'step_ingredients',
   'step_timers',
   'tags',
+  'tg_updates',
   'timers',
   'units',
   'users',

@@ -118,3 +118,140 @@ describe('the stand-in server', () => {
     expect(page).toContain('&lt;script&gt;alert(1)');
   });
 });
+
+/**
+ * BE-07 (Sprint 5): the stand-in also plays Telegram's side of the webhook, so /start and
+ * "blocked the bot" can be tried in the demo and tested without Telegram.
+ */
+describe('the stand-in as the sender of updates (webhook)', () => {
+  let bot: FakeTelegram;
+  let received: Array<{ secret: string | undefined; body: Record<string, unknown> }>;
+  let hook: import('node:http').Server;
+  let hookUrl: string;
+  let answer = 200;
+
+  beforeAll(async () => {
+    const { createServer } = await import('node:http');
+    hook = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        received.push({
+          secret: req.headers['x-telegram-bot-api-secret-token'] as string | undefined,
+          body: JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>,
+        });
+        res.writeHead(answer).end('{}');
+      });
+    });
+    await new Promise<void>((r) => hook.listen(0, '127.0.0.1', r));
+    hookUrl = `http://127.0.0.1:${(hook.address() as import('node:net').AddressInfo).port}/bot/webhook`;
+    bot = await startFakeTelegram({ token: '123:fake' });
+  });
+  afterAll(async () => {
+    await bot.close();
+    await new Promise((r) => hook.close(r));
+  });
+  beforeEach(() => {
+    bot.clear();
+    received = [];
+    answer = 200;
+  });
+
+  const call = async (method: string, body: object = {}) =>
+    (await (
+      await fetch(`${bot.url}/bot123:fake/${method}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    ).json()) as { ok: boolean; result?: Record<string, unknown>; description?: string };
+
+  it('takes setWebhook, shows it in getWebhookInfo without the secret, and forgets it on deleteWebhook', async () => {
+    expect(
+      await call('setWebhook', {
+        url: hookUrl,
+        secret_token: 'local-secret-0123456789',
+        allowed_updates: ['message', 'my_chat_member'],
+      }),
+    ).toMatchObject({ ok: true, result: true });
+    expect(bot.webhook).toEqual({
+      url: hookUrl,
+      secret: 'local-secret-0123456789',
+      allowed_updates: ['message', 'my_chat_member'],
+    });
+    const info = await call('getWebhookInfo');
+    expect(info.result).toMatchObject({ url: hookUrl, pending_update_count: 0 });
+    expect(JSON.stringify(info)).not.toContain('local-secret');
+    expect(await call('deleteWebhook')).toMatchObject({ ok: true, result: true });
+    expect(bot.webhook).toBeNull();
+    expect((await call('getWebhookInfo')).result).toMatchObject({ url: '' });
+  });
+
+  it('delivers updates only to this computer', async () => {
+    for (const url of ['https://example.com/hook', 'http://10.0.0.5/hook', 'not a url']) {
+      expect(await call('setWebhook', { url }), url).toMatchObject({ ok: false });
+    }
+    expect(bot.webhook).toBeNull();
+  });
+
+  it('presses /start for a chat (with an invite), with the secret and a new update_id each time', async () => {
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    expect(await bot.pressStart(100000002, 'join_Ab3dE5')).toBe(200);
+    expect(await bot.pressStart(100000001)).toBe(200);
+    expect(received).toHaveLength(2);
+    expect(received[0]!.secret).toBe('local-secret-0123456789');
+    const [a, b] = received.map((r) => r.body);
+    expect(a).toMatchObject({
+      message: {
+        chat: { id: 100000002, type: 'private' },
+        from: { id: 100000002, is_bot: false, first_name: 'Dev Member', language_code: 'en' },
+        text: '/start join_Ab3dE5',
+      },
+    });
+    expect(b).toMatchObject({ message: { text: '/start', from: { first_name: 'Dev Keeper' } } });
+    expect(b!.update_id).toBe((a!.update_id as number) + 1);
+  });
+
+  it('blocking the bot sends my_chat_member and refuses messages (403); unblocking undoes both', async () => {
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    await bot.blockBot(100000003);
+    expect(received[0]!.body).toMatchObject({
+      my_chat_member: {
+        chat: { id: 100000003, type: 'private' },
+        new_chat_member: { status: 'kicked' },
+      },
+    });
+    const refused = await fetch(`${bot.url}/bot123:fake/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: 100000003, text: 'hi' }),
+    });
+    expect(refused.status).toBe(403);
+    await bot.unblockBot(100000003);
+    expect(received[1]!.body).toMatchObject({
+      my_chat_member: { new_chat_member: { status: 'member' } },
+    });
+  });
+
+  it('reports what the app answered, and nothing when no webhook is set', async () => {
+    expect(await bot.pressStart(100000001)).toBeNull();
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    answer = 401;
+    expect(await bot.pressStart(100000001)).toBe(401);
+  });
+
+  it('the page has buttons for /start and blocking, which post and come back', async () => {
+    await call('setWebhook', { url: hookUrl, secret_token: 'local-secret-0123456789' });
+    const page = await (await fetch(`${bot.url}/`)).text();
+    expect(page).toContain('action="/__start"');
+    expect(page).toContain('action="/__block"');
+    const res = await fetch(`${bot.url}/__start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'chat=100000002&payload=join_Ab3dE5',
+      redirect: 'manual',
+    });
+    expect(res.status).toBe(303);
+    expect(received[0]!.body).toMatchObject({ message: { text: '/start join_Ab3dE5' } });
+  });
+});

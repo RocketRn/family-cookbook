@@ -8,6 +8,7 @@ import Fastify, {
 } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { createAuthenticate } from './auth/plugin.js';
+import { registerBotWebhook } from './bot/webhook.js';
 import { registerBooks } from './books/routes.js';
 import { registerCookSessions } from './cook/routes.js';
 import type { Config } from './config.js';
@@ -118,6 +119,13 @@ export async function buildApp({
   const perIp = limitHook(counter(L.perIp, (r) => `ip:${r.ip}`));
   // CSP reports come from browsers without sign-in (D-032): their own, separate limit per IP.
   registerCspReport(app, limitHook(counter(L.cspReportsPerIp, (r) => `csp:${r.ip}`)));
+  // BE-07: Telegram's updates for the bot. No sign-in (the secret token instead); wrong secrets
+  // are counted per IP like failed sign-ins.
+  const hookFailures = counter(L.authFailuresPerIp, (r) => `hook-fail:${r.ip}`);
+  registerBotWebhook(app, db, config.botWebhookSecret, async (req) => {
+    const r = await hookFailures(req);
+    if (!r.isAllowed && r.isExceeded) throw rateLimited(r.ttl);
+  });
   const perUser = limitHook(counter(L.perUser, (r) => `user:${r.user?.id}`));
   const uploads = limitHook(counter(L.uploadsPerUser, (r) => `upload:${r.user?.id}`));
   const imports = limitHook(counter(L.importsPerUser, (r) => `import:${r.user?.id}`));

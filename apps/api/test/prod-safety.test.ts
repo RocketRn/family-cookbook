@@ -163,6 +163,7 @@ describe('fake tokens', () => {
       BOT_USERNAME: 'family_cookbook_bot',
       MINI_APP_SHORT_NAME: 'cook',
       CORS_ORIGIN: 'https://family-cookbook.duckdns.org',
+      BOT_WEBHOOK_SECRET: 'a3f9c1e7b5d2c4e6f8a0b1c3d5e7f921a3f9c1e7b5d2c4e6',
       S3_ENDPOINT: prodWorker.S3_ENDPOINT,
       S3_REGION: 'auto',
       S3_BUCKET: prodWorker.S3_BUCKET,

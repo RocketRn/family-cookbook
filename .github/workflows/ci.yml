@@ -49,6 +49,8 @@ jobs:
           echo "$out" | grep -q 'Invalid environment configuration'
           out=$(docker run --rm cookbook-app node apps/api/dist/server.js 2>&1 || true)
           echo "$out" | grep -q 'Invalid environment configuration'
+          out=$(docker run --rm cookbook-app node apps/api/dist/bot/cli.js set 2>&1 || true)
+          echo "$out" | grep -q 'Invalid environment configuration'
           docker run --rm cookbook-app sh -c 'test "$(id -u)" != 0 && ls db/migrations/0007_timers_outbox.up.sql'
       - name: Caddy configuration is valid, with the CSP header
         run: |

@@ -169,6 +169,8 @@ demo_env() {
   export FAKEBOT_PORT="$BOT_PORT" TELEGRAM_API_BASE="http://127.0.0.1:$BOT_PORT"
   # The stand-in's page links a message's "Open the step" button to the demo app.
   export FAKEBOT_APP_URL="http://localhost:$WEB_PORT"
+  # BE-07: the stand-in delivers "/start" and "blocked the bot" to the API with this local secret.
+  export BOT_WEBHOOK_SECRET="local-demo-webhook-secret"
 }
 
 open_browser() {
@@ -226,6 +228,10 @@ cmd_start() {
   ok "фоновый процесс работает"
   wait_http "http://127.0.0.1:$BOT_PORT/" 30 || { show_log "$LOGS/fakebot.log"; fail "Имитация Telegram не запустилась."; }
   ok "сообщения бота (имитация, в Telegram ничего не уходит): http://127.0.0.1:$BOT_PORT"
+  # The same command as on the server (docker compose run --rm webhook), pointed at the stand-in.
+  WEBHOOK_URL="http://127.0.0.1:$API_PORT/bot/webhook" pnpm --filter @cookbook/api exec tsx --conditions=source src/bot/cli.ts set >"$LOGS/webhook.log" 2>&1 ||
+    { show_log "$LOGS/webhook.log"; fail "Не удалось подключить бота к имитации Telegram."; }
+  ok "бот отвечает на /start: кнопки «Нажать /start» и «Заблокировать бота» на странице сообщений бота"
 
   step "Публикую демо-рецепт с фотографиями"
   API_URL="http://localhost:$API_PORT" WEB_URL="http://localhost:$WEB_PORT" node scripts/demo-recipe.mjs >"$LOGS/demo-recipe.log" 2>&1 ||

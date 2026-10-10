@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dbUrlProblem, isPlaceholder, PLACEHOLDER_BOT } from './prodGuard.js';
+import { dbUrlProblem, isPlaceholder, PLACEHOLDER_BOT, webhookSecretProblem } from './prodGuard.js';
 import {
   DEV_S3_KEYS,
   storageEnvSchema,
@@ -44,6 +44,8 @@ const envSchema = z
     INIT_DATA_MAX_AGE_SECONDS: z.coerce.number().int().min(60).default(86400),
     ALLOW_DEV_INIT_DATA: boolFlag,
     DEV_BOT_TOKEN: z.string().min(1).optional(),
+    /** BE-07: Telegram sends it with every update (setWebhook secret_token). Unset: no webhook. */
+    BOT_WEBHOOK_SECRET: z.string().optional(),
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
     /** Behind an HTTPS proxy in production: trust its X-Forwarded-For so rate limits see client IPs. */
     TRUST_PROXY: boolFlag,
@@ -99,6 +101,10 @@ const envSchema = z
           });
       }
     }
+    const hook = webhookSecretProblem(env.BOT_WEBHOOK_SECRET, env.NODE_ENV === 'production');
+    if (hook) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['BOT_WEBHOOK_SECRET'], message: hook });
+    }
     if (env.DEV_BOT_TOKEN && env.DEV_BOT_TOKEN === env.BOT_TOKEN) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -134,6 +140,8 @@ export type Config = {
   corsOrigin: string;
   /** Tokens initData may be signed with. The dev token is present only in development with the flag. */
   initDataTokens: string[];
+  /** BE-07: the webhook's secret token; null: the webhook is off (404). */
+  botWebhookSecret: string | null;
   trustProxy: boolean;
   rateLimits: {
     perUser: number;
@@ -174,6 +182,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     initDataMaxAgeSeconds: e.INIT_DATA_MAX_AGE_SECONDS,
     corsOrigin: e.CORS_ORIGIN,
     initDataTokens,
+    botWebhookSecret: e.BOT_WEBHOOK_SECRET ?? null,
     trustProxy: e.TRUST_PROXY,
     rateLimits: {
       perUser: e.RATE_LIMIT_PER_USER,

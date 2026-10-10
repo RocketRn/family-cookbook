@@ -16,6 +16,8 @@ const prodBase = {
   BOT_TOKEN: '7000000001:AAEhBP0av28eZqAbCdEfGhIjKlMnOpQrStU',
   BOT_USERNAME: 'family_cookbook_bot',
   DATABASE_URL: 'postgres://cookbook_api:3f9c1e7a5b2d4c6e8f0a1b3c5d7e9f21@postgres:5432/cookbook',
+  // BE-07: the webhook's secret is required in production (Sprint 5).
+  BOT_WEBHOOK_SECRET: 'a3f9c1e7b5d2c4e6f8a0b1c3d5e7f921a3f9c1e7b5d2c4e6',
 };
 
 describe('loadConfig', () => {

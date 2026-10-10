@@ -89,6 +89,56 @@ export function renderTimerFired(p: TimerFiredPayload, lang: Lang, links: Links)
   };
 }
 
+/** BE-07: the answer to /start, and to /start from an invitation link (join_<code>). */
+const START_TEXTS: Record<Lang, { hello: string; invited: string; open: string; join: string }> = {
+  ru: {
+    hello:
+      '👋 Здравствуйте! Это семейная книга рецептов: рецепты, пересчёт порций и таймеры для готовки. Когда таймер закончится, я напишу вам здесь.',
+    invited: '👋 Вас пригласили в семейную книгу рецептов. Откройте её, чтобы присоединиться.',
+    open: 'Открыть книгу',
+    join: 'Открыть и присоединиться',
+  },
+  uk: {
+    hello:
+      '👋 Вітаю! Це сімейна книга рецептів: рецепти, перерахунок порцій і таймери для готування. Коли таймер закінчиться, я напишу вам тут.',
+    invited: '👋 Вас запросили до сімейної книги рецептів. Відкрийте її, щоб приєднатися.',
+    open: 'Відкрити книгу',
+    join: 'Відкрити й приєднатися',
+  },
+  en: {
+    hello:
+      '👋 Hello! This is your family cookbook: recipes, serving sizes and cooking timers. When a timer ends, I’ll message you here.',
+    invited: '👋 You’ve been invited to a family cookbook. Open it to join.',
+    open: 'Open the cookbook',
+    join: 'Open and join',
+  },
+  sv: {
+    hello:
+      '👋 Hej! Det här är familjens kokbok: recept, portioner och timrar för matlagning. När en timer är klar skriver jag till dig här.',
+    invited: '👋 Du har bjudits in till en familjekokbok. Öppna den för att gå med.',
+    open: 'Öppna kokboken',
+    join: 'Öppna och gå med',
+  },
+};
+
+/** The app, opened with a start parameter only when it is one Telegram allows (PRD 4.7). */
+export function appLink(links: Links, start: unknown): string {
+  const base = `https://t.me/${encodeURIComponent(links.botUsername)}/${encodeURIComponent(links.appShortName)}`;
+  return typeof start === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(start)
+    ? `${base}?startapp=${start}`
+    : base;
+}
+
+export function renderBotStart(p: { start?: unknown }, lang: Lang, links: Links): Rendered {
+  const t = START_TEXTS[lang] ?? START_TEXTS.en;
+  const url = appLink(links, p.start);
+  const invited = url.includes('?startapp=join_');
+  return {
+    text: invited ? t.invited : t.hello,
+    reply_markup: { inline_keyboard: [[{ text: invited ? t.join : t.open, url }]] },
+  };
+}
+
 /** Messages the sender knows how to write. new_recipe / recipe_cooked arrive with BE-10 (Sprint 5). */
 export function renderMessage(
   type: string,
@@ -97,5 +147,7 @@ export function renderMessage(
   links: Links,
 ): Rendered | null {
   if (type === 'timer_fired') return renderTimerFired(payload as TimerFiredPayload, lang, links);
+  if (type === 'bot_start')
+    return renderBotStart((payload ?? {}) as { start?: unknown }, lang, links);
   return null;
 }

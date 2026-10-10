@@ -65,6 +65,10 @@ export async function resetData(db: Db): Promise<void> {
   await db.query(
     `DO $$ BEGIN IF to_regclass('public.outbox_gates') IS NOT NULL THEN TRUNCATE outbox_gates; END IF; END $$`,
   );
+  // Sprint 5: the log of Telegram updates already handled (BE-07).
+  await db.query(
+    `DO $$ BEGIN IF to_regclass('public.tg_updates') IS NOT NULL THEN TRUNCATE tg_updates; END IF; END $$`,
+  );
   await db.query('DELETE FROM tags WHERE custom_name IS NOT NULL');
 }
 
