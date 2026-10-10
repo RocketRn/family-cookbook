@@ -140,11 +140,13 @@ function Cooking({
   };
 
   // Opened at a step (a timer message): remember it, and start a session if there is none.
+  // From the current state, not the one it opened with: a timer may already have been started
+  // before this effect ran, and writing the opening state back would erase it (found in CI).
   useEffect(() => {
     if (start.phase !== 'step') return;
-    save(start.st);
-    if (!start.st.session_id) beginSession(start.st);
-    // Only once, for the state this screen opened with.
+    save(stRef.current);
+    if (!stRef.current.session_id) beginSession(stRef.current);
+    // Only once, when the screen opens.
   }, []);
 
   // A newer copy of the same version (fresh photo links) replaces the saved one. A changed recipe

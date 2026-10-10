@@ -56,3 +56,9 @@ Additions:
 - The API test setup stops before migrations and before any test when the terminal has `NODE_ENV=production`, `TELEGRAM_LIVE` or a non-local `TELEGRAM_API_BASE`. Checked by hand: `NODE_ENV=production` and `TELEGRAM_LIVE=yes` runs both stop with "Refusing to run the tests…".
 - Red first: on the old code the worker started in production without `TELEGRAM_LIVE` (8 cases), the client was created for the real API inside a test run and sent the token to non-local stand-ins (4 cases), and the deploy files had no switch. The worker entry point was also run in production mode with a made-up real-looking token and no switch: it exits with code 1 and names `TELEGRAM_LIVE`, without printing the token.
 - Guide: the switch in the `.env` step (9.5) with a check command, a one-time line for an existing `.env` in "Обновить приложение", and two rows in section 13.
+
+### Fix: a timer erased the moment cooking opened (found by CI #29)
+
+- CI #29 (S5-2) failed on Postgres 16 only, in a web test: the timer chip was on screen but the saved progress had no timer. Reproduced locally about once in 25 runs.
+- Cause: cooking opened at a step writes its state once when the screen opens, and it wrote the state it opened with. A timer started before that write (a tap in the instant the step appeared) was erased from the device's copy. It is now written from the current state.
+- Red first: a new test taps "Start timer" as soon as the button is in the page; it failed 8 of 8 runs before the fix and passes 8 of 8 after; the test that failed in CI passed 40 of 40 runs after the fix.

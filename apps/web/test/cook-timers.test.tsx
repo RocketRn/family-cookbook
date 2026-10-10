@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cookKey, type CookState } from '../src/cook/state';
 import { setLanguage } from '../src/i18n';
@@ -131,6 +131,26 @@ describe('timers in cooking mode', () => {
     expect(screen.getByText('Step 1 of 2')).toBeTruthy();
     expect(within(timersRegion()).getByRole('button', { name: /^⏱ Тушить · 1:/ })).toBeTruthy();
     expect(within(timersRegion()).getByText(/the bot sends you a message/)).toBeTruthy();
+  });
+
+  it('a timer started the moment the step appears is kept (found by CI: the screen wrote back its opening state)', async () => {
+    api();
+    localStorage.setItem(cookKey(GOLUBTSY_ID), JSON.stringify(cooking(1)));
+    // Tap as soon as the button is in the page: before React has run the screen's opening effects.
+    const tap = new MutationObserver(() => {
+      const b = screen.queryByRole('button', { name: '⏱ Start timer: Тушить, 1:30:00' });
+      if (!b) return;
+      tap.disconnect();
+      fireEvent.click(b);
+    });
+    tap.observe(document.body, { childList: true, subtree: true });
+    renderApp(`/cook/${GOLUBTSY_ID}?step=2`);
+    const region = await screen.findByRole('region', { name: 'Timers' });
+    await within(region).findByRole('button', { name: /^⏱ Тушить · 1:(30:00|29:59)$/ });
+    await waitFor(() =>
+      expect(saved().timers).toMatchObject([{ server_id: TIMER, label: 'Тушить', synced: true }]),
+    );
+    tap.disconnect();
   });
 
   it('a list of timers that was asked for before the start, but answers after it, does not erase it', async () => {
