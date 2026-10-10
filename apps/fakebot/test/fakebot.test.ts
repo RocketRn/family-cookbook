@@ -428,3 +428,33 @@ describe('savePreparedInlineMessage', () => {
     );
   });
 });
+
+/** S6-5 (QA-03): like Telegram, refuse more than N messages a second for the whole bot. */
+describe('the bot-wide limit (optional)', () => {
+  it('answers 429 above the limit, and counts the refusals', async () => {
+    const bot = await startFakeTelegram({ token: '123:fake', globalPerSecond: 5 });
+    try {
+      const codes: number[] = [];
+      for (let i = 0; i < 8; i++) {
+        const r = await fetch(`${bot.url}/bot123:fake/sendMessage`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ chat_id: 100 + i, text: `n${i}` }),
+        });
+        codes.push(r.status);
+      }
+      expect(codes).toEqual([200, 200, 200, 200, 200, 429, 429, 429]);
+      expect(bot.refused429).toBe(3);
+      expect(bot.messages).toHaveLength(5);
+      await new Promise((r) => setTimeout(r, 1100));
+      const later = await fetch(`${bot.url}/bot123:fake/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ chat_id: 1, text: 'later' }),
+      });
+      expect(later.status).toBe(200);
+    } finally {
+      await bot.close();
+    }
+  });
+});

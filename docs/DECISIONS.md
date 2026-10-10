@@ -352,7 +352,7 @@ Replaces the client-side search over loaded pages (owner decision 6, D-030).
   - Delivery is at least once. The only duplicate possible is a crash in the moment between Telegram's answer and our update.
   - Tested with two senders at once and with a worker that stopped half-way.
 - **Telegram's limits**, shared by all workers through the database (`outbox_gates`):
-  - one message per chat per second, and 25 a second for the whole bot (Telegram allows about 30);
+  - one message per chat per second, and 25 a second for the whole bot (Telegram allows about 30); a short wait for the bot's pace is waited out (D-058);
   - a **429** pauses that chat and the whole bot for `retry_after` seconds and does not count as a failed attempt;
   - a **403** stops all messages to that person, sets `bot_started = false`, and marks the timers behind those messages "failed" (PRD 4.4). The app can then show "the bot cannot write to you";
   - a **400** (Telegram refuses the message) is not retried;
@@ -646,3 +646,12 @@ PRD 4.1 names grammY for the bot. The owner decided to keep the current code. Re
 - **`GET /health/full`** (`/api/health/full` through Caddy): the database, whether the worker keeps up (`overdue_messages`: due for more than 2 minutes and not even tried; a message waiting for Telegram's "retry after" is not overdue), and the last hour's timer messages (sent, late, failed, p50 / p95 / max in milliseconds). 503 when the database is down or anything is overdue. Only counts and times, read through one SECURITY DEFINER function the sign-in role may call (migration 0013); limited per address. `GET /health` stays the plain liveness check Docker uses, so a stopped worker does not make Docker restart the API.
 - **The alert** is Google Cloud Monitoring's uptime check on `/api/health/full` every 5 minutes, e-mailing the owner (DEPLOY-GCP 9.10). No extra service runs on the server.
 - **Not done:** dashboards or metrics storage; the logs and this page are enough for one family's server.
+
+### D-058 The worker under load: 1000 timers, 100 ending in the same second (QA-03)
+
+- **The test** (`apps/api/test/worker-load.test.ts`, part of every CI run): 100 people with 10 running timers each (1000; 10 is the most one person may have), one timer of each person ending in the same second. Two real worker processes (`apps/worker`, as on a server that runs more than one) send through the Telegram stand-in, which now refuses more than 30 messages a second for the bot with 429, as Telegram does.
+- **What it showed.** Every message went exactly once and the other 900 timers were untouched, but the last message was 18.5 s late and half of them more than 8.8 s (73 of 100 over PRD 7.1's 5 s). The cause: when the whole bot's pace (25 a second, one message every 40 ms) was taken by the message just sent, the sender put the next one off until the next poll, half a second later, instead of waiting 40 ms; and between two full batches it idled for that half second too.
+- **The fix.**
+  - A wait of up to a second for the whole bot's pace is waited out (the gate still lives in the database, so several workers share it). A message is put back only for its own chat's pace (one a second) or a longer pause after a 429. All waiting in one batch stays under half the 30-second lease, so another worker never takes a message that is still being sent.
+  - While a batch was full, the worker takes the next one at once (`sendWhileBusy`, for up to 5 s, then the other jobs get their turn).
+- **After the fix**, measured the way the server measures it (`delivery_health()`, D-057), three runs: the last message 4.4–4.6 s late, half within 2.4–2.6 s, none over 5 s, no 429 from the stand-in. 100 messages at once cannot go faster than Telegram's own limit allows (about 3–4 s for the last one); a family's usual load is a few messages at a time, each within about a second.

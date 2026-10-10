@@ -56,6 +56,8 @@ export type FakeTelegram = {
   failNext(count: number, failure: Failure): void;
   /** Every message to this chat gets 403, like a user who blocked the bot. */
   blockChat(chatId: string | number): void;
+  /** Messages refused with 429 by `globalPerSecond`. */
+  refused429: number;
   /** Messages prepared for sharing (S6-3b), oldest first. */
   prepared: PreparedMessage[];
   /** Forgets messages, failures, blocks and the webhook. */
@@ -103,6 +105,8 @@ export type Options = {
    * (t.me/<bot>/<app>?startapp=…) then also links to the same place in the demo.
    */
   appUrl?: string;
+  /** QA-03: like Telegram, answer 429 to more messages than this a second for the whole bot. */
+  globalPerSecond?: number;
 };
 
 const DESCRIPTIONS: Record<Failure['status'], string> = {
@@ -115,6 +119,9 @@ const DESCRIPTIONS: Record<Failure['status'], string> = {
 export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegram> {
   const messages: SentMessage[] = [];
   const prepared: PreparedMessage[] = [];
+  /** When accepted messages were sent (ms), for `globalPerSecond`. */
+  const recent: number[] = [];
+  let refused429 = 0;
   const queue: Failure[] = [];
   const blocked = new Set<string>();
   let calls = 0;
@@ -340,6 +347,14 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     const photo = isPhoto && typeof body.photo === 'string' ? body.photo : null;
     const queued = queue.shift();
     if (queued) return fail(res, queued);
+    if (opts.globalPerSecond) {
+      const now = Date.now();
+      while (recent.length && recent[0]! <= now - 1000) recent.shift();
+      if (recent.length >= opts.globalPerSecond) {
+        refused429++;
+        return fail(res, { status: 429, retryAfter: 1 });
+      }
+    }
     if (blocked.has(chatId)) return fail(res, { status: 403 });
     if (!chatId || (!isPhoto && !text))
       return fail(res, { status: 400, description: 'Bad Request: chat_id and text are required' });
@@ -371,6 +386,7 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
       date: Math.floor(Date.now() / 1000),
     };
     messages.push(msg);
+    if (opts.globalPerSecond) recent.push(Date.now());
     reply(res, 200, {
       ok: true,
       result: {
@@ -447,6 +463,9 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     get calls() {
       return calls;
     },
+    get refused429() {
+      return refused429;
+    },
     get webhook() {
       return webhook ? { ...webhook } : null;
     },
@@ -465,6 +484,8 @@ export async function startFakeTelegram(opts: Options = {}): Promise<FakeTelegra
     clear() {
       messages.length = 0;
       prepared.length = 0;
+      recent.length = 0;
+      refused429 = 0;
       queue.length = 0;
       blocked.clear();
       calls = 0;

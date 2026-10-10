@@ -11,7 +11,7 @@ import {
   loadWorkerConfig,
   objectKeys,
   S3Storage,
-  sendDueMessages,
+  sendWhileBusy,
 } from '@cookbook/api/jobs';
 
 // The worker: a separate process from the API (PRD 4.1). It fires due timers (BE-09), sends the
@@ -74,7 +74,8 @@ const stops = [
   }),
   loop('outbox', config.outboxPollMs, async () => {
     if (!telegram) return; // no Bot API configured: messages wait in the outbox
-    const s = await sendDueMessages(db, telegram, {
+    // S6-5 (D-058): batch after batch while more is due, so a burst does not wait for the poll.
+    const s = await sendWhileBusy(db, telegram, {
       links: config.links,
       log,
       // BE-10: "I cooked it" photos: Telegram fetches the full copy by a signed link.

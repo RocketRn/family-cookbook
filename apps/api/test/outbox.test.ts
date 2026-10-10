@@ -1,7 +1,7 @@
 import { startFakeTelegram, type FakeTelegram } from '@cookbook/fakebot';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '../src/db/pool.js';
-import { sendDueMessages, type SenderOptions } from '../src/notify/outbox.js';
+import { sendDueMessages, sendWhileBusy, type SenderOptions } from '../src/notify/outbox.js';
 import { createTelegramClient, type TelegramClient } from '../src/notify/telegram.js';
 import { fireDueTimers } from '../src/timers/fire.js';
 import { adminPool, resetData, testPool } from './helpers/db.js';
@@ -279,16 +279,55 @@ describe("Telegram's limits and answers", () => {
     expect((await sendDueMessages(db, telegram, opts)).sent).toBe(1);
   });
 
-  it('the bot as a whole stays under its rate (here 5 a second)', async () => {
+  it('the bot as a whole stays under its rate (here 5 a second): a short wait is waited out', async () => {
+    // S6-5 (QA-03, D-058): putting the message off until the next poll (half a second later)
+    // made a burst of 100 timer messages take 18 s; the sender now waits the few milliseconds.
     for (let i = 0; i < 6; i++) await fired((await user()).id);
-    const r = await sendDueMessages(db, telegram, { ...opts, globalIntervalMs: 200 });
-    expect(r).toMatchObject({ sent: 1, deferred: 5 });
-    const waits = (
+    const times: number[] = [];
+    const timed: TelegramClient = {
+      ...telegram,
+      sendMessage: (...a) => {
+        times.push(Date.now());
+        return telegram.sendMessage(...a);
+      },
+    };
+    const r = await sendDueMessages(db, timed, { ...opts, globalIntervalMs: 200 });
+    expect(r).toMatchObject({ sent: 6, deferred: 0 });
+    const gaps = times.slice(1).map((t, i) => t - times[i]!);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(180);
+  });
+
+  it('a longer wait for the whole bot (over a second) is not waited out: the message is put off', async () => {
+    for (let i = 0; i < 2; i++) await fired((await user()).id);
+    const r = await sendDueMessages(db, telegram, { ...opts, globalIntervalMs: 3000 });
+    expect(r).toMatchObject({ sent: 1, deferred: 1 });
+    const wait = (
       await admin.query(
         `SELECT extract(epoch FROM run_at - now()) AS w FROM notification_outbox WHERE status = 'pending'`,
       )
     ).rows.map((x) => Number(x.w));
-    expect(Math.max(...waits)).toBeLessThan(1.5);
+    expect(wait[0]).toBeGreaterThan(2);
+  });
+
+  it('while more is due than one batch, the worker keeps going without idling between batches', async () => {
+    for (let i = 0; i < 25; i++) await fired((await user()).id);
+    const r = await sendWhileBusy(db, telegram, { ...opts, batch: 10, globalIntervalMs: 5 });
+    expect(r).toMatchObject({ sent: 25, deferred: 0 });
+    expect(bot.messages).toHaveLength(25);
+    // Nothing left: one more round finds nothing and stops at once.
+    expect(await sendWhileBusy(db, telegram, opts)).toMatchObject({ sent: 0, claimed: 0 });
+  });
+
+  it('…but not forever: it stops after the time it is given, the rest goes on the next poll', async () => {
+    for (let i = 0; i < 12; i++) await fired((await user()).id);
+    const r = await sendWhileBusy(db, telegram, {
+      ...opts,
+      batch: 2,
+      globalIntervalMs: 100,
+      busyForMs: 300,
+    });
+    expect(r.sent).toBeGreaterThan(1);
+    expect(r.sent).toBeLessThan(12);
   });
 
   it('timer messages go first', async () => {

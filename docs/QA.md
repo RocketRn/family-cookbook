@@ -1,6 +1,6 @@
 # Test plan (QA-01)
 
-What is tested, where, and how to run it. It covers the MVP (PRD stage 1) and is updated every sprint. Real-device checks (QA-02) and load (QA-03) are listed here but run in Sprints 5–6.
+What is tested, where, and how to run it. It covers the MVP (PRD stage 1) and is updated every sprint. Real-device checks (QA-02) are listed here and need a phone; the load test (QA-03) runs in CI since Sprint 6.
 
 ## 1. Levels and where the tests live
 
@@ -14,7 +14,7 @@ What is tested, where, and how to run it. It covers the MVP (PRD stage 1) and is
 | Browser | The main paths in Chromium at phone width against the real API, database, S3, worker and the Telegram stand-in (section 4)                                                                                                                             | `e2e/tests/*.spec.ts` (Playwright)                                                    | yes (job "Browser tests") |
 | Images  | The production images build; their entry points start and refuse missing settings; Caddy's configuration is valid                                                                                                                                      | CI job "Production images"                                                            | yes                       |
 | Devices | Telegram on iPhone, Android and Desktop (section 5)                                                                                                                                                                                                    | QA-02                                                                                 | no                        |
-| Load    | 1000 active timers, a burst of 100 at once                                                                                                                                                                                                             | QA-03 (Sprint 6)                                                                      | no                        |
+| Load    | 1000 running timers of 100 people, 100 ending in the same second; two real workers; the stand-in refuses over 30 a second like Telegram. Every message once, delays measured (D-058)                                                                   | `apps/api/test/worker-load.test.ts`                                                   | yes                       |
 
 A test is written before or together with its code, and it must fail on the code before the change. Each sprint report says which tests were red first.
 
@@ -119,4 +119,5 @@ A sprint is closed only with no open P0 or P1.
 | 4.6 | Countdown by the server's clock; offline start syncs with the same id                         | `web/test/cook-timers.test.tsx`                                                                            |
 | 4.4 | Bot text escaped; Telegram limits; 429 / 403 handled; nothing lost on restart                 | `api/test/notify-text.test.ts`, `outbox.test.ts`                                                           |
 | 7.1 | A timer message within 5 s: measured (end → sent), shown and alerted on                       | `api/test/observability.test.ts` (`GET /health/full`, the worker's `timer message sent` log)               |
+| 7.1 | Under load (QA-03): a burst of 100 timer messages, each once, the last within 5 s, no 429     | `api/test/worker-load.test.ts`, `outbox.test.ts` (the bot-wide pace is waited out, not put off)            |
 | 3.3 | Nobody else (not even in the same book) reads, cancels or extends a timer                     | `api/test/timers.test.ts` (API and directly in the database)                                               |

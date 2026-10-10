@@ -13,6 +13,9 @@ import { renderMessage, type Lang, type Links, type Rendered } from './templates
  * - Telegram's limits are shared through the database (outbox_gates): one message per chat per
  *   second, and a global pace for the whole bot. A 429 pauses the chat and the whole bot for
  *   retry_after seconds and does not count as a failed attempt.
+ * - S6-5 (QA-03; D-058): a wait of up to a second for the whole bot's pace is waited out here; a
+ *   message is put off (back to "pending") only for its own chat's pace or a longer pause. And
+ *   while a full batch was due, sendWhileBusy takes the next one at once instead of idling.
  * - 403: the bot may not write to this person. Their messages stop, bot_started becomes false,
  *   and the timers behind those messages become "failed" (PRD 4.4).
  * - Other errors are retried after 1 s, 5 s, 30 s and 5 min; after 5 attempts the message (and
@@ -30,6 +33,8 @@ export type SenderOptions = {
   backoffSec?: number[];
   maxAttempts?: number;
   log?: (level: 'info' | 'warn' | 'error', msg: string, extra?: Record<string, unknown>) => void;
+  /** sendWhileBusy: how long to keep taking full batches before giving the poll its turn. */
+  busyForMs?: number;
   /**
    * BE-10: a link Telegram can fetch for a stored photo (a signed link to its full copy). Without
    * it, a message with a photo goes as text.
@@ -38,6 +43,8 @@ export type SenderOptions = {
 };
 
 export type SendStats = {
+  /** Messages taken in this call (a full batch means more may be due). */
+  claimed: number;
   sent: number;
   deferred: number;
   retried: number;
@@ -136,20 +143,36 @@ async function deliver(
 }
 
 class GateClosed extends Error {
-  constructor(readonly until: Date) {
+  constructor(
+    readonly key: string,
+    readonly until: Date,
+    /** How long until it opens, by the database's clock. */
+    readonly waitMs: number,
+  ) {
     super('gate closed');
   }
 }
 
+/** The longest wait for the whole bot's pace that is waited out rather than put off. */
+const MAX_GLOBAL_WAIT_MS = 1000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const GATE_TIME = `SELECT next_at,
+         greatest(0, extract(epoch FROM next_at - clock_timestamp()) * 1000)::float8 AS wait_ms
+    FROM outbox_gates WHERE key = $1`;
+
 /** Opens a gate if its time has come (and moves it on), or throws GateClosed with its time. */
 async function passGate(tx: Tx, key: string, intervalMs: number): Promise<void> {
+  const closed = async () => {
+    const r = await tx.query<{ next_at: Date; wait_ms: number }>(GATE_TIME, [key]);
+    return new GateClosed(key, r.rows[0]!.next_at, r.rows[0]!.wait_ms);
+  };
   if (intervalMs <= 0) {
     // No regular pace, but a pause after a 429 still holds.
-    const paused = await tx.query<{ next_at: Date }>(
-      'SELECT next_at FROM outbox_gates WHERE key = $1 AND next_at > now()',
-      [key],
-    );
-    if (paused.rowCount) throw new GateClosed(paused.rows[0]!.next_at);
+    const paused = await tx.query('SELECT 1 FROM outbox_gates WHERE key = $1 AND next_at > now()', [
+      key,
+    ]);
+    if (paused.rowCount) throw await closed();
     return;
   }
   const opened = await tx.query(
@@ -160,10 +183,7 @@ async function passGate(tx: Tx, key: string, intervalMs: number): Promise<void> 
     [key, intervalMs / 1000],
   );
   if (opened.rowCount) return;
-  const r = await tx.query<{ next_at: Date }>('SELECT next_at FROM outbox_gates WHERE key = $1', [
-    key,
-  ]);
-  throw new GateClosed(r.rows[0]!.next_at);
+  throw await closed();
 }
 
 /** After a 429: nothing is sent to this chat, or by the bot at all, until `seconds` have passed. */
@@ -188,12 +208,15 @@ export async function sendDueMessages(
   telegram: TelegramClient,
   opts: SenderOptions,
 ): Promise<SendStats> {
-  const stats: SendStats = { sent: 0, deferred: 0, retried: 0, failed: 0, blocked: 0 };
+  const stats: SendStats = { claimed: 0, sent: 0, deferred: 0, retried: 0, failed: 0, blocked: 0 };
   const chatMs = opts.chatIntervalMs ?? 1000;
   const globalMs = opts.globalIntervalMs ?? 40;
   const backoff = opts.backoffSec ?? BACKOFF;
   const maxAttempts = opts.maxAttempts ?? 5;
   const log = opts.log ?? (() => undefined);
+  const leaseSec = opts.leaseSec ?? 30;
+  // Waiting for the bot's pace never runs into the lease (another worker would take the message).
+  const waitUntil = Date.now() + (leaseSec * 1000) / 2;
 
   const claimed = await withWorker(db, async (tx) => {
     const r = await tx.query<Claimed>(
@@ -210,13 +233,14 @@ export async function sendDueMessages(
           AND u.id = o.recipient_user_id
        RETURNING o.id, o.type, o.payload, o.attempts, o.priority, o.run_at, o.recipient_user_id,
                  u.tg_user_id::text AS chat_id, u.ui_lang, u.deleted_at`,
-      [opts.batch ?? 20, opts.leaseSec ?? 30],
+      [opts.batch ?? 20, leaseSec],
     );
     return r.rows.sort(
       (a, b) => a.priority - b.priority || a.run_at.getTime() - b.run_at.getTime(),
     );
   });
 
+  stats.claimed = claimed.length;
   const collapsed = await collapseNewRecipes(db, claimed);
   const blockedUsers = new Set<string>();
   for (const m of claimed) {
@@ -245,17 +269,30 @@ export async function sendDueMessages(
       continue;
     }
 
-    try {
-      await withWorker(db, async (tx) => {
-        await passGate(tx, `chat:${m.chat_id}`, chatMs);
-        await passGate(tx, 'global', globalMs);
-      });
-    } catch (err) {
-      if (!(err instanceof GateClosed)) throw err;
+    let putOff: Date | null = null;
+    for (;;) {
+      try {
+        await withWorker(db, async (tx) => {
+          await passGate(tx, `chat:${m.chat_id}`, chatMs);
+          await passGate(tx, 'global', globalMs);
+        });
+        break;
+      } catch (err) {
+        if (!(err instanceof GateClosed)) throw err;
+        // The whole bot's pace (another message, perhaps another worker's, went just now):
+        // wait the few milliseconds. This chat's own pace, or a long pause: put it off.
+        if (err.key !== 'global' || err.waitMs > MAX_GLOBAL_WAIT_MS || Date.now() > waitUntil) {
+          putOff = err.until;
+          break;
+        }
+        await sleep(Math.max(5, Math.ceil(err.waitMs)));
+      }
+    }
+    if (putOff) {
       await done(
         `UPDATE notification_outbox SET status = 'pending', locked_until = NULL, run_at = $2
           WHERE id = $1 AND status = 'sending'`,
-        [m.id, err.until],
+        [m.id, putOff],
       );
       stats.deferred++;
       continue;
@@ -326,4 +363,23 @@ export async function sendDueMessages(
     }
   }
   return stats;
+}
+
+/**
+ * S6-5 (QA-03; D-058): sends batch after batch while each one was full (more may be due), for up to
+ * `busyForMs` (5 s by default), so a burst does not wait for the next poll between batches.
+ */
+export async function sendWhileBusy(
+  db: Db,
+  telegram: TelegramClient,
+  opts: SenderOptions,
+): Promise<SendStats> {
+  const total: SendStats = { claimed: 0, sent: 0, deferred: 0, retried: 0, failed: 0, blocked: 0 };
+  const batch = opts.batch ?? 20;
+  const until = Date.now() + (opts.busyForMs ?? 5000);
+  for (;;) {
+    const s = await sendDueMessages(db, telegram, opts);
+    for (const k of Object.keys(total) as Array<keyof SendStats>) total[k] += s[k];
+    if (s.claimed < batch || Date.now() >= until) return total;
+  }
 }
